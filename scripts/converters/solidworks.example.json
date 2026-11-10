@@ -1,0 +1,16 @@
+{
+  "schema": "atelier.cad_converters.v1",
+  "converters": [
+    {
+      "name": "SOLIDWORKS Windows COM vers STEP",
+      "extensions": [".sldprt", ".sldasm"],
+      "command": [
+        "powershell.exe", "-NoProfile", "-STA", "-File",
+        "C:/Mailleur/atelier_mailleur/scripts/converters/solidworks_to_step.ps1",
+        "-InputPath", "{input}", "-OutputPath", "{output}"
+      ],
+      "output_extension": ".step",
+      "timeout": 120
+    }
+  ]
+}

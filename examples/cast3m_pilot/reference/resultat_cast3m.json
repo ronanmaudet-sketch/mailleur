@@ -1,0 +1,393 @@
+{
+  "schema": "mailleur.cast3m.example.result.v1",
+  "executed_at_utc": "2026-11-10T20:21:27.715695+00:00",
+  "passed": true,
+  "checks": [
+    {
+      "marker": "MAILLEUR_NODES",
+      "actual": 497.0,
+      "expected": 497,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_ELEMENTS",
+      "actual": 443.0,
+      "expected": 443,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_TYPE_SEG3",
+      "actual": 44.0,
+      "expected": 44,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_TYPE_TRI6",
+      "actual": 178.0,
+      "expected": 178,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_TYPE_TE10",
+      "actual": 221.0,
+      "expected": 221,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_000",
+      "actual": 178.0,
+      "expected": 178,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_000",
+      "actual": 358.0,
+      "expected": 358,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_001",
+      "actual": 221.0,
+      "expected": 221,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_001",
+      "actual": 497.0,
+      "expected": 497,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_002",
+      "actual": 26.0,
+      "expected": 26,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_002",
+      "actual": 65.0,
+      "expected": 65,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_003",
+      "actual": 24.0,
+      "expected": 24,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_003",
+      "actual": 61.0,
+      "expected": 61,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_004",
+      "actual": 32.0,
+      "expected": 32,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_004",
+      "actual": 81.0,
+      "expected": 81,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_005",
+      "actual": 32.0,
+      "expected": 32,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_005",
+      "actual": 81.0,
+      "expected": 81,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_006",
+      "actual": 32.0,
+      "expected": 32,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_006",
+      "actual": 81.0,
+      "expected": 81,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_007",
+      "actual": 32.0,
+      "expected": 32,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_007",
+      "actual": 81.0,
+      "expected": 81,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_008",
+      "actual": 44.0,
+      "expected": 44,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_008",
+      "actual": 84.0,
+      "expected": 84,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_009",
+      "actual": 178.0,
+      "expected": 178,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_009",
+      "actual": 358.0,
+      "expected": 358,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_G_010",
+      "actual": 221.0,
+      "expected": 221,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_GN_010",
+      "actual": 497.0,
+      "expected": 497,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MIN_1",
+      "actual": 0.0,
+      "expected": 0.0,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 1e-12,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MAX_1",
+      "actual": 2.0,
+      "expected": 2.0,
+      "relative_tolerance": 1e-09,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MIN_2",
+      "actual": 0.0,
+      "expected": 0.0,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 1e-12,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MAX_2",
+      "actual": 1.0,
+      "expected": 1.0,
+      "relative_tolerance": 1e-09,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MIN_3",
+      "actual": 0.0,
+      "expected": 0.0,
+      "relative_tolerance": 0.0,
+      "absolute_tolerance": 1e-12,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_MAX_3",
+      "actual": 1.0,
+      "expected": 1.0,
+      "relative_tolerance": 1e-09,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_UMAX",
+      "actual": 9.52381e-05,
+      "expected": 9.523809523809524e-05,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_UERROR",
+      "actual": 3.65918e-19,
+      "maximum": 9.523809523809525e-13,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_YERROR",
+      "actual": 1.50772e-19,
+      "maximum": 9.523809523809525e-13,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_ZERROR",
+      "actual": 1.4569e-19,
+      "maximum": 9.523809523809525e-13,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_YMIN",
+      "actual": -1.42857e-05,
+      "expected": -1.4285714285714285e-05,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_ZMIN",
+      "actual": -1.42857e-05,
+      "expected": -1.4285714285714285e-05,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_SMIN",
+      "actual": 10.0,
+      "expected": 10.0,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_SMAX",
+      "actual": 10.0,
+      "expected": 10.0,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_FORCE_X",
+      "actual": 10.0,
+      "expected": 10.0,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    },
+    {
+      "marker": "MAILLEUR_REACTION_X",
+      "actual": -10.0,
+      "expected": -10.0,
+      "relative_tolerance": 2e-06,
+      "absolute_tolerance": 0.0,
+      "passed": true
+    }
+  ],
+  "check_count": 43,
+  "input_files_unchanged": true,
+  "cast3m": {
+    "version": "2026.0",
+    "launcher_name": "castem26",
+    "launcher_sha256": "a7cfe91534b771e6d6034fa82849ff6a9aa6e7a1e774008c5c3e40551c9a13b2",
+    "binary": {
+      "name": "bin_Cast3M_Darwin_EDURE_26",
+      "sha256": "51b785909dc1cf0c37beb419a2a4d2034b65a6438d97237180a25626c965b907",
+      "format": "Mach-O 64-bit executable arm64"
+    },
+    "returncode": 0,
+    "error_levels": [
+      0
+    ],
+    "fortran_flags": [
+      "IEEE_INVALID_FLAG"
+    ],
+    "elapsed_seconds": 0.8113536250020843
+  },
+  "machine": {
+    "os": "Darwin",
+    "os_version": "27.2",
+    "architecture": "arm64"
+  },
+  "analytical": {
+    "units": "mm / N / N/mm2",
+    "young": 210000.0,
+    "poisson": 0.3,
+    "traction": 10.0,
+    "maximum_axial_displacement": 9.523809523809524e-05,
+    "maximum_transverse_contraction": 1.4285714285714285e-05,
+    "applied_force": 10.0,
+    "reaction_force": -10.0
+  },
+  "input_files_sha256": {
+    "project.json": "c8380859bad454bed400aaad58062c00df9d3dd924f78a95a52ce6b80a7bba8f",
+    "import_cast3m.dgibi": "8d4012fc93d43627ce24d91383a9ae86c0f1af23bf76926d8cccd58acb83f465",
+    "import_cast3m.unv": "0dc54eb1e26f5d4b91f82ce1557befc640a409bbb7a5b9ef48566d5383b048f0",
+    "import_cast3m.dgibi.units.json": "9c1e638e55d06686df49220f50a0ea0160e0baeadc02dc99fd14f1dff3a859ff",
+    "traction.dgibi": "7ff3cbe83132bc91d07db8b3ddcd7095c0579213e59e45becf8006e6440f38d2"
+  },
+  "public_log": {
+    "file": "cast3m_extrait.log",
+    "sha256": "b8a658e91fed0c38931e26d86699036a22a1fc6e6ffc5f41ca2f95549f6d6883",
+    "complete_log": false
+  },
+  "scope": "Un seul cas élastique volumique quadratique ; aucune certification de toutes versions ou formulations."
+}

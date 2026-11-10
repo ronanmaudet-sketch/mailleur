@@ -1,0 +1,28 @@
+{
+  "schema": "mailleur.cast3m.example.standalone.v1",
+  "python": "3.9.6",
+  "mailleur_installed": false,
+  "mode": "--reference",
+  "passed": true,
+  "check_count": 43,
+  "cast3m": {
+    "version": "2026.0",
+    "launcher_name": "castem26",
+    "launcher_sha256": "a7cfe91534b771e6d6034fa82849ff6a9aa6e7a1e774008c5c3e40551c9a13b2",
+    "binary": {
+      "name": "bin_Cast3M_Darwin_EDURE_26",
+      "sha256": "51b785909dc1cf0c37beb419a2a4d2034b65a6438d97237180a25626c965b907",
+      "format": "Mach-O 64-bit executable arm64"
+    },
+    "returncode": 0,
+    "error_levels": [
+      0
+    ],
+    "fortran_flags": [
+      "IEEE_INVALID_FLAG"
+    ],
+    "elapsed_seconds": 0.46648979199999996
+  },
+  "input_files_unchanged": true,
+  "executed_at_utc": "2026-11-10T20:22:24.283546+00:00"
+}

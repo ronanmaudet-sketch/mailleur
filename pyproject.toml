@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atelier-mailleur"
+version = "1.0.0rc7"
+description = "Interface CAO et maillage PySide6 avec noyau numérique natif Rust"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+dependencies = [
+  "gmsh==4.15.2",
+  "meshio==5.3.5",
+  "h5py>=3.10,<4",
+  "numpy>=1.24,<3",
+  "PySide6-Essentials>=6.8,<7",
+]
+
+[project.optional-dependencies]
+cad = []
+
+[project.scripts]
+atelier-mailleur = "atelier.__main__:main"
+mailleur = "mailleur.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["atelier*", "mailleur*"]
+
+[tool.setuptools.package-data]
+atelier = ["desktop.qss", "web/*.html", "web/*.css", "web/*.js"]

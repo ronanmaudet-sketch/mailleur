@@ -1,0 +1,21 @@
+# Alternative to scripts/install.py on Linux ARM64: PyPI gmsh 4.15.2 has no
+# Linux aarch64 wheel. Gmsh and its Python distribution come from conda-forge.
+# See docs/VALIDATION_RC7.md for the actually tested Ubuntu configuration.
+name: mailleur-linux-arm64
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - gmsh=4.15.2
+  - python-gmsh=4.15.2
+  - meshio=5.3.5
+  - numpy>=1.24,<3
+  - h5py>=3.10,<4
+  - pyside6=6.11.3
+  - pip
+  - pip:
+      # Keep the Python/Qt API coherent with the conda package, and satisfy
+      # the project's explicit distribution requirement without --no-deps.
+      - PySide6-Essentials==6.11.3
+      - -e .

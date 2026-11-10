@@ -1,0 +1,95 @@
+{
+  "generated_utc": "2026-11-10T20:47:59.926287+00:00",
+  "author": "Projet Mailleur",
+  "source_sha256": "6652d1f7f0fadba3d6b69261b46416c1f946849e369cd9864a848ded803eaf4a",
+  "body_font_size": 9.8,
+  "fonts": {
+    "normal": "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "bold": "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "italic": "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
+    "mono": "/System/Library/Fonts/Supplemental/Courier New.ttf"
+  },
+  "pdf": {
+    "pages": 5,
+    "missing_source_blocks": [],
+    "out_of_page_characters": [],
+    "page_statistics": [
+      {
+        "page": 1,
+        "characters": 2359,
+        "body_bottom_points": 636.3407021600001
+      },
+      {
+        "page": 2,
+        "characters": 2437,
+        "body_bottom_points": 637.26070216
+      },
+      {
+        "page": 3,
+        "characters": 2401,
+        "body_bottom_points": 623.51270216
+      },
+      {
+        "page": 4,
+        "characters": 2556,
+        "body_bottom_points": 638.70470216
+      },
+      {
+        "page": 5,
+        "characters": 2856,
+        "body_bottom_points": 629.0031182
+      }
+    ]
+  },
+  "docx": {
+    "explicit_page_breaks": 4,
+    "missing_source_blocks": [],
+    "author": "Projet Mailleur",
+    "libreoffice_render": {
+      "pages": 5,
+      "missing_source_blocks": [],
+      "out_of_page_characters": [],
+      "page_statistics": [
+        {
+          "page": 1,
+          "characters": 2383,
+          "body_bottom_points": 588.2052637795281
+        },
+        {
+          "page": 2,
+          "characters": 2456,
+          "body_bottom_points": 600.005263779528
+        },
+        {
+          "page": 3,
+          "characters": 2424,
+          "body_bottom_points": 584.3552637795281
+        },
+        {
+          "page": 4,
+          "characters": 2578,
+          "body_bottom_points": 608.4552637795281
+        },
+        {
+          "page": 5,
+          "characters": 2877,
+          "body_bottom_points": 628.5942637795281
+        }
+      ]
+    }
+  },
+  "files": {
+    "PROPOSITION_CAST3M.md": {
+      "bytes": 13456,
+      "sha256": "6652d1f7f0fadba3d6b69261b46416c1f946849e369cd9864a848ded803eaf4a"
+    },
+    "PROPOSITION_CAST3M.pdf": {
+      "bytes": 116129,
+      "sha256": "72c5c0c7ffc44678489830fb09b7b9c96779242d4d4428dc8c8549cb3a90559e"
+    },
+    "PROPOSITION_CAST3M.docx": {
+      "bytes": 45577,
+      "sha256": "9e53db15db437248c2a668863567946b62ce9bde4e2ded3210400c2d4c210d9a"
+    }
+  }
+}

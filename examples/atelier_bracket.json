@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "name": "Équerre 3D",
+  "mode": "volume",
+  "geometry": {
+    "kind": "bracket",
+    "width": 6,
+    "height": 5,
+    "depth": 3,
+    "wall": 1.5,
+    "throughhole_radius": 0.4
+  },
+  "mesh": {
+    "size": 0.7,
+    "min_size": 0.2,
+    "order": 1,
+    "algorithm": "automatic",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 200000
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m"
+  }
+}

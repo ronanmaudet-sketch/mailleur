@@ -1,0 +1,26 @@
+{
+  "schema": "atelier.publication_validation.v1",
+  "date": "2026-11-10",
+  "code_version": "1.0.0rc7",
+  "public_core_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+  "python_tests": {
+    "passed": 200,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 34.787
+  },
+  "source_rust_suite": "132 tests passés pendant campagne rc7, mêmes sources de calcul ; voir preuves historiques",
+  "cast3m_demo": {
+    "passed": true,
+    "checks": 43,
+    "nodes": 497,
+    "TE10": 221,
+    "version": "2026.0",
+    "error_levels": [
+      0
+    ],
+    "seconds_including_launch_import_checks_solve": 0.4858,
+    "scope": "un seul cas affine, pas un gain solveur"
+  },
+  "source_note": "Le binaire public est reconstruit uniquement avec remappage des chemins de compilation."
+}

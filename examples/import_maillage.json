@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "name": "Import d'un tetraedre public",
+  "mode": "volume",
+  "geometry": {"kind": "import"},
+  "units": {"input": "mm", "internal": "m"},
+  "mesh": {
+    "size": 0.6,
+    "min_size": 0.2,
+    "order": 1,
+    "algorithm": "automatic",
+    "threads": 1,
+    "max_elements": 10000
+  }
+}

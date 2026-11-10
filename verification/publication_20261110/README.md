@@ -1,0 +1,3 @@
+# Vérification de la copie de publication
+
+Le 10 novembre 2026, les 200 tests Python passent depuis cette copie, avec les dépendances du venv de développement. Ce n’est pas une installation vierge supplémentaire. Le binaire public remappe seulement les chemins de compilation. L’exemple de traction a été réellement exécuté avec ce binaire dans Cast3M2026.0 : 43 comparaisons passent, 497 nœuds et 221 TE10. Le temps de0,4858s comprend lancement/import/contrôles/résolution sur ce petit cas et ne mesure aucune accélération du solveur. Voir summary.json et les références fournies dans examples/cast3m_pilot.

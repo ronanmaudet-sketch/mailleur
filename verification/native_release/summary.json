@@ -1,0 +1,1334 @@
+{
+  "version": "1.0.0rc5",
+  "date": "2026-11-04T09:18:56.525383+01:00",
+  "system": "Linux-6.18.57-x86_64-with-glibc2.39",
+  "python": "3.12.14",
+  "core_binary": "/workspace/scratch/3919fdc9f872/atelier_mailleur/rust_core/target/release/mailleur-core",
+  "python_tests": {
+    "exit_code": 0,
+    "total": 150,
+    "skipped": 0,
+    "skipped_details": []
+  },
+  "rust_tests": {
+    "executed": true,
+    "exit_code": 0,
+    "passed": 110,
+    "failed": 0,
+    "ignored": 0
+  },
+  "examples": [
+    {
+      "id": "plate",
+      "name": "Plaque percée à congés",
+      "nodes": 363,
+      "elements": 624,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 2,
+            "elements": 624,
+            "mean": 0.9513360174376109,
+            "minimum": 0.7347748271917721,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 624,
+        "invalid_elements": 0,
+        "mean": 0.9513360174376109,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 2.2188871943982455e-08,
+        "minimum": 0.7347748271917721,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/8564aa6dc078402b8e9f409fc3f17494"
+    },
+    {
+      "id": "chamfer",
+      "name": "Plaque chanfreinée",
+      "nodes": 341,
+      "elements": 600,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 2,
+            "elements": 600,
+            "mean": 0.9516396573379846,
+            "minimum": 0.713724403034712,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 600,
+        "invalid_elements": 0,
+        "mean": 0.9516396573379846,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 6.52437717824e-08,
+        "minimum": 0.713724403034712,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/1bc2c47ef7f34350a67e9c6938a8c7f7"
+    },
+    {
+      "id": "solid",
+      "name": "Plaque 3D percée",
+      "nodes": 1696,
+      "elements": 5801,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 3,
+            "elements": 5801,
+            "mean": 0.7604730787205755,
+            "minimum": 0.2999614559225552,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 5801,
+        "invalid_elements": 0,
+        "mean": 0.7604730787205755,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 2.8218483732746943e-12,
+        "minimum": 0.2999614559225552,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/bfbc047078b94368a4f9d0bdb1bad4f8"
+    },
+    {
+      "id": "bracket",
+      "name": "Équerre 3D",
+      "nodes": 604,
+      "elements": 1988,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 3,
+            "elements": 1988,
+            "mean": 0.7526040576307567,
+            "minimum": 0.2932976919093729,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 1988,
+        "invalid_elements": 0,
+        "mean": 0.7526040576307567,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 2.766632934800755e-12,
+        "minimum": 0.2932976919093729,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/c7af2efba2374f3fa80f84ceb27f42c4"
+    },
+    {
+      "id": "shell",
+      "name": "Coque sphérique",
+      "nodes": 373,
+      "elements": 742,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 2,
+            "elements": 742,
+            "mean": 0.9590721656096381,
+            "minimum": 0.6046615478587999,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 742,
+        "invalid_elements": 0,
+        "mean": 0.9590721656096381,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 9.310591566346852e-08,
+        "minimum": 0.6046615478587999,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/83b5d4e5807343428c8e983eb02c45a7"
+    },
+    {
+      "id": "polygon",
+      "name": "Contour concave percé",
+      "nodes": 172,
+      "elements": 282,
+      "quality": {
+        "accepted": true,
+        "below_0_1": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_severity": 0.0,
+        "critical_zones": [],
+        "diagnostic_only": false,
+        "entities": [
+          {
+            "critical_bad_count": 0,
+            "dimension": 2,
+            "elements": 282,
+            "mean": 0.9587406450742431,
+            "minimum": 0.6930293586744968,
+            "poor_count": 0,
+            "tag": 1
+          }
+        ],
+        "evaluated_elements": 282,
+        "invalid_elements": 0,
+        "mean": 0.9587406450742431,
+        "metric": "minSICN",
+        "min_jacobian_determinant": 1.1650991448446233e-07,
+        "minimum": 0.6930293586744968,
+        "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+        "policy": {
+          "configured": false,
+          "max_poor_elements": null,
+          "max_poor_fraction": null,
+          "minimum_quality": 0.0,
+          "poor_threshold": 0.2,
+          "strict": true
+        },
+        "poor_count": 0,
+        "poor_element_tags": [],
+        "poor_element_tags_truncated": false,
+        "poor_fraction": 0.0,
+        "poor_samples": [],
+        "poor_severity": -0.0,
+        "poor_threshold": 0.2,
+        "protected_elements": 0,
+        "violations": []
+      },
+      "native_kernel": {
+        "geometry_mesher": "Gmsh/OpenCASCADE native C ABI",
+        "language": "rust",
+        "version": "1.0.0-rc.5"
+      },
+      "export_complete": true,
+      "export_statuses": [
+        {
+          "format": "msh",
+          "status": "ok"
+        },
+        {
+          "format": "med",
+          "status": "ok"
+        },
+        {
+          "format": "inp",
+          "status": "ok"
+        },
+        {
+          "format": "vtu",
+          "status": "ok"
+        },
+        {
+          "format": "unv",
+          "status": "ok"
+        },
+        {
+          "format": "ansys",
+          "status": "ok"
+        },
+        {
+          "format": "cast3m",
+          "status": "ok"
+        }
+      ],
+      "directory": "verification/native_release/runs/native/98ed72058b724e73ae0f94fa321d7323"
+    }
+  ],
+  "learning": {
+    "training_cases": 10,
+    "validation_cases": 6,
+    "validation_guide_reward": 0.7866864298743782,
+    "validation_fixed_reward": 0.7867401887963826,
+    "improvement": -5.375892200443211e-05,
+    "deploy_enabled": false,
+    "native_kernel": {
+      "language": "rust",
+      "training": "rust SGD and native evaluations",
+      "version": "1.0.0-rc.5"
+    },
+    "directory": "verification/native_release/runs/native/07bab630e29344ddbfb69ea30c947b7d"
+  },
+  "continuous_learning": {
+    "executed": true,
+    "distinct_geometries": 6,
+    "cases": [
+      {
+        "id": "plate",
+        "context_id": "6fb134e5f5867d893c8107c9b96e38b616f158dd1fabda2839ef27ef6aa48837",
+        "geometry_id": "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+        "source_imported": false,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 445,
+        "elements": 788,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.7571711652570968,
+          "mean": 0.963643426723636,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée plate",
+              "kind": "contact",
+              "dimension": 1,
+              "tags": [
+                1
+              ],
+              "elements": 41,
+              "minimum": 0.829410637916579,
+              "below_minimum": 0,
+              "boundary_elements": 0,
+              "boundary_minimum": null,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 1,
+          "total_examples": 4,
+          "training_examples": 4,
+          "validation_examples": 0,
+          "geometry_context_groups": 1,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a"
+          ],
+          "validation_groups": [],
+          "warm_started": false,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": false,
+          "deployment_reason": "at_least_three_geometry_context_groups_required",
+          "validation_mse": null,
+          "constant_validation_mse": null,
+          "validation_improvement": null,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/0bc4aa60a5ff4a50ab9e98f99beacae6",
+        "seconds": 0.41621243300005517
+      },
+      {
+        "id": "chamfer",
+        "context_id": "5dda571d6a1b02db57c3b9d54299e9e89f4e77e1ab87df0a46c4f644247eca75",
+        "geometry_id": "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0",
+        "source_imported": false,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 342,
+        "elements": 602,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.7784325558357484,
+          "mean": 0.9692462773154895,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée chamfer",
+              "kind": "contact",
+              "dimension": 1,
+              "tags": [
+                1
+              ],
+              "elements": 31,
+              "minimum": 0.8816090255046477,
+              "below_minimum": 0,
+              "boundary_elements": 0,
+              "boundary_minimum": null,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 2,
+          "total_examples": 8,
+          "training_examples": 8,
+          "validation_examples": 0,
+          "geometry_context_groups": 2,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+            "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0"
+          ],
+          "validation_groups": [],
+          "warm_started": true,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": false,
+          "deployment_reason": "at_least_three_geometry_context_groups_required",
+          "validation_mse": null,
+          "constant_validation_mse": null,
+          "validation_improvement": null,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/f4798f13c63245a0810593b47a6c66df",
+        "seconds": 0.3890734510000584
+      },
+      {
+        "id": "bracket",
+        "context_id": "9e7606491c3d2323dc03224594b683d8224c9c89ef5691a7e8b68d6e274e4a5d",
+        "geometry_id": "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899",
+        "source_imported": false,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 806,
+        "elements": 2734,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.3054001833077123,
+          "mean": 0.7760439070638291,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée bracket",
+              "kind": "interface",
+              "dimension": 2,
+              "tags": [
+                1
+              ],
+              "elements": 330,
+              "minimum": 0.3054001833077123,
+              "below_minimum": 0,
+              "boundary_elements": 126,
+              "boundary_minimum": 0.7115212325336815,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 3,
+          "total_examples": 12,
+          "training_examples": 8,
+          "validation_examples": 4,
+          "geometry_context_groups": 3,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+            "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0"
+          ],
+          "validation_groups": [
+            "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899"
+          ],
+          "warm_started": true,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": true,
+          "deployment_reason": "held_out_group_improvement",
+          "validation_mse": 0.03285767557218753,
+          "constant_validation_mse": 0.03478734847183766,
+          "validation_improvement": 0.0019296728996501325,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/4bb1aa9840534f3181f1895555dd5b6e",
+        "seconds": 0.8280749330001527
+      },
+      {
+        "id": "shell",
+        "context_id": "995f6bc5fa52b164149bfc39e5a638ace43a708eb414cef805da1933b49243a9",
+        "geometry_id": "d7faec047c7ff766be05306331a02a5edbba450b03ed84ce6bdd46eb09d95f28",
+        "source_imported": false,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 1312,
+        "elements": 2620,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.7574088606177058,
+          "mean": 0.9839851323653783,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée shell",
+              "kind": "contact",
+              "dimension": 2,
+              "tags": [
+                1
+              ],
+              "elements": 2620,
+              "minimum": 0.7574088606177058,
+              "below_minimum": 0,
+              "boundary_elements": 0,
+              "boundary_minimum": null,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 4,
+          "total_examples": 16,
+          "training_examples": 12,
+          "validation_examples": 4,
+          "geometry_context_groups": 4,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+            "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0",
+            "d7faec047c7ff766be05306331a02a5edbba450b03ed84ce6bdd46eb09d95f28"
+          ],
+          "validation_groups": [
+            "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899"
+          ],
+          "warm_started": true,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": false,
+          "deployment_reason": "no_validated_improvement_over_constant_baseline",
+          "validation_mse": 0.03285767557218753,
+          "constant_validation_mse": 0.028595423758722056,
+          "validation_improvement": -0.004262251813465474,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/e256b2748be34148a8f8efb44d6a14a2",
+        "seconds": 0.4070967460002066
+      },
+      {
+        "id": "polygon",
+        "context_id": "d20ae3f6a739e82d50265b9ffe44b205bf6a62988d6d594471c962fce579a48e",
+        "geometry_id": "82ebb1333daeda54abb3e6140b01f437b830c636f7a69b756ea860b332174234",
+        "source_imported": false,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 171,
+        "elements": 280,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.8758496748975433,
+          "mean": 0.9779894108528083,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée polygon",
+              "kind": "contact",
+              "dimension": 1,
+              "tags": [
+                1
+              ],
+              "elements": 28,
+              "minimum": 0.8859408449633218,
+              "below_minimum": 0,
+              "boundary_elements": 0,
+              "boundary_minimum": null,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 5,
+          "total_examples": 20,
+          "training_examples": 16,
+          "validation_examples": 4,
+          "geometry_context_groups": 5,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+            "82ebb1333daeda54abb3e6140b01f437b830c636f7a69b756ea860b332174234",
+            "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0",
+            "d7faec047c7ff766be05306331a02a5edbba450b03ed84ce6bdd46eb09d95f28"
+          ],
+          "validation_groups": [
+            "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899"
+          ],
+          "warm_started": true,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": false,
+          "deployment_reason": "no_validated_improvement_over_constant_baseline",
+          "validation_mse": 0.03285767557218753,
+          "constant_validation_mse": 0.031154533471917302,
+          "validation_improvement": -0.0017031421002702274,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/634a8c79bffc41a29e5d14c87d925014",
+        "seconds": 0.16326455200032797
+      },
+      {
+        "id": "import_step_two_volumes",
+        "context_id": "c8569a8b110bec6241290b0b675528e9bbc2bb3912d17cb085934cc0995b5f2b",
+        "geometry_id": "4a6696d7e1ceea4d795684dba3645aa86cddf4c52c816478df3ca09606ffc6ba",
+        "source_imported": true,
+        "accepted": true,
+        "executed_trials": 4,
+        "max_trials": 4,
+        "memory_reused": false,
+        "nodes": 4134,
+        "elements": 17592,
+        "quality": {
+          "accepted": true,
+          "minimum": 0.3026665177572735,
+          "mean": 0.7981896948258529,
+          "poor_count": 0,
+          "poor_fraction": 0.0,
+          "poor_severity": -0.0,
+          "critical_bad_count": 0,
+          "critical_bad_top_count": 0,
+          "critical_bad_boundary_count": 0,
+          "critical_zones": [
+            {
+              "name": "Zone protégée import_step_two_volumes",
+              "kind": "interface",
+              "dimension": 2,
+              "tags": [
+                13
+              ],
+              "elements": 585,
+              "minimum": 0.3037046197253773,
+              "below_minimum": 0,
+              "boundary_elements": 228,
+              "boundary_minimum": 0.7287085488102801,
+              "boundary_below_minimum": 0,
+              "accepted": true,
+              "buffer": 0.05,
+              "selection_method": "incident_nodes_or_expanded_entity_aabb"
+            }
+          ]
+        },
+        "model": {
+          "schema": "atelier.experience_model.v2",
+          "model_version": 6,
+          "total_examples": 24,
+          "training_examples": 20,
+          "validation_examples": 4,
+          "geometry_context_groups": 6,
+          "training_groups": [
+            "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+            "4a6696d7e1ceea4d795684dba3645aa86cddf4c52c816478df3ca09606ffc6ba",
+            "82ebb1333daeda54abb3e6140b01f437b830c636f7a69b756ea860b332174234",
+            "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0",
+            "d7faec047c7ff766be05306331a02a5edbba450b03ed84ce6bdd46eb09d95f28"
+          ],
+          "validation_groups": [
+            "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899"
+          ],
+          "warm_started": true,
+          "epochs": null,
+          "requested_epochs": 30,
+          "input_count": 128,
+          "hidden_count": 12,
+          "parameter_count": 1561,
+          "feature_schema": "atelier.geometry_action_features.v2",
+          "deploy_enabled": false,
+          "deployment_reason": "no_validated_improvement_over_constant_baseline",
+          "validation_mse": 0.03285767557218753,
+          "constant_validation_mse": 0.020393292077700204,
+          "validation_improvement": -0.012464383494487325,
+          "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+        },
+        "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/9d0a07c292f64369b4c05f4a7dffba8f",
+        "seconds": 1.2317525729999943
+      }
+    ],
+    "exact_recipe_replay": {
+      "memory_reused": true,
+      "executed_trials": 1,
+      "context_id": "fc012145ffb98b8a464d3a5521019574967b3f71289449c65faf38b3f9d985a6",
+      "geometry_id": "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+      "quality": {
+        "accepted": true,
+        "minimum": 0.7571711652570968,
+        "mean": 0.963643426723636,
+        "poor_count": 0,
+        "poor_fraction": 0.0,
+        "poor_severity": -0.0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_zones": [
+          {
+            "name": "Zone protégée plate",
+            "kind": "contact",
+            "dimension": 1,
+            "tags": [
+              1
+            ],
+            "elements": 41,
+            "minimum": 0.829410637916579,
+            "below_minimum": 0,
+            "boundary_elements": 0,
+            "boundary_minimum": null,
+            "boundary_below_minimum": 0,
+            "accepted": true,
+            "buffer": 0.05,
+            "selection_method": "incident_nodes_or_expanded_entity_aabb"
+          }
+        ]
+      },
+      "new_python_session": true,
+      "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/d472bc5ea98c4e2e9ab6fc1d69dacda2"
+    },
+    "changed_critical_zone": {
+      "context_changed": true,
+      "geometry_unchanged": true,
+      "memory_reused": false,
+      "context_id": "0cebdeb2d1affe70c08adbf77a855b585bf5a5f3bdbeb1fd524d05091e008e94",
+      "quality": {
+        "accepted": true,
+        "minimum": 0.7347748271917721,
+        "mean": 0.9513360174376109,
+        "poor_count": 0,
+        "poor_fraction": 0.0,
+        "poor_severity": -0.0,
+        "critical_bad_count": 0,
+        "critical_bad_top_count": 0,
+        "critical_bad_boundary_count": 0,
+        "critical_zones": [
+          {
+            "name": "Zone protégée plate",
+            "kind": "contact",
+            "dimension": 1,
+            "tags": [
+              1
+            ],
+            "elements": 41,
+            "minimum": 0.7347748271917721,
+            "below_minimum": 0,
+            "boundary_elements": 0,
+            "boundary_minimum": null,
+            "boundary_below_minimum": 0,
+            "accepted": true,
+            "buffer": 0.15,
+            "selection_method": "incident_nodes_or_expanded_entity_aabb"
+          }
+        ]
+      },
+      "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/db93b8db25af4d22892ee4f9bd67e535"
+    },
+    "impossible_quality_rejection": {
+      "expected_rejection": true,
+      "public_mesh_absent": true,
+      "executed_trials": 2,
+      "context_id": "2361b5a742d629e9235ac3af4d46436207af649dfbb25b4b8415a0f8faa3c455",
+      "directory": "verification/continuous_learning/continuous_runs/20261104T091837738488/native/4795268545f145b3918e90f6aa2d0b06",
+      "error": "Aucun maillage admissible trouvé en 2 essais. Les échecs ont été mémorisés ; consulter experience.json pour les critères non satisfaits."
+    },
+    "memory": {
+      "accepted_observations": 27,
+      "contexts": 9,
+      "failed_observations": 2,
+      "geometry_count": 6,
+      "journal_events": 29,
+      "memory_path": "verification/continuous_learning/continuous_runs/20261104T091837738488/experience",
+      "model": {
+        "schema": "atelier.experience_model.v2",
+        "model_version": 9,
+        "total_examples": 29,
+        "training_examples": 25,
+        "validation_examples": 4,
+        "geometry_context_groups": 6,
+        "training_groups": [
+          "49214a6e7ac4b7e0bfff9ebf72a44cdf1616f11510f8aab5b964cec5372a0b6a",
+          "4a6696d7e1ceea4d795684dba3645aa86cddf4c52c816478df3ca09606ffc6ba",
+          "82ebb1333daeda54abb3e6140b01f437b830c636f7a69b756ea860b332174234",
+          "a7fd0ecdc54b09699d1893394a097eb33711784e83a91c0cbe73c407e6641eb0",
+          "d7faec047c7ff766be05306331a02a5edbba450b03ed84ce6bdd46eb09d95f28"
+        ],
+        "validation_groups": [
+          "0cdffa7b04fbfe13cc1f3a5a87c2002bbf006ff7a8143d075b88191bc1bc5899"
+        ],
+        "warm_started": true,
+        "epochs": null,
+        "requested_epochs": 30,
+        "input_count": 128,
+        "hidden_count": 12,
+        "parameter_count": 1561,
+        "feature_schema": "atelier.geometry_action_features.v2",
+        "deploy_enabled": false,
+        "deployment_reason": "no_validated_improvement_over_constant_baseline",
+        "validation_mse": 0.03285767557218753,
+        "constant_validation_mse": 0.006249452352091048,
+        "validation_improvement": -0.026608223220096483,
+        "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant."
+      },
+      "model_versions": 9,
+      "observations": 29,
+      "schema": "atelier.experience.info.v1",
+      "total_trials": 29
+    },
+    "workspace": "verification/continuous_learning/continuous_runs/20261104T091837738488",
+    "seconds": 4.996829602000162,
+    "independent_generalization_gain_claimed": false,
+    "notes": [
+      "Vrais maillages et évaluations natifs sur six géométries.",
+      "Les versions et métriques du modèle sont rapportées sans transformer leur validation en preuve industrielle indépendante.",
+      "Aucun solveur mécanique ni calcul automatique des contraintes n'est exécuté."
+    ]
+  },
+  "corpus": {
+    "executed": true,
+    "target_plan": {
+      "planned_total": 1000000,
+      "structured": 250000,
+      "random": 750000,
+      "completed_cases": 0,
+      "generated_cases": 0,
+      "meshed_cases": 0,
+      "admissible_cases": 0,
+      "accepted_actions": 0,
+      "failed_actions": 0,
+      "backend_evaluations": 0,
+      "split_counts": {
+        "test": 0,
+        "train": 0,
+        "validation": 0
+      },
+      "origin_counts": {
+        "random": 0,
+        "structured": 0
+      },
+      "family_count": 24,
+      "done": false,
+      "directory": "verification/corpus/target_plan",
+      "metadata_files": 3,
+      "metadata_bytes": 5058,
+      "million_cases_executed": false
+    },
+    "pilot": {
+      "planned_total": 48,
+      "structured": 24,
+      "random": 24,
+      "completed_cases": 48,
+      "generated_cases": 48,
+      "meshed_cases": 46,
+      "admissible_cases": 45,
+      "accepted_actions": 88,
+      "failed_actions": 8,
+      "backend_evaluations": 140,
+      "split_counts": {
+        "test": 8,
+        "train": 32,
+        "validation": 8
+      },
+      "origin_counts": {
+        "random": 24,
+        "structured": 24
+      },
+      "family_count": 24,
+      "done": true,
+      "directory": "verification/corpus/pilot/20261104T091842739497",
+      "records": 48,
+      "actions": 96,
+      "reference_inspections": 48,
+      "successful_reference_inspections": 46,
+      "failure_kinds": {
+        "invalid_geometry": 4
+      },
+      "feature_count": 128,
+      "feature_schema": "atelier.geometry_action_features.v2",
+      "family_splits": {
+        "plate_hole_2d": "train",
+        "plate_many_holes_2d": "train",
+        "plate_fillet_2d": "train",
+        "plate_chamfer_2d": "validation",
+        "concave_l_2d": "train",
+        "polygon_hole_2d": "test",
+        "thin_plate_volume": "train",
+        "perforated_plate_volume": "train",
+        "bracket_volume": "train",
+        "sphere_surface": "train",
+        "box_surface": "validation",
+        "perforated_plate_surface": "test",
+        "box_volume": "train",
+        "sphere_volume": "test",
+        "frame_2d": "train",
+        "slender_bracket_volume": "validation",
+        "thin_box_surface": "train",
+        "invalid_polygon_defect_2d": "train",
+        "near_touching_holes_2d": "train",
+        "tiny_edge_polygon_2d": "validation",
+        "stepped_polygon_2d": "train",
+        "high_curvature_plate_2d": "test",
+        "multiple_holes_volume": "train",
+        "thin_plate_surface": "train"
+      },
+      "raw_meshes_retained": false,
+      "first_batch_completed": 24,
+      "second_batch_completed": 48,
+      "resumed_in_new_python_session": true
+    },
+    "training": {
+      "schema": "atelier.corpus.training_report.v1",
+      "computation_backend": "rust",
+      "streaming": true,
+      "input_count": 128,
+      "hidden_count": 32,
+      "parameter_count": 4161,
+      "feature_schema": "atelier.geometry_action_features.v2",
+      "training_cases": 32,
+      "training_examples": 64,
+      "validation_cases": 8,
+      "validation_examples": 16,
+      "test_cases": 8,
+      "test_examples": 16,
+      "epochs_requested": 2,
+      "epochs_completed": 2,
+      "batch_size": 16,
+      "max_batch_observed": 16,
+      "batches_completed": 8,
+      "warm_started": false,
+      "resumed": false,
+      "stopped_by_budget": false,
+      "phase": "completed",
+      "checkpoint_complete": true,
+      "baseline_strategy": "automatic_base",
+      "training": {
+        "baseline_accepted_rate": 0.90625,
+        "baseline_reward": 0.7311013951216866,
+        "cases": 32,
+        "examples": 64,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.07462146024703988,
+        "model_reward": 0.7311013951216866,
+        "oracle_reward": 0.7367620132993996,
+        "selected_accepted_rate": 0.90625
+      },
+      "validation": {
+        "baseline_accepted_rate": 1.0,
+        "baseline_reward": 0.7521454164976553,
+        "cases": 8,
+        "examples": 16,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.05940042236787003,
+        "model_reward": 0.7521454164976553,
+        "oracle_reward": 0.781768256422338,
+        "selected_accepted_rate": 1.0
+      },
+      "test": {
+        "baseline_accepted_rate": 1.0,
+        "baseline_reward": 0.8446177067750321,
+        "cases": 8,
+        "examples": 16,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.025399259351239354,
+        "model_reward": 0.8446177067750321,
+        "oracle_reward": 0.8567867886553984,
+        "selected_accepted_rate": 1.0
+      },
+      "validation_selection_improvement": 0.0,
+      "deploy_enabled": false,
+      "model_version": 1,
+      "test_used_for_gradients": false,
+      "test_used_for_weight_selection": false,
+      "phase_seconds": {
+        "initial_validation": 0.001562343,
+        "integrity_and_final_evaluation": 0.026755551,
+        "preparation": 0.006972989,
+        "training_and_epoch_validation": 0.08474105
+      },
+      "seconds": 0.121188335,
+      "model_path": "verification/corpus/pilot/20261104T091842739497/models/current.json",
+      "checkpoint_path": "verification/corpus/pilot/20261104T091842739497/models/training.checkpoint.json",
+      "installed_model_path": "verification/corpus/sessions/20261104T091842739497/models/corpus.json",
+      "model_schema": "atelier.corpus.model.v1",
+      "model_dataset_fingerprint": "b7e38335d01133502c2efd66914de4f290b92cb57ed22cdfe718062614a8f369",
+      "model_activation_reason": "no_validated_selection_gain"
+    },
+    "workspace": "verification/corpus/sessions/20261104T091842739497",
+    "seconds": 13.785064965999936,
+    "million_cases_executed": false,
+    "industrial_generalization_gain_claimed": false,
+    "notes": [
+      "Le million est planifié sous forme de métadonnées ; seuls les 48 cas du pilote sont calculés ici.",
+      "Les évaluations natives comprennent les inspections de référence et les stratégies réellement exécutées.",
+      "Les cas de géométrie invalide restent des échecs étiquetés, pas des maillages acceptés.",
+      "La suite comporte aussi des enregistrements JSONL synthétiques pour tester le streaming ; ce ne sont pas des maillages supplémentaires.",
+      "L'activation du conseiller est rapportée telle que mesurée, sans promesse de gain industriel."
+    ]
+  },
+  "test_scope": {
+    "retired_python_prototype_tests": 57,
+    "replacement_boundary_and_io_tests": 16,
+    "reference": "tests/retired_reference/README.txt",
+    "retirement_counted_as_pass_or_skip": false,
+    "synthetic_streaming_fixture_is_real_meshing": false,
+    "note": "Les API numériques Python ont été retirées explicitement ; les totaux rc3 et rc4 ne portent pas sur exactement le même périmètre."
+  },
+  "macos_windows_executed": false,
+  "external_solvers_executed": false,
+  "limitations": [
+    "Tests effectués sous Linux, pas sur macOS ni Windows.",
+    "Relecture de formats testée ; aucun solveur externe exécuté.",
+    "Reconstruction indépendante, pas restauration du noyau Rust original.",
+    "Remaillage local par entités, sans édition libre d'un sous-ensemble de cellules."
+  ]
+}

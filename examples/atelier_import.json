@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "Pièce CAO importée",
+  "mode": "volume",
+  "geometry": {
+    "kind": "import"
+  },
+  "mesh": {
+    "size": 0.6,
+    "min_size": 0.1,
+    "order": 1,
+    "algorithm": "automatic",
+    "threads": 1,
+    "max_elements": 200000
+  },
+  "repair": {
+    "enabled": false,
+    "make_solids": true
+  }
+}

@@ -1,0 +1,638 @@
+{
+  "algorithms": [
+    "automatic",
+    "delaunay",
+    "frontal"
+  ],
+  "baseline_algorithm": "frontal",
+  "baseline_successful": true,
+  "computation_backend": "rust",
+  "deploy_enabled": false,
+  "epochs": 200,
+  "feature_ranges": [
+    [
+      0.0,
+      1.0
+    ],
+    [
+      0.39999999999999997,
+      0.75
+    ],
+    [
+      0.6666666666666666,
+      1.0
+    ],
+    [
+      0.16666666666666669,
+      0.25
+    ],
+    [
+      0.0,
+      0.2
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      0.0,
+      0.125
+    ],
+    [
+      0.25,
+      0.4
+    ]
+  ],
+  "features": [
+    "mode",
+    "thin_extent",
+    "middle_extent",
+    "relative_size",
+    "hole_fraction",
+    "curved",
+    "relative_corner_size",
+    "boundary_complexity"
+  ],
+  "gmsh_version": "4.15.2",
+  "hidden_bias": [
+    0.07868793769523053,
+    -0.01580806653033791,
+    0.0662564857954371,
+    -0.0014419750588867042,
+    -0.08533601414064734,
+    0.017578526012428475,
+    -0.009665732024357013,
+    -0.004188011793749352,
+    -0.07302261341337081,
+    0.037412137524473324,
+    0.018518402293230478,
+    -0.007245863043326081
+  ],
+  "improvement": -0.00005375892200443211,
+  "input_unit": "mm",
+  "input_weights": [
+    [
+      -0.35869211097161346,
+      -0.29622659417811,
+      -0.29265807144569134,
+      0.2619595240849716,
+      0.2213444875301498,
+      -0.04063052392083734,
+      0.2167867427447042,
+      -0.24470728278386977
+    ],
+    [
+      0.2324543754799067,
+      0.32811979755205534,
+      -0.2120555614567611,
+      0.024852114128387722,
+      0.1176778479612594,
+      -0.07171997755778316,
+      0.19990692572114419,
+      0.1924740489571024
+    ],
+    [
+      -0.5257776569048964,
+      0.2903645744263493,
+      0.08512398810670206,
+      0.25216913561849885,
+      0.10365021998830308,
+      -0.15383773483369753,
+      -0.06909762213482991,
+      0.1407831406006276
+    ],
+    [
+      0.01788314947894442,
+      0.02739064744363359,
+      0.019691045020466497,
+      0.31719329720007317,
+      -0.06242742183829315,
+      -0.050715881262087585,
+      0.1087942078271102,
+      -0.1289742493577592
+    ],
+    [
+      0.36527467520087004,
+      -0.06124696587057578,
+      0.16287742452585596,
+      0.018144006983636166,
+      0.14365543109328935,
+      -0.04926679509921388,
+      -0.2327737357978024,
+      -0.0550392752525282
+    ],
+    [
+      -0.09671334589443399,
+      0.07215185934094814,
+      -0.027882252022510594,
+      0.18350153228086302,
+      -0.3047888214899799,
+      0.12580799495310485,
+      0.12037904898965088,
+      0.0002521425159756775
+    ],
+    [
+      0.01693020692829423,
+      0.08191812301112308,
+      0.1176887648861986,
+      0.33722686130069957,
+      -0.20618453776971113,
+      -0.17673244334205565,
+      0.025464109037916845,
+      0.21534930572995944
+    ],
+    [
+      0.029059341828694785,
+      0.13781903479893232,
+      0.10162008612420491,
+      0.02956752928332705,
+      0.09438931266196281,
+      0.014576480172406842,
+      0.31172514503410675,
+      0.09002238645843574
+    ],
+    [
+      0.4727164375748593,
+      -0.10846585999232713,
+      -0.10218486345832951,
+      0.08893514621673076,
+      -0.09650138171099165,
+      0.19399464508129427,
+      0.18812629737754352,
+      -0.1414732943467212
+    ],
+    [
+      -0.23584216362418106,
+      0.0011873192347356817,
+      -0.06884776061964218,
+      -0.03747199267912272,
+      -0.16761176645521375,
+      -0.03618914945461474,
+      0.030701275325963083,
+      0.09882997310051371
+    ],
+    [
+      -0.3125151736691629,
+      -0.19593683483208943,
+      0.3376068301468302,
+      0.11409509113136664,
+      -0.23514763045335008,
+      -0.27822775164800195,
+      -0.1370417754893069,
+      -0.17284737041655387
+    ],
+    [
+      -0.032409175375815,
+      -0.02313842600706385,
+      0.23172944595474124,
+      0.039690037907587,
+      -0.2695507928173825,
+      -0.20808589137771902,
+      -0.3113721461673178,
+      0.05765100458662118
+    ]
+  ],
+  "mesh_signature": {
+    "min_size": 0.18,
+    "order": 1,
+    "recombine": false,
+    "repair_enabled": false,
+    "threads": 1
+  },
+  "output_bias": [
+    0.820980559966119,
+    0.8431742048370117,
+    0.8697032417606141
+  ],
+  "output_weights": [
+    [
+      0.1342750258038749,
+      -0.03070265731307943,
+      0.20595075684086742,
+      -0.01830664852155268,
+      -0.12375951906149461,
+      0.026037377024188554,
+      -0.0005476752538527919,
+      0.009241840508913083,
+      -0.24455059961953093,
+      0.10125786289247948,
+      0.06926848954266446,
+      0.026228154184148054
+    ],
+    [
+      0.14169411872566076,
+      -0.027405910460169897,
+      0.23826220400562476,
+      0.03872917213778385,
+      -0.20529284047876242,
+      0.04501804749290409,
+      0.02462452575887531,
+      -0.046141582282571154,
+      -0.20835035532823937,
+      0.11018907188729066,
+      0.08966979663587483,
+      0.032713892118831786
+    ],
+    [
+      0.1442557916863343,
+      -0.07322892678399982,
+      0.3269102548686432,
+      -0.00044518046078424473,
+      -0.1494274514143929,
+      0.04220128021911826,
+      -0.0028837680583901535,
+      -0.019813247729034218,
+      -0.24176045673452165,
+      0.12390695239050474,
+      0.17797762043011967,
+      0.000984954435159174
+    ]
+  ],
+  "rng": "xorshift64star_v1",
+  "schema": "atelier.advisor.v1",
+  "schema_version": 1,
+  "seed": 42,
+  "trained_kinds": [
+    "box",
+    "bracket",
+    "plate"
+  ],
+  "training_configs": [
+    {
+      "geometry": {
+        "depth": 1.5,
+        "height": 2.0,
+        "kind": "box",
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 0.8,
+        "threads": 1
+      },
+      "mode": "surface",
+      "name": "box_surface_0",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "depth": 1.5,
+        "height": 2.0,
+        "kind": "box",
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 1.0,
+        "threads": 1
+      },
+      "mode": "surface",
+      "name": "box_surface_1",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "depth": 1.5,
+        "height": 2.0,
+        "kind": "box",
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 0.8,
+        "threads": 1
+      },
+      "mode": "volume",
+      "name": "box_volume_0",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "depth": 1.5,
+        "height": 2.0,
+        "kind": "box",
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 1.0,
+        "threads": 1
+      },
+      "mode": "volume",
+      "name": "box_volume_1",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "depth": 1.2,
+        "height": 3.0,
+        "kind": "bracket",
+        "throughhole_radius": 0.0,
+        "wall": 0.8,
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 0.8,
+        "threads": 1
+      },
+      "mode": "volume",
+      "name": "bracket_volume_0",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "depth": 1.2,
+        "height": 3.0,
+        "kind": "bracket",
+        "throughhole_radius": 0.0,
+        "wall": 0.8,
+        "width": 3.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 1.0,
+        "threads": 1
+      },
+      "mode": "volume",
+      "name": "bracket_volume_1",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "chamfer": 0.0,
+        "corner_radius": 0.5,
+        "height": 3.0,
+        "holes": [],
+        "kind": "plate",
+        "width": 4.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 0.8,
+        "threads": 1
+      },
+      "mode": "planar",
+      "name": "plate_fillet_0",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "chamfer": 0.0,
+        "corner_radius": 0.5,
+        "height": 3.0,
+        "holes": [],
+        "kind": "plate",
+        "width": 4.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 1.0,
+        "threads": 1
+      },
+      "mode": "planar",
+      "name": "plate_fillet_1",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "chamfer": 0.0,
+        "corner_radius": 0.0,
+        "height": 3.0,
+        "holes": [
+          {
+            "radius": 0.45,
+            "x": 2.0,
+            "y": 1.5
+          }
+        ],
+        "kind": "plate",
+        "width": 4.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 0.8,
+        "threads": 1
+      },
+      "mode": "planar",
+      "name": "plate_holes_0",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    {
+      "geometry": {
+        "chamfer": 0.0,
+        "corner_radius": 0.0,
+        "height": 3.0,
+        "holes": [
+          {
+            "radius": 0.45,
+            "x": 2.0,
+            "y": 1.5
+          }
+        ],
+        "kind": "plate",
+        "width": 4.0
+      },
+      "mesh": {
+        "algorithm": "automatic",
+        "max_elements": 5000,
+        "min_size": 0.18,
+        "order": 1,
+        "recombine": false,
+        "size": 1.0,
+        "threads": 1
+      },
+      "mode": "planar",
+      "name": "plate_holes_1",
+      "repair": {
+        "enabled": false,
+        "make_solids": false,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-7
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    }
+  ],
+  "training_families": [
+    "box_surface",
+    "box_volume",
+    "bracket_volume",
+    "plate_fillet",
+    "plate_holes"
+  ],
+  "training_geometry_ids": [
+    "07322fac3e878add0042c973937eb61eab4eb2190204d21ae41f07b0fe409e91",
+    "46239c81113ed2a38cd4b5b57d9ba73cdf9257f313327dfe38d8b5e065cb3090",
+    "54a9dac70682ee5fcfd38868e454245d1c827a92476b7ac65ba55d61389ebe9e",
+    "9fd0091856e96d44625c6fa6e22e7dcee262e5bd5f8c3c11694121c30e259f5d",
+    "c448a92e4bf63a64a70d05ac7b568d3a9307911640bf3f3f7e557e3f37873bc3"
+  ],
+  "training_method": "native_supervised_mlp_sgd",
+  "validated_modes": [
+    "planar",
+    "surface",
+    "volume"
+  ],
+  "validation_families": [
+    "concave",
+    "sphere_surface",
+    "sphere_volume"
+  ],
+  "validation_fixed_reward": 0.7867401887963826,
+  "validation_geometry_ids": [
+    "2217040fcb6cca82fe3b1f40619efe4317f588e0963c1faf0ff602bd4ffaf46c",
+    "908d514b219a6c873659622b1720fd3c5a649e90462ae96737ffb89662e51b94",
+    "ba402ee04bb380c7a062ada4541a30073eb8d0acd35b39d42b5ababbdb72c19e"
+  ],
+  "validation_guide_reward": 0.7866864298743782
+}

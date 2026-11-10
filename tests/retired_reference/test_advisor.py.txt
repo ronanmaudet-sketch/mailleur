@@ -1,0 +1,214 @@
+from copy import deepcopy
+import json
+import math
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from atelier.advisor import (
+    ALGORITHMS, _normalise_cases, _split, choose_algorithm, default_cases,
+    extract_features, train_advisor,
+)
+
+
+def small_cases():
+    result = []
+    for index, geometry in enumerate([
+        {"kind": "plate", "width": 3, "height": 2},
+        {"kind": "plate", "width": 4, "height": 1.5},
+        {"kind": "polygon", "outer": [[0, 0], [2, 0], [2, 1], [0, 2]]},
+        {"kind": "plate", "width": 3, "height": 3, "corner_radius": .3},
+    ]):
+        result.append({"family": f"family_{index}", "project": {
+            "version": 1, "name": f"case_{index}", "mode": "planar",
+            "geometry": geometry, "mesh": {"size": .8, "min_size": .1},
+        }})
+    return result
+
+
+def mock_backend(project, workdir):
+    algorithm = project["mesh"]["algorithm"]
+    index = ALGORITHMS.index(algorithm)
+    minimum = [.4, .6, .5][index]
+    return {"quality": {"minimum": minimum, "mean": minimum + .1},
+            "backend": {"gmsh_version": "mock"}, "mesh_settings": project["mesh"]}
+
+
+class AdvisorTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.directory = Path(self.temp.name)
+
+    def test_default_corpus_and_features_are_bounded(self):
+        cases = default_cases()
+        self.assertEqual(len(cases), 16)
+        self.assertEqual(len({row["family"] for row in cases}), 8)
+        for row in cases:
+            features = extract_features(row["project"])
+            self.assertEqual(len(features), 8)
+            self.assertTrue(all(math.isfinite(v) and 0 <= v <= 1 for v in features))
+        train, val = _split(_normalise_cases(cases), 42)
+        self.assertEqual({row["mode"] for row in train}, {"planar", "surface", "volume"})
+        self.assertEqual({row["mode"] for row in val}, {"planar", "surface", "volume"})
+
+    def test_geometry_and_linked_family_groups_never_cross(self):
+        cases = small_cases()
+        duplicate = deepcopy(cases[0])
+        duplicate["family"] = "second_name"
+        duplicate["project"]["mesh"]["size"] = 1.0
+        related = deepcopy(cases[1])
+        related["family"] = "second_name"
+        cases.extend([duplicate, related])
+        train, val = _split(_normalise_cases(cases), 3)
+        self.assertFalse({r["geometry_id"] for r in train} & {r["geometry_id"] for r in val})
+        self.assertFalse({r["family"] for r in train} & {r["family"] for r in val})
+
+    def test_canonical_effective_geometry_identity(self):
+        cases = small_cases()
+        explicit = deepcopy(cases[0])
+        explicit["project"]["geometry"].update(corner_radius=0.0, chamfer=0, holes=[], thickness=999)
+        explicit["project"]["geometry"]["width"] = 3.0
+        a, b = _normalise_cases([cases[0], explicit])
+        self.assertEqual(a["geometry_id"], b["geometry_id"])
+        self.assertEqual(a["state_id"], b["state_id"])
+        polygon = cases[2]
+        shifted = deepcopy(polygon)
+        ring = shifted["project"]["geometry"]["outer"]
+        shifted["project"]["geometry"]["outer"] = list(reversed(ring[1:] + ring[:1]))
+        a, b = _normalise_cases([polygon, shifted])
+        self.assertEqual(a["geometry_id"], b["geometry_id"])
+
+    def test_cached_evaluations_match_full_state_identity(self):
+        cases = small_cases()
+        cases.append(deepcopy(cases[0]))
+        with patch("atelier.backend.run_project", side_effect=mock_backend) as backend:
+            report = train_advisor(self.directory, cases, epochs=5)
+        self.assertEqual(backend.call_count, 4 * len(ALGORITHMS))
+        self.assertEqual(report["training_cases"] + report["validation_cases"], 5)
+        self.assertTrue((self.directory / "guide.json").is_file())
+        self.assertTrue((self.directory / "report.json").is_file())
+        self.assertFalse(report["deploy_enabled"])
+        project = cases[0]["project"]
+        project["mesh"]["algorithm"] = "frontal"
+        advice = choose_algorithm(project, self.directory / "guide.json")
+        self.assertEqual(advice["algorithm"], "frontal")
+        self.assertFalse(advice["use_model"])
+
+    def test_heldout_labels_do_not_change_weights_or_baseline(self):
+        cases = small_cases()
+        _, validation = _split(_normalise_cases(cases), 42)
+        reserved_names = {row["name"] for row in validation}
+        with patch("atelier.backend.run_project", side_effect=mock_backend):
+            first = train_advisor(self.directory / "one", cases, epochs=20)
+
+        def changed(project, workdir):
+            report = mock_backend(project, workdir)
+            if project["name"] in reserved_names:
+                report["quality"] = {"minimum": .95 if project["mesh"]["algorithm"] == "frontal" else .1,
+                                     "mean": .95 if project["mesh"]["algorithm"] == "frontal" else .1}
+            return report
+
+        with patch("atelier.backend.run_project", side_effect=changed):
+            second = train_advisor(self.directory / "two", cases, epochs=20)
+        a = json.loads((self.directory / "one/guide.json").read_text())
+        b = json.loads((self.directory / "two/guide.json").read_text())
+        for key in ("input_weights", "output_weights", "hidden_bias", "output_bias", "baseline_algorithm"):
+            self.assertEqual(a[key], b[key])
+        self.assertNotEqual(first["validation_fixed_reward"], second["validation_fixed_reward"])
+
+    def test_failed_candidates_retained_and_all_failure_rejected(self):
+        def one_failure(project, workdir):
+            if project["mesh"]["algorithm"] == "frontal":
+                raise RuntimeError("algorithme indisponible")
+            return mock_backend(project, workdir)
+
+        with patch("atelier.backend.run_project", side_effect=one_failure):
+            report = train_advisor(self.directory, small_cases(), epochs=5)
+        for row in report["evaluations"]:
+            failed = row["evaluations"][2]
+            self.assertFalse(failed["success"])
+            self.assertEqual(failed["reward"], 0)
+            self.assertIn("error", failed)
+        with patch("atelier.backend.run_project", side_effect=RuntimeError("missing")):
+            with self.assertRaisesRegex(RuntimeError, "Aucun algorithme"):
+                train_advisor(self.directory / "failed", small_cases(), epochs=5)
+
+    def test_imports_unavailable_models_and_incompatible_config_keep_user_choice(self):
+        project = {"mode": "volume", "geometry": {"kind": "import"}, "mesh": {"algorithm": "frontal"}}
+        advice = choose_algorithm(project, self.directory / "absent.json")
+        self.assertEqual(advice["algorithm"], "frontal")
+        self.assertIn("outside", advice["reason"])
+        self.assertFalse(advice["use_model"])
+        with patch("atelier.backend.run_project", side_effect=mock_backend):
+            train_advisor(self.directory, small_cases(), epochs=5)
+        project = small_cases()[0]["project"]
+        project["mesh"]["order"] = 2
+        advice = choose_algorithm(project, self.directory / "guide.json")
+        self.assertFalse(advice["use_model"])
+        self.assertIn("configuration", advice["reason"])
+
+    def test_strict_model_loading_rejects_malformed_provenance_and_nonfinite(self):
+        with patch("atelier.backend.run_project", side_effect=mock_backend):
+            train_advisor(self.directory, small_cases(), epochs=5)
+        path = self.directory / "guide.json"
+        original = json.loads(path.read_text())
+        changes = [
+            ("hidden_bias", 1), ("deploy_enabled", 1), ("schema_version", True),
+            ("input_weights", [[float("nan")]]),
+            ("validation_geometry_ids", original["training_geometry_ids"]),
+        ]
+        for key, value in changes:
+            bad = deepcopy(original)
+            bad[key] = value
+            path.write_text(json.dumps(bad))
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                choose_algorithm(small_cases()[0]["project"], path)
+        path.write_text('{"schema":"x","schema":"y"}')
+        with self.assertRaises(ValueError):
+            choose_algorithm(small_cases()[0]["project"], path)
+
+    def test_enabled_policy_uses_network_and_rejects_changed_domain(self):
+        with patch("atelier.backend.run_project", side_effect=mock_backend):
+            train_advisor(self.directory, small_cases(), epochs=5)
+        path = self.directory / "guide.json"
+        fixture = json.loads(path.read_text())
+        fixture.update(deploy_enabled=True, validation_guide_reward=.8,
+                       validation_fixed_reward=.6, improvement=.2,
+                       feature_ranges=[[0, 1] for _ in range(8)])
+        fixture["output_weights"] = [[0] * len(fixture["hidden_bias"]) for _ in ALGORITHMS]
+        fixture["output_bias"] = [0, 1, 0]
+        path.write_text(json.dumps(fixture))
+        project = small_cases()[0]["project"]
+        advice = choose_algorithm(project, path)
+        self.assertTrue(advice["use_model"])
+        self.assertEqual(advice["algorithm"], "delaunay")
+        self.assertEqual(set(advice["scores"]), set(ALGORITHMS))
+        fixture["gmsh_version"] = "different.version"
+        path.write_text(json.dumps(fixture))
+        self.assertEqual(choose_algorithm(project, path)["reason"], "backend_version_changed")
+
+    def test_no_training_validation_with_one_family(self):
+        cases = small_cases()
+        for case in cases:
+            case["family"] = "one"
+        with self.assertRaisesRegex(ValueError, "deux familles"):
+            train_advisor(self.directory, cases)
+
+    def test_small_real_backend_training(self):
+        try:
+            from atelier.backend import _load_gmsh
+            _load_gmsh()
+        except RuntimeError as error:
+            self.skipTest(str(error))
+        cases = small_cases()[:2]
+        report = train_advisor(self.directory, cases, epochs=3)
+        self.assertEqual(report["training_cases"], 1)
+        self.assertEqual(report["validation_cases"], 1)
+        self.assertTrue(all(row["evaluations"][0]["success"] for row in report["evaluations"]))
+        self.assertTrue(math.isfinite(report["validation_guide_reward"]))
+
+
+if __name__ == "__main__":
+    unittest.main()

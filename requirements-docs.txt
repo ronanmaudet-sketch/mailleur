@@ -1,0 +1,5 @@
+# Outils facultatifs pour reconstruire les guides PDF et Word.
+# Installer dans un environnement de documentation, pas dans le moteur.
+python-docx>=1.1,<2
+reportlab>=4,<5
+pypdf>=5,<7

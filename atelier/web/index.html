@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#122d38">
+  <title>Atelier Mailleur — Géométrie & maillage</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <svg class="svg-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M20 21H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h13l4 4v13a1 1 0 0 1-1 1ZM7 3v6h10V3M7 21v-7h10v7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8Z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><path d="M3 3h18v18H3Zm0 6h18M3 15h18M9 3v18M15 3v18"/></symbol>
+    <symbol id="i-shape" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7Zm0 10 9-5M12 12 3 7m9 5v10"/></symbol>
+    <symbol id="i-repair" viewBox="0 0 24 24"><path d="m14 7 3 3 4-4a7 7 0 0 1-9 9l-6 6-3-3 6-6a7 7 0 0 1 9-9Z"/></symbol>
+    <symbol id="i-learn" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5ZM20 2v4m-2-2h4"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8h8v8H8Z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L20 5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V4h6l3 3h9v13H3Zm0 0v13"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </defs></svg>
+
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Atelier Mailleur, accueil"><span class="brand-mark"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M5 25 18 5l13 20-13 7Z"/><path d="m5 25 13-7 13 7M18 5v27M11.5 15l13 0"/></svg></span><span>ATELIER <strong>MAILLEUR</strong><small>GÉOMÉTRIE · CALCUL · EXPLORATION</small></span></a>
+    <div class="header-breadcrumb"><span class="breadcrumb-line"></span> Espace de travail <span>/</span> <b id="header-project-name">Plaque percée</b></div>
+    <div class="header-right"><span class="local-badge"><span></span> Sur cet ordinateur</span><button class="icon-button" id="help-button" aria-label="Guide de prise en main" title="Guide de prise en main"><svg><use href="#i-info"/></svg></button></div>
+  </header>
+
+  <main class="workspace">
+    <aside class="project-panel" aria-label="Paramètres du projet">
+      <div class="project-panel-heading"><span class="eyebrow">VOTRE PROJET</span><button class="text-button" id="examples-button">Exemples <svg><use href="#i-chevron"/></svg></button></div>
+      <label class="project-name-label" for="project-name">Nom du projet</label><input id="project-name" class="project-name" value="Plaque percée" maxlength="100">
+      <div class="panel-tabs" role="tablist" aria-label="Configuration">
+        <button class="panel-tab active" role="tab" aria-selected="true" data-panel="geometry-panel" title="Géométrie"><svg><use href="#i-shape"/></svg><span>Géométrie</span></button>
+        <button class="panel-tab" role="tab" aria-selected="false" data-panel="mesh-panel" title="Maillage"><svg><use href="#i-grid"/></svg><span>Maillage</span></button>
+        <button class="panel-tab" role="tab" aria-selected="false" data-panel="repair-panel" title="Réparation"><svg><use href="#i-repair"/></svg><span>Réparer</span></button>
+        <button class="panel-tab" role="tab" aria-selected="false" data-panel="learn-panel" title="Apprentissage"><svg><use href="#i-learn"/></svg><span>Apprendre</span></button>
+      </div>
+      <div class="panel-scroll">
+        <section id="geometry-panel" class="config-panel active" role="tabpanel">
+          <div class="section-title">Type de domaine <span class="step-label">01</span></div>
+          <div class="segmented" id="mode-control" aria-label="Type de domaine"><button data-mode="planar" class="active">2D plane</button><button data-mode="surface">Surface</button><button data-mode="volume">Volume</button></div>
+          <label class="field"><span>Géométrie</span><select id="geometry-kind"><option value="plate">Plaque paramétrique</option><option value="box">Bloc rectangulaire</option><option value="sphere">Sphère</option><option value="bracket">Équerre 3D</option><option value="polygon">Contour polygonal</option><option value="import">Importer une pièce CAO</option></select></label>
+          <div id="import-geometry" class="import-zone" hidden><svg><use href="#i-upload"/></svg><b>Votre géométrie, ici</b><span>CAO standard et maillages ; formats natifs avec convertisseur local</span><button class="button secondary small" id="choose-cad">Choisir un fichier</button><span id="source-file" class="source-file">Aucun fichier sélectionné</span></div>
+          <div id="native-geometry">
+            <div class="section-title separated">Dimensions <span class="unit-label">UNITÉS DU MODÈLE</span></div>
+            <div class="field-grid">
+              <label class="field" data-kinds="plate box bracket"><span>Largeur <i>×</i></span><input id="geo-width" type="number" min="0.000001" step="any" value="10"></label>
+              <label class="field" data-kinds="plate box bracket"><span>Hauteur <i>y</i></span><input id="geo-height" type="number" min="0.000001" step="any" value="6"></label>
+              <label class="field" data-kinds="box bracket"><span>Profondeur <i>z</i></span><input id="geo-depth" type="number" min="0.000001" step="any" value="3"></label>
+              <label class="field" id="thickness-field" data-kinds="plate"><span>Épaisseur</span><input id="geo-thickness" type="number" min="0.000001" step="any" value="2"></label>
+              <label class="field" data-kinds="sphere"><span>Rayon</span><input id="geo-radius" type="number" min="0.000001" step="any" value="3"></label>
+              <label class="field" data-kinds="bracket"><span>Épaisseur de paroi</span><input id="geo-wall" type="number" min="0.000001" step="any" value="1"></label>
+              <label class="field" data-kinds="bracket"><span>Rayon du perçage</span><input id="geo-throughhole-radius" type="number" min="0" step="any" value="0.35"></label>
+            </div>
+            <div id="plate-details">
+              <div class="section-title separated">Finition des coins</div>
+              <div class="field-grid"><label class="field"><span>Rayon du congé</span><input id="geo-corner-radius" type="number" min="0" step="any" value="0.6"></label><label class="field"><span>Chanfrein</span><input id="geo-chamfer" type="number" min="0" step="any" value="0"></label></div>
+              <p class="field-hint">Choisir un congé ou un chanfrein. Mettre l’autre valeur à zéro.</p>
+              <div class="section-title separated">Perçages <button class="tiny-button" id="add-hole" title="Ajouter un trou"><svg><use href="#i-plus"/></svg> Ajouter</button></div>
+              <div class="holes-column-head"><span>Centre x</span><span>Centre y</span><span>Rayon</span><span></span></div><div id="hole-rows"></div>
+              <p class="field-hint">Les perçages sont conservés dans la géométrie et le maillage.</p>
+            </div>
+            <div id="polygon-details" hidden><label class="field"><span>Contour extérieur · coordonnées [x, y]</span><textarea id="polygon-outer" rows="5">[[0,0],[8,0],[8,5],[0,5]]</textarea></label><label class="field"><span>Contours des trous · liste de contours</span><textarea id="polygon-holes" rows="4">[]</textarea></label></div>
+          </div>
+          <div class="note-card"><svg><use href="#i-info"/></svg><p>Les longueurs du modèle et du maillage utilisent la même unité.</p></div>
+        </section>
+
+        <section id="mesh-panel" class="config-panel" role="tabpanel" hidden>
+          <div class="section-title">Densité du maillage <span class="step-label">02</span></div>
+          <label class="field"><span>Taille cible des éléments</span><div class="input-with-suffix"><input id="mesh-size" type="number" min="0.000001" step="any" value="0.5"><span>h</span></div></label>
+          <label class="field"><span>Taille minimale</span><input id="mesh-min-size" type="number" min="0.000001" step="any" value="0.1"></label>
+          <p class="field-hint">Une taille plus petite décrit mieux les détails et augmente le nombre d’éléments.</p>
+          <div class="section-title separated">Construction</div>
+          <label class="field"><span>Algorithme</span><select id="mesh-algorithm"><option value="automatic">Automatique</option><option value="delaunay">Delaunay</option><option value="frontal">Frontal</option></select></label>
+          <label class="field"><span>Ordre des éléments</span><select id="mesh-order"><option value="1">Linéaire · ordre 1</option><option value="2">Quadratique · ordre 2</option></select></label>
+          <label class="checkbox-field"><input id="mesh-recombine" type="checkbox"><span>Recombiner les triangles en quadrilatères<small>Selon la géométrie ; le résultat peut être mixte.</small></span></label>
+          <div class="section-title separated">Ressources</div><div class="field-grid"><label class="field"><span>Fils de calcul</span><input id="mesh-threads" type="number" min="1" max="32" step="1" value="1"></label><label class="field"><span>Limite d’éléments</span><input id="mesh-max-elements" type="number" min="10" max="2000000" step="1000" value="200000"></label></div>
+          <label class="checkbox-field advisor-use"><input id="use-advisor" type="checkbox"><span>Utiliser le guide appris<small>Propose un algorithme à partir d’essais comparés.</small></span></label>
+        </section>
+
+        <section id="repair-panel" class="config-panel" role="tabpanel" hidden>
+          <div class="section-title">Préparer la géométrie <span class="step-label">03</span></div>
+          <p class="panel-intro">Pour une pièce importée, essayer de corriger les défauts avant de lancer le maillage.</p>
+          <label class="switch-field"><span>Activer la réparation</span><input id="repair-enabled" type="checkbox" role="switch"></label>
+          <div id="repair-options"><label class="field"><span>Tolérance de réparation</span><input id="repair-tolerance" type="number" min="0" step="any" value="0.0000001"></label><label class="checkbox-field"><input id="repair-sew" type="checkbox" checked><span>Coudre les faces proches</span></label><label class="checkbox-field"><input id="repair-small-edges" type="checkbox" checked><span>Corriger les petites arêtes</span></label><label class="checkbox-field"><input id="repair-small-faces" type="checkbox"><span>Corriger les petites faces</span></label><label class="checkbox-field"><input id="repair-make-solids" type="checkbox"><span>Essayer de former un solide fermé</span></label></div>
+          <div class="note-card warning"><svg><use href="#i-info"/></svg><p>Une réparation peut modifier les petits détails. Elle ne permet pas de deviner quelles ouvertures doivent être fermées. Le rapport conserve les opérations et les avertissements.</p></div>
+        </section>
+
+        <section id="learn-panel" class="config-panel" role="tabpanel" hidden>
+          <div class="section-title">Un guide qui progresse <span class="step-label">04</span></div>
+          <div class="learning-illustration"><svg viewBox="0 0 190 92" aria-hidden="true"><g class="learning-lines"><path d="M24 22 83 17 146 45M24 22 83 45 146 20M24 45 83 17 146 72M24 45 83 73 146 20M24 68 83 45 146 72M24 68 83 73 146 45"/></g><g class="learning-nodes"><circle cx="24" cy="22" r="6"/><circle cx="24" cy="45" r="6"/><circle cx="24" cy="68" r="6"/><circle cx="83" cy="17" r="6"/><circle cx="83" cy="45" r="6"/><circle cx="83" cy="73" r="6"/><circle cx="146" cy="20" r="6"/><circle cx="146" cy="45" r="6"/><circle cx="146" cy="72" r="6"/></g></svg></div>
+          <p class="panel-intro">Comparer plusieurs stratégies sur des exemples, apprendre de leurs résultats et mesurer le choix sur des formes réservées à la validation.</p>
+          <button class="button secondary full" id="train-button"><svg><use href="#i-learn"/></svg> Entraîner le guide</button><button id="training-cancel" class="text-button full" hidden>Arrêter l’entraînement</button><div id="training-status" class="field-hint">Le guide reste facultatif.</div>
+          <div id="training-result" class="training-result" hidden></div>
+          <div class="note-card"><svg><use href="#i-info"/></svg><p>Un apprentissage n’assure pas un meilleur résultat. La comparaison avec une stratégie fixe est conservée dans le rapport.</p></div>
+        </section>
+      </div>
+      <div class="generate-area"><button class="button primary full" id="generate-button"><svg><use href="#i-play"/></svg> Générer le maillage</button><button class="button danger full" id="cancel-button" hidden>Arrêter le calcul</button><div class="generation-hint" id="generation-hint">Prêt à générer · paramètres locaux</div></div>
+    </aside>
+
+    <section class="viewer-column" aria-label="Vue de la géométrie et du maillage">
+      <div class="workspace-toolbar"><div class="toolbar-title"><svg><use href="#i-shape"/></svg><b id="view-title">Vue du modèle</b><span id="dimension-badge">2D</span></div><div class="toolbar-actions"><button class="button quiet small" id="open-project-button"><svg><use href="#i-folder"/></svg><span>Ouvrir</span></button><button class="button quiet small" id="import-button"><svg><use href="#i-upload"/></svg><span>Importer</span></button><button class="button secondary small" id="save-project-button"><svg><use href="#i-save"/></svg><span>Enregistrer</span></button></div></div>
+      <div class="viewer-wrap">
+        <canvas id="mesh-view" tabindex="0" aria-label="Vue interactive du modèle. Glisser pour tourner, Maj et glisser pour déplacer, molette pour zoomer."></canvas>
+        <div class="view-label"><span class="view-dot"></span><span id="view-state-label">Aperçu géométrique · avant maillage</span></div>
+        <div class="view-tools"><button class="view-tool" id="fit-view" title="Cadrer le modèle" aria-label="Cadrer le modèle"><svg><use href="#i-fit"/></svg></button><button class="view-tool text" id="iso-view" title="Vue isométrique">ISO</button><button class="view-tool text" id="top-view" title="Vue de dessus">XY</button><span></span><button class="view-tool text" id="zoom-in" title="Zoom avant">+</button><button class="view-tool text" id="zoom-out" title="Zoom arrière">−</button></div>
+        <div class="viewer-options"><label><input id="show-faces" type="checkbox" checked> Faces</label><label><input id="show-edges" type="checkbox" checked> Arêtes</label></div>
+        <div class="view-empty" id="import-empty" hidden><span class="empty-glyph"><svg><use href="#i-upload"/></svg></span><h2>Une pièce à explorer</h2><p>Importez votre géométrie, réglez la taille des éléments<br>et créez un maillage adapté à votre calcul.</p><button class="button primary" id="empty-import-button">Importer une pièce</button></div>
+        <div class="canvas-instructions">Glisser pour tourner <span>·</span> Maj + glisser pour déplacer <span>·</span> Molette pour zoomer</div>
+        <div class="compute-overlay" id="compute-overlay" hidden><span class="spinner"></span><div><b id="compute-title">Construction du maillage</b><span id="compute-message">Préparation de la géométrie…</span></div><span class="compute-time" id="compute-time">0 s</span></div>
+      </div>
+      <div class="activity-bar"><span class="activity-indicator" id="activity-indicator"></span><span id="activity-message">Initialisation de l’atelier…</span><button id="toggle-log" class="text-button">Journal <svg><use href="#i-chevron"/></svg></button></div>
+      <div class="activity-log" id="activity-log" hidden role="log" aria-label="Journal des opérations"></div>
+    </section>
+
+    <aside class="results-panel" aria-label="Résultats et qualité du maillage">
+      <div class="results-heading"><span class="eyebrow">RÉSULTATS</span><span class="result-state" id="result-state">En attente</span></div>
+      <h2>Un maillage,<br>en confiance.</h2><p class="results-intro" id="results-intro">Les contrôles apparaîtront ici après la génération.</p>
+      <div class="mesh-stat-grid"><div><span>Nœuds</span><strong id="stat-nodes">—</strong></div><div><span>Éléments</span><strong id="stat-elements">—</strong></div></div>
+      <div class="quality-card"><div class="quality-title"><span>Qualité minimale</span><svg><use href="#i-info"/></svg></div><div class="quality-value"><strong id="quality-min">—</strong><span id="quality-label">Non calculée</span></div><div class="quality-meter"><span id="quality-meter-fill"></span></div><div class="quality-legend"><span>0 · faible</span><span>1 · régulière</span></div><p id="quality-detail">Indicateur de forme des éléments. À compléter par les contrôles du solveur.</p></div>
+      <div class="results-section"><div class="section-title">Composition</div><div id="cell-types" class="cell-types"><span class="muted-small">Aucun élément calculé</span></div></div>
+      <div class="results-section"><div class="section-title">Groupes du modèle <span id="group-count" class="count-badge">0</span></div><div id="group-list" class="group-list"><span class="muted-small">Domaines et frontières nommés</span></div></div>
+      <div id="selection-info" class="selection-info" hidden></div>
+      <div id="warnings" class="warnings" hidden></div>
+      <details class="diagnostics"><summary>Diagnostic détaillé <svg><use href="#i-chevron"/></svg></summary><pre id="diagnostic-content">Aucun diagnostic disponible.</pre></details>
+      <div class="export-area"><div class="section-title">Vers votre logiciel de calcul</div><label class="field"><span class="sr-only">Format d’export</span><select id="export-format"><option value="msh">Gmsh · MSH</option></select></label><button id="export-button" class="button secondary full" disabled><svg><use href="#i-download"/></svg> Exporter le maillage</button><button id="bundle-button" class="text-button full" disabled>Tous les formats disponibles <svg><use href="#i-download"/></svg></button><p class="field-hint">Les propriétés des matériaux et les chargements se définissent dans le solveur.</p></div>
+    </aside>
+  </main>
+
+  <footer class="app-footer"><span><span class="footer-dot"></span><span id="backend-status">Connexion au moteur…</span></span><span id="footer-version">Atelier Mailleur</span><span>Vos fichiers restent sur cet ordinateur</span></footer>
+  <input id="cad-file-input" type="file" accept=".step,.stp,.iges,.igs,.brep,.stl" hidden><input id="project-file-input" type="file" accept=".amp,.zip,.json" hidden>
+  <div id="toast-area" class="toast-area" role="status" aria-live="polite"></div>
+  <dialog id="examples-dialog"><div class="dialog-header"><div><span class="eyebrow">POUR COMMENCER</span><h2>Choisir un exemple</h2></div><button class="icon-button" data-close-dialog aria-label="Fermer"><svg><use href="#i-close"/></svg></button></div><p class="dialog-intro">Des géométries prêtes à mailler. Les dimensions et les paramètres restent modifiables.</p><div id="example-grid" class="example-grid"></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-header"><div><span class="eyebrow">PRISE EN MAIN</span><h2>De la pièce au calcul.</h2></div><button class="icon-button" data-close-dialog aria-label="Fermer"><svg><use href="#i-close"/></svg></button></div><ol class="help-steps"><li><b>Préparer la pièce</b><span>Ouvrez un exemple, créez une géométrie paramétrique ou importez un fichier STEP, IGES, BREP ou STL.</span></li><li><b>Régler le maillage</b><span>Choisissez le domaine et la taille des éléments. Pour un volume, la géométrie doit délimiter un solide fermé.</span></li><li><b>Examiner le résultat</b><span>Tournez la vue, consultez les groupes et le diagnostic. Une qualité positive ne suffit pas à garantir la précision du calcul mécanique.</span></li><li><b>Exporter et conserver</b><span>Exportez le maillage pour votre solveur et enregistrez le projet pour retrouver la géométrie et les réglages.</span></li></ol><div class="note-card warning"><svg><use href="#i-info"/></svg><p>La réparation est contrôlée et facultative. Les pièces complexes ou très dégradées peuvent nécessiter une correction dans un outil CAO.</p></div><button class="button primary" data-close-dialog>Commencer</button></dialog>
+  <script src="/app.js" defer></script>
+</body>
+</html>

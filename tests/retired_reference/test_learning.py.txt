@@ -1,0 +1,167 @@
+"""Tests of state identity, heldout isolation and the trainable strategy guide."""
+
+import copy
+import json
+import math
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from mailleur.learning import (FEATURE_COUNT, STRATEGIES, Guide, collect_corpus,
+                              extract_features, split_corpus, train_guide)
+
+
+def cases():
+    return [{"name": f"rectangle_{i}", "points": [[0, 0], [1 + i * 0.3, 0],
+                                                    [1 + i * 0.3, 1], [0, 1]],
+             "target_size": 0.4, "family": f"independent_{i}"} for i in range(8)]
+
+
+def mock_corpus(inputs=None):
+    """Label cheaply: the policy tests need known scores, not repeated meshes."""
+    inputs = cases() if inputs is None else inputs
+    scores = {"quality": 0.83, "shortest": 0.51, "balanced": 0.68, "first": 0.39}
+    with patch("mailleur.learning.generate_mesh", side_effect=lambda *a, **k: k["strategy"]), \
+            patch("mailleur.learning.quality_summary", side_effect=lambda strategy: {
+                "min_scaled_jacobian": scores[strategy],
+                "mean_scaled_jacobian": scores[strategy]}):
+        return collect_corpus(inputs, smooth_steps=0, max_elements=1000)
+
+
+class FeatureTests(unittest.TestCase):
+    def test_translation_rotation_of_order_and_scaling(self):
+        p = [[0, 0], [2, 0], [2, 1], [1, 0.6], [0, 1]]
+        expected = extract_features(p, 0.25)
+        transformed = [[3 * x + 8, 3 * y - 4] for x, y in reversed(p[2:] + p[:2])]
+        actual = extract_features(transformed, 0.75)
+        self.assertEqual(len(actual), FEATURE_COUNT)
+        for a, b in zip(actual, expected):
+            self.assertAlmostEqual(a, b, places=12)
+        self.assertTrue(all(0 <= value <= 1 for value in actual))
+
+    def test_target_size_validation(self):
+        for invalid in [0, -1, math.nan, math.inf, True, "0.2"]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                extract_features(cases()[0]["points"], invalid)
+
+
+class CorpusTests(unittest.TestCase):
+    def test_identity_contains_geometry_and_size(self):
+        inputs = cases()[:2]
+        inputs.append(dict(inputs[0], target_size=0.2))
+        rows = mock_corpus(inputs)
+        self.assertNotEqual(rows[0]["geometry_id"], rows[1]["geometry_id"])
+        self.assertEqual(rows[0]["geometry_id"], rows[2]["geometry_id"])
+        self.assertEqual(len({row["state_id"] for row in rows}), 3)
+
+    def test_duplicate_state_reuses_all_strategy_evaluations(self):
+        original = cases()[0]
+        duplicate = dict(original, points=list(reversed(original["points"][1:] + original["points"][:1])))
+        with patch("mailleur.learning.generate_mesh", return_value=None) as generate, \
+                patch("mailleur.learning.quality_summary", return_value={
+                    "min_scaled_jacobian": 0.5, "mean_scaled_jacobian": 0.7}):
+            rows = collect_corpus([original, duplicate], smooth_steps=0)
+        self.assertEqual(generate.call_count, len(STRATEGIES))
+        self.assertEqual(rows[0]["state_id"], rows[1]["state_id"])
+
+    def test_geometry_and_family_union_never_crosses_split(self):
+        a, b, c = cases()[:3]
+        inputs = [dict(a, family="x"), dict(a, family="y", target_size=0.2),
+                  dict(b, family="y"), dict(c, family="z")]
+        train, val = split_corpus(mock_corpus(inputs), seed=9)
+        train_ids, val_ids = ({r["geometry_id"] for r in partition} for partition in [train, val])
+        self.assertFalse(train_ids & val_ids)
+        self.assertFalse({r["family"] for r in train} & {r["family"] for r in val})
+        self.assertEqual(sorted([len(train), len(val)]), [1, 3])
+
+    def test_single_group_cannot_claim_validation(self):
+        rows = mock_corpus([dict(case, family="all_same") for case in cases()])
+        with self.assertRaisesRegex(ValueError, "indépendantes"):
+            split_corpus(rows)
+
+    def test_direct_collection_rejects_holes(self):
+        case = dict(cases()[0], holes=[[[0.2, 0.2], [0.3, 0.2], [0.2, 0.3]]])
+        with self.assertRaisesRegex(ValueError, "trous"):
+            collect_corpus([case])
+
+    def test_malformed_rows_rejected(self):
+        mutations = [
+            lambda r: r.update(geometry_id="0" * 64),
+            lambda r: r.update(target_size=0.1),
+            lambda r: r.update(features=[math.nan] * FEATURE_COUNT),
+            lambda r: r.update(rewards=[math.inf] * 4),
+            lambda r: r.update(strategies=list(reversed(STRATEGIES))),
+            lambda r: r.update(schema_version=True),
+        ]
+        for mutate in mutations:
+            rows = mock_corpus()
+            mutate(rows[0])
+            with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                split_corpus(rows)
+
+
+class GuideTests(unittest.TestCase):
+    def test_training_deterministic_and_mse_decreases(self):
+        rows = mock_corpus()
+        guide, report = train_guide(rows, epochs=60, seed=13)
+        guide2, report2 = train_guide(rows, epochs=60, seed=13)
+        self.assertEqual(guide.to_dict(), guide2.to_dict())
+        self.assertEqual(report, report2)
+        self.assertLess(report["training_mse"], report["initial_training_mse"])
+        self.assertEqual(guide.select(cases()[0]["points"], 0.4), "quality")
+        self.assertFalse(set(report["training_geometry_ids"]) & set(report["validation_geometry_ids"]))
+
+    def test_validation_labels_do_not_influence_fitted_weights(self):
+        rows = mock_corpus()
+        _, val = split_corpus(rows, seed=19)
+        val_ids = {row["state_id"] for row in val}
+        changed = copy.deepcopy(rows)
+        for row in changed:
+            if row["state_id"] in val_ids:
+                row["rewards"] = [0.0, 1.0, 0.0, 1.0]
+        a, report_a = train_guide(rows, epochs=30, seed=19)
+        b, report_b = train_guide(changed, epochs=30, seed=19)
+        self.assertEqual(a.to_dict(), b.to_dict())
+        self.assertEqual(report_a["fixed_strategy_chosen_on_training"],
+                         report_b["fixed_strategy_chosen_on_training"])
+        self.assertNotEqual(report_a["validation_mse"], report_b["validation_mse"])
+
+    def test_model_json_roundtrip_and_malformed_models(self):
+        guide, _ = train_guide(mock_corpus(), epochs=10)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "new" / "nested" / "guide.json"
+            guide.save(path)
+            loaded = Guide.load(path)
+            self.assertEqual(guide.to_dict(), loaded.to_dict())
+            features = extract_features(cases()[0]["points"], 0.4)
+            self.assertEqual(guide.predict(features), loaded.predict(features))
+            for mutate in [lambda d: d.update(hidden_bias=[]),
+                           lambda d: d.update(input_weights=[[0]]),
+                           lambda d: d.update(output_bias=[math.nan] * 4),
+                           lambda d: d.update(schema_version=True),
+                           lambda d: d.update(feature_names=["wrong"] * FEATURE_COUNT)]:
+                data = guide.to_dict()
+                mutate(data)
+                path.write_text(json.dumps(data), encoding="utf-8")
+                with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                    Guide.load(path)
+            guide.save(path)
+            encoded = path.read_text(encoding="utf-8")
+            path.write_text(encoded.replace('"schema_version": 1',
+                                            '"schema_version": 1, "schema_version": 1'),
+                            encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "répétée"):
+                Guide.load(path)
+
+    def test_real_small_corpus_and_saved_guide(self):
+        rows = collect_corpus(cases()[:3], smooth_steps=0, max_elements=1000)
+        guide, report = train_guide(rows, epochs=5)
+        self.assertEqual(len(rows), 3)
+        self.assertGreater(report["validation_rows"], 0)
+        self.assertIn(guide.select(cases()[0]["points"], 0.4), STRATEGIES)
+        self.assertTrue(all(math.isfinite(score) for score in guide.predict(rows[0]["features"])))
+
+
+if __name__ == "__main__":
+    unittest.main()

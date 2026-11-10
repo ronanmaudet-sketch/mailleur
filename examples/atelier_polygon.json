@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "name": "Contour concave percé",
+  "mode": "planar",
+  "geometry": {
+    "kind": "polygon",
+    "outer": [
+      [
+        0,
+        0
+      ],
+      [
+        8,
+        0
+      ],
+      [
+        8,
+        3
+      ],
+      [
+        4,
+        3
+      ],
+      [
+        4,
+        7
+      ],
+      [
+        0,
+        7
+      ]
+    ],
+    "holes": [
+      [
+        [
+          1,
+          1
+        ],
+        [
+          2.5,
+          1
+        ],
+        [
+          2.5,
+          2.5
+        ],
+        [
+          1,
+          2.5
+        ]
+      ]
+    ]
+  },
+  "mesh": {
+    "size": 0.65,
+    "min_size": 0.18,
+    "order": 1,
+    "algorithm": "automatic",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 200000
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m"
+  }
+}

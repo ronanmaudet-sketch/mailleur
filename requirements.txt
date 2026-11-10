@@ -1,0 +1,7 @@
+# Les mêmes dépendances sont déclarées dans pyproject.toml.
+# Pour l'application complète, préférer : python -m pip install -e .
+gmsh==4.15.2
+meshio==5.3.5
+h5py>=3.10,<4
+numpy>=1.24,<3
+PySide6-Essentials>=6.8,<7

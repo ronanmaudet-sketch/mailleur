@@ -1,0 +1,64 @@
+"""Regression checks for polygon validation and geometry-aware identity."""
+import math
+import unittest
+
+from mailleur.geometry import geometry_id, polygon_area, prepare_polygon
+
+
+class GeometryTests(unittest.TestCase):
+    def test_clockwise_and_closed_polygon_becomes_ccw(self):
+        points = [(0, 0), (0, 1), (2, 1), (2, 0), (0, 0)]
+        prepared = prepare_polygon(points)
+        self.assertEqual(len(prepared), 4)
+        self.assertGreater(polygon_area(prepared), 0)
+        self.assertAlmostEqual(polygon_area(prepared), 2.0)
+
+    def test_area_has_orientation(self):
+        triangle = [(0, 0), (3, 0), (0, 2)]
+        self.assertAlmostEqual(polygon_area(triangle), 3.0)
+        self.assertAlmostEqual(polygon_area(list(reversed(triangle))), -3.0)
+
+    def test_identity_includes_actual_coordinates(self):
+        square = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        rectangle = [(0, 0), (2, 0), (2, 1), (0, 1)]
+        self.assertNotEqual(geometry_id(square), geometry_id(rectangle))
+        self.assertEqual(len(geometry_id(square)), 64)
+
+    def test_identity_ignores_ring_start_and_orientation(self):
+        polygon = [(0, 0), (3, 0), (2, 1), (0, 2)]
+        shifted = polygon[2:] + polygon[:2]
+        self.assertEqual(geometry_id(polygon), geometry_id(shifted))
+        self.assertEqual(geometry_id(polygon), geometry_id(list(reversed(polygon))))
+        self.assertEqual(geometry_id(polygon), geometry_id(polygon + [polygon[0]]))
+
+    def test_small_scale_valid_polygon(self):
+        tiny = [(0, 0), (1e-9, 0), (1e-9, 1e-9), (0, 1e-9)]
+        self.assertEqual(len(prepare_polygon(tiny)), 4)
+        self.assertGreater(polygon_area(prepare_polygon(tiny)), 0)
+
+    def test_invalid_polygons_rejected(self):
+        examples = [
+            [],
+            [(0, 0), (1, 0)],
+            [(0, 0), (1, 0), (2, 0)],
+            [(0, 0), (1, 1), (0, 1), (1, 0)],
+            [(0, 0), (1, 0), (1, 1), (1, 0), (0, 1)],
+            [(0, 0), (1, 0), (math.nan, 1)],
+            [(0, 0), (1, 0), (math.inf, 1)],
+            [(0, 0), (2, 0), (2, True), (0, 1)],
+            [(0, 0), ('2', 0), (2, 1), (0, 1)],
+            [(0, 0), (2, 0), '12', (0, 2)],
+        ]
+        for points in examples:
+            with self.subTest(points=points):
+                with self.assertRaises(ValueError):
+                    prepare_polygon(points)
+
+    def test_concave_polygon_is_accepted(self):
+        polygon = [(0, 0), (3, 0), (3, 1), (1, 1), (1, 3), (0, 3)]
+        prepared = prepare_polygon(polygon)
+        self.assertAlmostEqual(polygon_area(prepared), 5.0)
+
+
+if __name__ == '__main__':
+    unittest.main()

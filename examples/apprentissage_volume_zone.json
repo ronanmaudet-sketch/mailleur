@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "name": "Apprentissage — boîte volumique et face protégée",
+  "mode": "volume",
+  "units": {
+    "input": "mm",
+    "internal": "m"
+  },
+  "geometry": {
+    "kind": "box",
+    "width": 10,
+    "height": 6,
+    "depth": 4
+  },
+  "mesh": {
+    "size": 1.0,
+    "min_size": 0.2,
+    "order": 1,
+    "algorithm": "delaunay",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 100000
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  },
+  "quality_policy": {
+    "poor_threshold": 0.15,
+    "minimum_quality": 0.05,
+    "max_poor_fraction": 0.03,
+    "strict": true
+  },
+  "critical_zones": [
+    {
+      "name": "Face de contact déclarée",
+      "kind": "contact",
+      "dimension": 2,
+      "tags": [
+        1
+      ],
+      "buffer": 0.3,
+      "minimum_quality": 0.2
+    },
+    {
+      "name": "Volume à contrôler",
+      "kind": "custom",
+      "dimension": 3,
+      "tags": [
+        1
+      ],
+      "buffer": 0,
+      "minimum_quality": 0.1
+    }
+  ],
+  "learning": {
+    "max_trials": 12,
+    "epochs": 100,
+    "use_memory": true,
+    "max_seconds": 240
+  }
+}

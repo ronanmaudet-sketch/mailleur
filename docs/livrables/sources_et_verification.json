@@ -1,0 +1,46 @@
+{
+  "generated_at_utc": "2026-11-04T21:15:53.388744+00:00",
+  "revision": "4 novembre 2026",
+  "sources": [
+    {
+      "path": "docs/GUIDE_COMPLET_MAILLEUR.md",
+      "bytes": 30503,
+      "sha256": "49930974786a41090a0a844d668172ae24dc650f76b3f336a5f9f677b763e304"
+    },
+    {
+      "path": "docs/MESURES_M3.md",
+      "bytes": 13260,
+      "sha256": "2f038e58bff19f01b1c04f77952c5d27c1ecab81bbed411c795e17b38b69de7c"
+    },
+    {
+      "path": "docs/API_UTILISATION.md",
+      "bytes": 28150,
+      "sha256": "797522d108a050bc1bca4c2e158f136a5706cd2b71c1c05ec9276a87de94692d"
+    },
+    {
+      "path": "docs/TAILLES_ET_CAPACITES.md",
+      "bytes": 17737,
+      "sha256": "83b4d2c2cf5bdf5ae8796ed5b294f5cc0aa31f5511d2a516b15f3142a46bcc44"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Mailleur_Guide_complet.pdf",
+      "bytes": 222155,
+      "sha256": "111eaa5dfba60e886c8b969eb7acfb081267e600591e0b1c5c80033edb1844a4"
+    },
+    {
+      "name": "Mailleur_Guide_complet.docx",
+      "bytes": 83710,
+      "sha256": "812ba13f59ea4bf298d5fdb0da064f763d7c582ca3929a4cbadb96c6ce7926b7"
+    }
+  ],
+  "verification_pdf": {
+    "pages": 36,
+    "chapters_and_appendices": 15,
+    "missing_headings": [],
+    "text_token_coverage": 1.0,
+    "missing_words": [],
+    "extracted_characters": 91222
+  }
+}

@@ -1,0 +1,264 @@
+{
+  "schema": "atelier.extended_core_consolidation.v1",
+  "final_core": {
+    "core": "mailleur-core 1.0.0-rc.7",
+    "core_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
+    "platform": "macOS-27.2-arm64-arm-64bit",
+    "python": "3.12.16"
+  },
+  "notes": [
+    "The original failed rc6 runs are preserved, not counted as passing.",
+    "The matrix counts actual accepted meshes, policy refusals, invalid-element refusals, optimizer errors and intentionally invalid geometries separately.",
+    "The 100000-record capacity fixture is synthetic and produces no real meshes.",
+    "The capacity and corpus evidence use earlier rc7 binaries; the subsequent Gmsh-only bounding-box option does not run in synthetic dataset training. All source run hashes remain recorded.",
+    "Measurements are wall-clock observations with other verification tasks active, not before/after speedup claims. RSS covers the Rust child alone, excluding Qt/Python UI."
+  ],
+  "matrix": {
+    "source": "run-20261107T190216151961/summary.json",
+    "actual_cases": 288,
+    "outcomes": {
+      "accepted": 257,
+      "geometry_rejected_expected": 12,
+      "invalid_elements_rejected": 3,
+      "optimizer_rejected": 4,
+      "quality_rejected": 12
+    },
+    "invariant_failures": [],
+    "unit_report_pairs": 131,
+    "unit_geometry_and_size_concordant": 131,
+    "unit_same_quality_decision": 127,
+    "unit_identical_counts_and_quality": 0,
+    "unit_quality_decision_sensitivity": [
+      {
+        "seed": 7,
+        "family": "perforated_plate_volume",
+        "order": 2,
+        "outcomes": {
+          "mm": {
+            "outcome": "quality_rejected",
+            "minimum_quality": 0.01220949275151074
+          },
+          "m": {
+            "outcome": "accepted",
+            "minimum_quality": 0.21706712365476308
+          }
+        }
+      },
+      {
+        "seed": 7,
+        "family": "bracket_volume",
+        "order": 2,
+        "outcomes": {
+          "mm": {
+            "outcome": "quality_rejected",
+            "minimum_quality": 0.0029957420393394263
+          },
+          "m": {
+            "outcome": "accepted",
+            "minimum_quality": 0.19640174043925182
+          }
+        }
+      },
+      {
+        "seed": 42,
+        "family": "thin_plate_volume",
+        "order": 1,
+        "outcomes": {
+          "mm": {
+            "outcome": "accepted",
+            "minimum_quality": 0.2820377189374487
+          },
+          "m": {
+            "outcome": "quality_rejected",
+            "minimum_quality": 0.00581183676773704
+          }
+        }
+      },
+      {
+        "seed": 42,
+        "family": "thin_plate_volume",
+        "order": 2,
+        "outcomes": {
+          "mm": {
+            "outcome": "accepted",
+            "minimum_quality": 0.28203771893744783
+          },
+          "m": {
+            "outcome": "quality_rejected",
+            "minimum_quality": 0.005811836767730766
+          }
+        }
+      }
+    ],
+    "identical_seed_project_repeats": 8,
+    "identical_seed_project_repeat_matches": 8
+  },
+  "properties": {
+    "source": "run-20261107T190216151961/summary.json",
+    "checks": 49,
+    "outcomes": {
+      "accepted_reconstruction": 41,
+      "rejected": 8
+    },
+    "expected_rejections_verified_json_exit_2": 8,
+    "source_checksums_unchanged": true
+  },
+  "corpus": {
+    "source": "run-20261107T185415451486/summary.json",
+    "core_sha256": "77b4d1dc45df94d295cc548cf5c1b0cff7e48b31a4f3123088a18ee7d9674bff",
+    "plan_million_cases": 1000000,
+    "plan_bytes": 5273,
+    "real_cases_executed_for_plan": 0,
+    "million_plan_mesh_files": 0,
+    "real_campaign_records": 96,
+    "unique_case_ids": 96,
+    "contiguous_indices": true,
+    "interruption": {
+      "exit_code": -15,
+      "process_interrupted": true,
+      "requested_after_complete_jsonl_lines": 3
+    },
+    "tamper": {
+      "checkpoint_unchanged": true,
+      "error": "{\"error\":\"Le segment fermé 0 a été modifié ; reprise refusée sans suppression\",\"ok\":false}\n",
+      "refused": true
+    },
+    "restored_completed_cases": 96,
+    "disjoint_family_splits": true,
+    "source_integrity": {
+      "integrity": {
+        "adopted_legacy_integrity": false,
+        "historical_integrity_proven": true,
+        "schema": "atelier.corpus.integrity.v1"
+      },
+      "native_campaign_integrity_verified": true,
+      "plan_id": "0ea5534d088f6ccce63da3bda7044c4842162b5b02c95a3f2ef812e65d1e9dc2",
+      "recovery": {
+        "adopted_legacy_integrity_this_call": false,
+        "cost": "Chaque ouverture/status relit les octets durables en mémoire bornée ; aucun rehash par cas pendant un lot",
+        "decoded_records": 0,
+        "legacy_checkpoint_upgraded": false,
+        "recovered_cases": 0,
+        "validation": "sha256_all_closed_shards_and_active_prefix_then_decode_uncommitted_tail",
+        "verified_bytes": 1338261,
+        "verified_closed_shards": 13
+      },
+      "scope": "native_campaign",
+      "source_core_version": "1.0.0-rc.7",
+      "source_numerics_version": "atelier.corpus.numerics.rc7_float_roundtrip"
+    },
+    "trained_model_deploy_enabled": false
+  },
+  "synthetic_streaming": {
+    "source": "run-20261107T185138766837/summary.json",
+    "core_sha256": "68130ce1a8a9b510a21800c96772f778a74ea8b316a8c6a0030c33899e1db03b",
+    "records": 100000,
+    "real_meshes_generated": 0,
+    "fixture_bytes": 133726670,
+    "fixture_write_seconds": 2.4381183330006024,
+    "features": 128,
+    "actions_per_record": 2,
+    "epochs": 2,
+    "parameter_count": 4161,
+    "paused": {
+      "seconds": 4.550851292000516,
+      "max_rss_bytes": 3964928,
+      "directory": "operations/00001-stream-paused"
+    },
+    "resumed": {
+      "seconds": 22.230716042000495,
+      "max_rss_bytes": 4751360,
+      "directory": "operations/00002-stream-resume"
+    },
+    "continuous": {
+      "seconds": 22.280894499999704,
+      "max_rss_bytes": 4096000,
+      "directory": "operations/00003-stream-continuous"
+    },
+    "exact_resumed_weights_validation_and_decision": true,
+    "exact_final_partition_metrics": true,
+    "fixture_retained": false
+  },
+  "large_mesh": {
+    "source": "run-20261107T190216151961/summary.json",
+    "directory": "operations/00352-large-100k-300k",
+    "exit_code": 0,
+    "max_rss_bytes": 372506624,
+    "project": {
+      "geometry": {
+        "depth": 8,
+        "height": 16,
+        "kind": "box",
+        "width": 20
+      },
+      "mesh": {
+        "algorithm": "delaunay",
+        "max_elements": 300000,
+        "min_size": 0.12,
+        "order": 1,
+        "recombine": false,
+        "size": 0.42,
+        "threads": 1
+      },
+      "mode": "volume",
+      "name": "Stress borné boîte 20×16×8mm",
+      "quality_policy": {
+        "minimum_quality": 0.03,
+        "poor_threshold": 0.2,
+        "strict": true
+      },
+      "repair": {
+        "enabled": false,
+        "make_solids": true,
+        "sew": true,
+        "small_edges": true,
+        "small_faces": false,
+        "tolerance": 1e-07
+      },
+      "schema_version": 1,
+      "units": {
+        "input": "mm",
+        "internal": "m"
+      }
+    },
+    "rss_scope": "Rust child alone, measured by a fresh parent via RUSAGE_CHILDREN",
+    "scope": "One bounded case; not an industrial memory ceiling",
+    "seconds": 2.5769725420013856,
+    "signature": {
+      "accepted": true,
+      "bounds": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.02,
+          0.016,
+          0.008
+        ]
+      ],
+      "bounds_approximate": true,
+      "bounds_relative_deflection": 0.001,
+      "cell_counts": {
+        "Line 2": 428,
+        "Tetrahedron 4": 166247,
+        "Triangle 3": 18644
+      },
+      "elements": 166247,
+      "mean": 0.8113961540106343,
+      "minimum": 0.2692755676563724,
+      "minimum_size_internal": 0.00012,
+      "nodes": 31321,
+      "target_size_internal": 0.00042
+    },
+    "wrapper_exit_code": 0
+  },
+  "targeted_regressions": {
+    "test_file": "tests/test_extended_core.py",
+    "passed": 3,
+    "seconds": 7.313,
+    "log": "bounds_regressions.txt",
+    "independent_occ_probe": "occ_scaled_sphere_probe.json"
+  }
+}

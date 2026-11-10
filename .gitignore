@@ -1,0 +1,23 @@
+# Environnements, outils et résultats locaux : ne pas les envoyer sur GitHub.
+.venv/
+.bootstrap/
+.runtime/
+.toolchain/
+**/target/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+.pytest_cache/
+output/
+dist/
+build/
+# Vos pièces et expériences de travail (les exemples et preuves livrés restent suivis).
+workspace/
+mes_donnees/
+*.amp
+# Les projets portables de démonstration sont livrés avec les sources.
+!examples/*.amp
+*.cadpack
+cad-converters.local.json
+*.tmp

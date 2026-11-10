@@ -1,0 +1,153 @@
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+import xml.etree.ElementTree as ET
+
+from mailleur.export import export_mesh, gmsh_text, read_mesh, svg_text
+from mailleur.io import atomic_write, load_case, load_cases, load_json, write_json
+from mailleur.meshing import generate_mesh
+
+
+class TestIO(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.directory = Path(self.temporary.name)
+
+    def mesh(self):
+        return generate_mesh([(0, 0), (1, 0), (1, 1), (0, 1)], 0.7, smooth_steps=1)
+
+    def test_atomic_overwrite_and_strict_numbers(self):
+        path = self.directory / "a" / "file.txt"
+        atomic_write(path, "ancienne version")
+        atomic_write(path, "nouvelle version")
+        self.assertEqual(path.read_text(encoding="utf-8"), "nouvelle version")
+        self.assertEqual(list(path.parent.glob("*.tmp")), [])
+        path.write_text('{"value": NaN}', encoding="utf-8")
+        with self.assertRaises(ValueError):
+            load_json(path)
+        path.write_text('{"value": 1e400}', encoding="utf-8")
+        with self.assertRaises(ValueError):
+            load_json(path)
+        path.write_text('{"value": 1, "value": 2}', encoding="utf-8")
+        with self.assertRaises(ValueError):
+            load_json(path)
+        with self.assertRaises(ValueError):
+            write_json(path, {"value": float("inf")})
+
+    def test_mesh_json_roundtrip_and_invalid_indices(self):
+        mesh = self.mesh()
+        files = export_mesh(mesh, self.directory / "piece", "Pièce & contrôle")
+        self.assertEqual(len(files), 3)
+        restored = read_mesh(files[0])
+        self.assertEqual(restored.points, mesh.points)
+        self.assertEqual(restored.quads, mesh.quads)
+        self.assertEqual(restored.boundary, mesh.boundary)
+        data = load_json(files[0])
+        data["quads"][0][0] = -1
+        write_json(files[0], data)
+        with self.assertRaises(ValueError):
+            read_mesh(files[0])
+
+    def test_svg_is_xml_and_escapes_title(self):
+        mesh = self.mesh()
+        title = '<unsafe title="a"> & pièce'
+        source = svg_text(mesh, title)
+        root = ET.fromstring(source)
+        self.assertEqual(root.find("{http://www.w3.org/2000/svg}title").text, title)
+        self.assertEqual(len(root.findall(".//{http://www.w3.org/2000/svg}polygon")), len(mesh.quads))
+        self.assertNotIn("<unsafe", source)
+
+    def test_gmsh_node_and_element_connectivity(self):
+        mesh = self.mesh()
+        lines = gmsh_text(mesh).splitlines()
+        self.assertEqual(lines[1], "2.2 0 8")
+        ni = lines.index("$Nodes")
+        self.assertEqual(int(lines[ni + 1]), len(mesh.points))
+        ei = lines.index("$Elements")
+        count = int(lines[ei + 1])
+        self.assertEqual(count, len(mesh.quads) + len(mesh.boundary))
+        entries = [list(map(int, line.split())) for line in lines[ei + 2:ei + 2 + count]]
+        self.assertEqual(sum(row[1] == 3 for row in entries), len(mesh.quads))
+        self.assertEqual(sum(row[1] == 1 for row in entries), len(mesh.boundary))
+        self.assertTrue(all(1 <= node <= len(mesh.points) for row in entries for node in row[5:]))
+
+    def test_case_loading_and_override(self):
+        path = self.directory / "case.json"
+        write_json(path, {"points": [[0, 0], [2, 0], [0, 1]], "target_size": 0.4})
+        self.assertEqual(load_case(path)["target_size"], 0.4)
+        self.assertEqual(load_case(path, size_override=0.7)["target_size"], 0.7)
+        write_json(path, [{"name": "triangle", "points": [[0, 0], [2, 0], [0, 1]], "target_size": 0.4}])
+        self.assertEqual(load_cases(path)[0]["name"], "triangle")
+        write_json(path, {"points": [[0, 0], [2, 0], [0, 1]], "target_size": -0.4})
+        with self.assertRaises(ValueError):
+            load_case(path)
+
+    def test_cli_benchmark_process_bound_and_reproducibility(self):
+        corpus = self.directory / "corpus.json"
+        write_json(corpus, [
+            {"name": "square", "family": "rectangles", "points": [[0, 0], [1, 0], [1, 1], [0, 1]], "target_size": 1.0},
+            {"name": "triangle", "family": "triangles", "points": [[0, 0], [1, 0], [0, 1]], "target_size": 1.0},
+        ])
+        project = Path(__file__).resolve().parents[1]
+        reports = []
+        for workers in (1, 2):
+            output = self.directory / f"benchmark_{workers}.json"
+            run = subprocess.run([sys.executable, "-m", "mailleur", "benchmark", str(corpus),
+                                  "--output", str(output), "--workers", str(workers), "--smooth", "0"],
+                                 cwd=project, capture_output=True, text=True, timeout=30)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            report = load_json(output)
+            self.assertEqual(report["workers"], workers)
+            for case in report["results"]:
+                for result in case["results"]:
+                    self.assertIn(result["effective_triangulation_strategy"], ("quality", "shortest", "balanced", "first"))
+                    self.assertIsInstance(result["triangulation_fallback"], bool)
+                    self.assertIn("triangulation_fallback_reason", result)
+                    result.pop("seconds")
+                    result.pop("median_seconds")
+            reports.append(report["results"])
+        self.assertEqual(reports[0], reports[1])
+        environment = os.environ.copy()
+        environment["MAILLEUR_FILS"] = "0"
+        run = subprocess.run([sys.executable, "-m", "mailleur", "benchmark", str(corpus),
+                              "--output", str(self.directory / "bad.json")],
+                             cwd=project, env=environment, capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 2)
+        self.assertIn("MAILLEUR_FILS", run.stderr)
+        self.assertNotIn("Traceback", run.stderr)
+
+    def test_cli_refuses_source_overwrite(self):
+        source = self.directory / "piece.json"
+        data = {"points": [[0, 0], [1, 0], [0, 1]], "target_size": 1}
+        write_json(source, data)
+        project = Path(__file__).resolve().parents[1]
+        run = subprocess.run([sys.executable, "-m", "mailleur", "mesh", str(source),
+                              "-o", str(self.directory / "piece")], cwd=project,
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 2)
+        self.assertEqual(load_json(source), data)
+
+    def test_benchmark_reports_actual_fallback_strategy(self):
+        from mailleur.__main__ import _benchmark_case
+        mesh = self.mesh()
+        mesh.metadata.update({"effective_triangulation_strategy": "shortest",
+                              "triangulation_fallback": True,
+                              "triangulation_fallback_reason": "qualité initiale insuffisante"})
+        case = {"name": "test", "points": [(0, 0), (1, 0), (0, 1)], "target_size": 1}
+        with patch("mailleur.__main__.generate_mesh", return_value=mesh):
+            result = _benchmark_case((case, 1, 0, 100))
+        requested_quality = result["results"][0]
+        self.assertEqual(requested_quality["strategy"], "quality")
+        self.assertEqual(requested_quality["effective_triangulation_strategy"], "shortest")
+        self.assertTrue(requested_quality["triangulation_fallback"])
+        self.assertEqual(requested_quality["triangulation_fallback_reason"], "qualité initiale insuffisante")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,24 @@
+name: Signaler un problème
+description: Fournir un cas reproductible et les versions utilisées.
+body:
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environnement
+      description: Version Mailleur, système, Python, Gmsh et logiciel destinataire si concerné.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Commande ou étapes, unités, format et type d'éléments. Utiliser une petite pièce partageable.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Résultat obtenu et attendu
+      description: Joindre le diagnostic pertinent en retirant les chemins ou données privés.
+    validations:
+      required: true

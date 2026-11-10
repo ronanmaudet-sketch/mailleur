@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "name": "Apprentissage — plaque percée avec zones protégées",
+  "mode": "planar",
+  "geometry": {
+    "kind": "plate",
+    "width": 10,
+    "height": 6,
+    "thickness": 2,
+    "corner_radius": 0.5,
+    "chamfer": 0,
+    "holes": [
+      {
+        "x": 3,
+        "y": 3,
+        "radius": 0.8
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "radius": 1
+      }
+    ]
+  },
+  "mesh": {
+    "size": 0.65,
+    "min_size": 0.18,
+    "order": 1,
+    "algorithm": "automatic",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 200000
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m"
+  },
+  "quality_policy": {
+    "poor_threshold": 0.2,
+    "minimum_quality": 0.05,
+    "max_poor_fraction": 0.02,
+    "strict": true
+  },
+  "critical_zones": [
+    {
+      "name": "Bord extérieur de contact",
+      "kind": "contact",
+      "dimension": 1,
+      "tags": [
+        1
+      ],
+      "buffer": 0.15,
+      "minimum_quality": 0.35
+    },
+    {
+      "name": "Plaque sensible — exemple de marquage manuel",
+      "kind": "stress",
+      "dimension": 2,
+      "tags": [
+        1
+      ],
+      "buffer": 0,
+      "minimum_quality": 0.25
+    }
+  ],
+  "refinement_regions": [
+    {
+      "center": [
+        3,
+        3,
+        0
+      ],
+      "radius": 1.4,
+      "size": 0.22
+    }
+  ],
+  "learning": {
+    "max_trials": 12,
+    "epochs": 100,
+    "use_memory": true,
+    "max_seconds": 240
+  }
+}

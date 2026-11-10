@@ -1,0 +1,240 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        INFORMATIONS SUR LE CALCUL                              ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ UTILISATEUR   : <user>                                                         ║
+║ REPERTOIRE    : <workspace>/verification/ex║
+║tended_20261107/cast3m/volume_p1_mm/exports/.                                   ║
+║ NOM FICHIER   : validation.dgibi                                               ║
+║ TAILLE        : 3137 octets                                                    ║
+║ DATE          : Sat Nov  7 19:03:19 CET 2026                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║           EXECUTION de bin_Cast3M_Darwin_EDURE_26 ORIGINAL                     ║
+║                             Realisation 26.0                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║                                  `/shdddhy+.                                   ║
+║                                .sdhs+ooshdmNh:                                 ║
+║                               -mdo/--.-:+ydNNN+                                ║
+║                               dms/-....:/odmNNN-                               ║
+║                              .Nmy+:---:/oydmNNN+                               ║
+║                               mmdyso+ooyhmmNNNN-                               ║
+║              .---.`           :mNmmddddmmNNNNNyo/-`        .---.`              ║
+║          `/yddddddmh+.         -yNNNmNNNNNNNdsyso+o+:. `/ydhhddddy+.           ║
+║         :ddy+///+shmNmo`         -+ydmdNmho:` `-+syo++ydhs+//+oydmNmo`         ║
+║        /mho:-...-/oymNNy            .y/d+`       `./shmy/-...-:+ydNNNy         ║
+║        mms+:....-/ohmNNN/           `s:d/           `Nds/-...-/+ydmNNN:        ║
+║       `Nmhs+/::/+oydmNNN+           `s:d/           .Nmy+/:://oydmNNNN/        ║
+║        hNmdhyysyhdmmNNNN/`          `s:d/           .dNmhyssyhhdmNNNNm.        ║
+║        .hNNmmmmmmNNNNNNs++/-.       `y/m/       `.-::+mNmmmmmmNNNNNNm:         ║
+║         `+hmNNNNNNNNds:oyyo+++:.   :osohh+`  .-::/+sys/sdNNNNNNNNNds.          ║
+║           `-+syyyso:.   `-+sssoos+ohyo/ohhyss//oyyo-` .++mhsyyys+:.            ║
+║                             .:ods-.:odms--/ymmy/.`   -++dy`                    ║
+║                               `ms+ooymmyosydNN/     -/+ds`                     ║
+║                                smy:.+h:.-+hNNd`    :/+do                       ║
+║                             `-::dh+/hh+/+ydNNo+/.`/:od+                        ║
+║           `-+syyyso:.   `.-::/oyhdmmmNmmmNNmhsso+ooom/  `-+syyyso:.            ║
+║         `+hdysoosydmms:::/+sys/. ./sydsmhs+- .:sysoos+/+hhsoosshmNds.          ║
+║        .hmy/:-.-:/shmNmoyyo:`       `s/d/     ./:dhsysddo/----/oydNNm:         ║
+║        hmh+:....-:oymNNN/`          `y/d/    -/:hy` .mms/-...-:+ydmNNm.        ║
+║       `Nmho/:--:/+ydmNNN+           `y/d/   -:/hs`  .Nms+:--:/+shdNNNN/        ║
+║        mNmhysoosyhdmNNNN/           `s/d/  ::/d+    `NmdysoosyhdmNNNNN-        ║
+║        /mNmmddddmmNNNNNh+:.`        .y+d+`/:od/   `-:oNNmmdddmmNNNNNNs         ║
+║         :dmNNNNNNNNNNmhys+++/-`  -+yhdhdddyyd-`.:://oyhdNNNNNNNNNNNm+          ║
+║          `:sdmmmmmmy+. `:oysoo+oydy+///+shmNmo:/+shs/. `/sdmmmmmmy+.           ║
+║              `.--.`        -+yhmh+:-..-:/shmNNhho:`        .---.               ║
+║                               mmy+:-..-:+shmNNN-                               ║
+║                              .Nmho+////oshdmNNN+                               ║
+║                               dNmdhyyyyhdmNNNNN-                               ║
+║                               -mNNmmmmmNNNNNNN+                                ║
+║                                .smNNNNNNNNNNh-                                 ║
+║                                  `/shdddhs+.                                   ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+ *** PPP CAST3M ***  1 CPU *** VERSION ANNUELLE 2026.0                                           
+
+ *** GEMAT MT  2.1  NOV 25 ***  ESOPE=   511 (Mo)  LIBRE= 15872 (Mo)
+ *********************     INFORMATIONS CAST3M     *********************
+
+                                              DATE     23/04/05
+ Documentation Generale sur Cast3M :
+   http://www-cast3m.cea.fr/index.php?xml=maj2011
+  
+ Modification de la gestion des procedures et des notices.
+  
+ Elles sont maintenant directement lues dans des fichiers eponymes appartenant
+ aux repertoires specifies par les variables d'environnement CASTEM_PROCEDUR
+ et CASTEM_NOTICE.
+  
+ Par defaut et dans l'ordre, ce sont:
+ Le repertoire courant
+ Le repertoire ./procedur
+ Le repertoire d'installation
+  
+  
+ ***********************************************************************
+  
+  
+ $  * OPTI 'DIME' 3 'ECHO' 0; 
+
+ DIMEnsion initiale =  3
+
+ Ouverture du fichier I-Deas/NX (TM)
+
+ LECTURE DES DATASET
+ -> LECTURE du DATASET 2411
+    Nombre de noeuds lus :                   94
+    Numero du noeud min. :                    1
+    Numero du noeud max. :                   94
+ <- Lecture du DATASET 2411 terminee
+
+    Noeuds lus en DIMEsion 3
+
+ -> LECTURE du DATASET 2412
+    Nombre d elements lus  :                  443
+    Numero d element min.  :                    9
+    Numero d element max.  :                  451
+    Nombre de types EF lus :                    3
+ <- Lecture du DATASET 2412 terminee
+ -> LECTURE du DATASET 2477
+    Groupe lu   11 = GEOMETRY_1D                             
+    Groupe lu    3 = BOUNDARY                                
+    Groupe lu    4 = FACE_001                                
+    Groupe lu    5 = FACE_002                                
+    Groupe lu    6 = FACE_003                                
+    Groupe lu    7 = FACE_004                                
+    Groupe lu    8 = FACE_005                                
+    Groupe lu    9 = FACE_006                                
+    Groupe lu   12 = GEOMETRY_2D                             
+    Groupe lu    1 = DOMAIN                                  
+    Groupe lu    2 = PART_001                                
+    Nombre de groupes conserves :                   11
+      11 ==> Groupe separe en 2 parties :
+      11 = GEOMETRY_1D     -> GroupeElements
+      11 = GEOMETRY_1D_GN  -> GroupeNoeuds
+       3 ==> Groupe separe en 2 parties :
+       3 = BOUNDARY     -> GroupeElements
+       3 = BOUNDARY_GN  -> GroupeNoeuds
+       4 ==> Groupe separe en 2 parties :
+       4 = FACE_001     -> GroupeElements
+       4 = FACE_001_GN  -> GroupeNoeuds
+       5 ==> Groupe separe en 2 parties :
+       5 = FACE_002     -> GroupeElements
+       5 = FACE_002_GN  -> GroupeNoeuds
+       6 ==> Groupe separe en 2 parties :
+       6 = FACE_003     -> GroupeElements
+       6 = FACE_003_GN  -> GroupeNoeuds
+       7 ==> Groupe separe en 2 parties :
+       7 = FACE_004     -> GroupeElements
+       7 = FACE_004_GN  -> GroupeNoeuds
+       8 ==> Groupe separe en 2 parties :
+       8 = FACE_005     -> GroupeElements
+       8 = FACE_005_GN  -> GroupeNoeuds
+       9 ==> Groupe separe en 2 parties :
+       9 = FACE_006     -> GroupeElements
+       9 = FACE_006_GN  -> GroupeNoeuds
+      12 ==> Groupe separe en 2 parties :
+      12 = GEOMETRY_2D     -> GroupeElements
+      12 = GEOMETRY_2D_GN  -> GroupeNoeuds
+       1 ==> Groupe separe en 2 parties :
+       1 = DOMAIN     -> GroupeElements
+       1 = DOMAIN_GN  -> GroupeNoeuds
+       2 ==> Groupe separe en 2 parties :
+       2 = PART_001     -> GroupeElements
+       2 = PART_001_GN  -> GroupeNoeuds
+ <- Lecture du DATASET 2477 terminee
+ FIN LECTURE DES DATASET
+
+ TABLE de pointeur 25593
+         Indice                          Objet
+      Type    Valeur                  Type   Valeur
+ MOT       NOEUDS                    MAILLAGE     25753                
+ MOT       @SEG2                     MAILLAGE     25777                
+ MOT       @TRI3                     MAILLAGE     25785                
+ MOT       @TET4                     MAILLAGE     25793                
+ MOT       MAILLAGE                  MAILLAGE     25801                
+ MOT       GEOMETRY_1D               MAILLAGE     25833                
+ MOT       GEOMETRY_1D_GN            MAILLAGE     25825                
+ MOT       BOUNDARY                  MAILLAGE     25849                
+ MOT       BOUNDARY_GN               MAILLAGE     25841                
+ MOT       FACE_001                  MAILLAGE     25865                
+ MOT       FACE_001_GN               MAILLAGE     25857                
+ MOT       FACE_002                  MAILLAGE     25881                
+ MOT       FACE_002_GN               MAILLAGE     25873                
+ MOT       FACE_003                  MAILLAGE     25897                
+ MOT       FACE_003_GN               MAILLAGE     25889                
+ MOT       FACE_004                  MAILLAGE     25913                
+ MOT       FACE_004_GN               MAILLAGE     25905                
+ MOT       FACE_005                  MAILLAGE     25929                
+ MOT       FACE_005_GN               MAILLAGE     25921                
+ MOT       FACE_006                  MAILLAGE     25945                
+ MOT       FACE_006_GN               MAILLAGE     25937                
+ MOT       GEOMETRY_2D               MAILLAGE     25961                
+ MOT       GEOMETRY_2D_GN            MAILLAGE     25953                
+ MOT       DOMAIN                    MAILLAGE     25977                
+ MOT       DOMAIN_GN                 MAILLAGE     25969                
+ MOT       PART_001                  MAILLAGE     25993                
+ MOT       PART_001_GN               MAILLAGE     25985                
+MAILLEUR_NODES=94
+MAILLEUR_ELEMENTS=443
+MAILLEUR_TYPE_SEG2=44
+MAILLEUR_TYPE_TRI3=178
+MAILLEUR_TYPE_TET4=221
+MAILLEUR_G_000=178
+MAILLEUR_GN_000=91
+MAILLEUR_G_001=221
+MAILLEUR_GN_001=94
+MAILLEUR_G_002=26
+MAILLEUR_GN_002=20
+MAILLEUR_G_003=24
+MAILLEUR_GN_003=19
+MAILLEUR_G_004=32
+MAILLEUR_GN_004=25
+MAILLEUR_G_005=32
+MAILLEUR_GN_005=25
+MAILLEUR_G_006=32
+MAILLEUR_GN_006=25
+MAILLEUR_G_007=32
+MAILLEUR_GN_007=25
+MAILLEUR_G_008=44
+MAILLEUR_GN_008=40
+MAILLEUR_G_009=178
+MAILLEUR_GN_009=91
+MAILLEUR_G_010=221
+MAILLEUR_GN_010=94
+MAILLEUR_MIN_1= 0.00000E+00
+MAILLEUR_MAX_1= 2.00000E+00
+MAILLEUR_MIN_2= 0.00000E+00
+MAILLEUR_MAX_2= 1.00000E+00
+MAILLEUR_MIN_3= 0.00000E+00
+MAILLEUR_MAX_3= 1.00000E+00
+ Taille de la matrice: 7653 Facteur: 6.0541     Conditionnement: 2.9558     Performance (Gflop/s): 0.31159
+MAILLEUR_UERROR= 1.35525E-19
+MAILLEUR_YERROR= 7.28448E-20
+MAILLEUR_UMAX= 9.52381E-05
+MAILLEUR_YMIN=-1.42857E-05
+MAILLEUR_SMIN= 1.00000E+01
+MAILLEUR_SMAX= 1.00000E+01
+MAILLEUR_FORCE_X= 1.00000E+01
+MAILLEUR_REACTION_X=-1.00000E+01
+MAILLEUR_ZERROR= 5.59042E-20
+MAILLEUR_ZMIN=-1.42857E-05
+MAILLEUR_VALIDATION_OK
+
+
+
+ **********     Arret du programme Cast3M. Niveau d'erreur: 0     **********
+
+
+
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        INFORMATIONS FINALES                                    ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║DATE DEBUT      : 2026-11-07     HEURE DEBUT : 19:03:19                         ║
+║DATE FIN        : 2026-11-07     HEURE FIN   : 19:03:19                         ║
+║                                   DUREE     : 0j: 0h: 0m: 0s                   ║
+║                                                                                ║
+║Support  Cast3M : support-cast3m@cea.fr                                         ║
+║Site web Cast3M : https://www-cast3m.cea.fr/index.php                           ║
+╚════════════════════════════════════════════════════════════════════════════════╝

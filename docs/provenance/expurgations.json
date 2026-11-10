@@ -1,0 +1,430 @@
+{
+  "schema": "atelier.publication_redactions.v1",
+  "prepared_utc": "2026-11-10T20:30:23.971051+00:00",
+  "new_execution": false,
+  "source_full_archive_sha256": "d1a1bcc758242c0c858b4c7456790cd4125a0ec7574c18acdac2acaaab3eac1f",
+  "rules": [
+    "préfixe local du projet -> <workspace>",
+    "préfixe de dossier temporaire -> <temporary>",
+    "nom d’utilisateur -> <user>"
+  ],
+  "copied_or_redacted_files": [
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/summary.json",
+      "original_bytes": 401709,
+      "original_sha256": "46a57e69fb865cd56737987a87f377369b872298ece34ef16cb054192f768d30",
+      "public_path": "verification/extended_20261107/summary.json",
+      "public_bytes": 401090,
+      "public_sha256": "bc5df0b5a85c6333e7fc3ef2d501bf8a57581562d95d0d8594fec305910a0d01",
+      "redaction_counts": {
+        "workspace_prefix": 16,
+        "temporary_prefix": 50,
+        "temporary_short_prefix": 1
+      },
+      "non_string_json_values_unchanged": true,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/RAPPORT.md",
+      "original_bytes": 5628,
+      "original_sha256": "4bc925abb844be346cb56c55700f9377512a99575d8ba6b9033c4fc8c4b6515c",
+      "public_path": "docs/cast3m/preuves/RAPPORT_CAST3M_RC7.md",
+      "public_bytes": 5628,
+      "public_sha256": "4bc925abb844be346cb56c55700f9377512a99575d8ba6b9033c4fc8c4b6515c",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/summary.json",
+      "original_bytes": 71384,
+      "original_sha256": "b313a94102f9377832fdead04f1eefb53362a2c225911647c4ea2404b187aa83",
+      "public_path": "docs/cast3m/preuves/summary.json",
+      "public_bytes": 71384,
+      "public_sha256": "b313a94102f9377832fdead04f1eefb53362a2c225911647c4ea2404b187aa83",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": true,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/plan_p1_mm/exports/validation.dgibi",
+      "original_bytes": 2504,
+      "original_sha256": "141e8b1d486ec9a90f24ca652c28da10d32758ff7889633fb0e5f83ff682d66c",
+      "public_path": "docs/cast3m/preuves/plan_p1_mm/exports/validation.dgibi",
+      "public_bytes": 2504,
+      "public_sha256": "141e8b1d486ec9a90f24ca652c28da10d32758ff7889633fb0e5f83ff682d66c",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/plan_p1_mm/exports/cast3m.log",
+      "original_bytes": 12344,
+      "original_sha256": "0fe5414e9e76165c864ca026cc8e5e45715012a71875e9cbf89aa08485511bd5",
+      "public_path": "docs/cast3m/preuves/plan_p1_mm/exports/cast3m.log",
+      "public_bytes": 12308,
+      "public_sha256": "e6bd79ee8218fc2c71adcd182d3a4c5c34d7a6ae15f77d45ef87b5b93c4d5273",
+      "redaction_counts": {
+        "workspace_prefix": 1,
+        "operator_name": 1
+      },
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/plan_p2_mm/exports/validation.dgibi",
+      "original_bytes": 2504,
+      "original_sha256": "7eab98ac2dfa6d7d172b862390bccfca5cff33b2c6fb201a01b029640404b2d5",
+      "public_path": "docs/cast3m/preuves/plan_p2_mm/exports/validation.dgibi",
+      "public_bytes": 2504,
+      "public_sha256": "7eab98ac2dfa6d7d172b862390bccfca5cff33b2c6fb201a01b029640404b2d5",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/plan_p2_mm/exports/cast3m.log",
+      "original_bytes": 12347,
+      "original_sha256": "77b5a71501e0fcce63025fde7a87df4279823bbd58c9298a8a0a4e9cbf9d08c0",
+      "public_path": "docs/cast3m/preuves/plan_p2_mm/exports/cast3m.log",
+      "public_bytes": 12311,
+      "public_sha256": "7521619d39b8049c8ad7bac468a2214dcdd6253d5aff70db928ce56f52e11216",
+      "redaction_counts": {
+        "workspace_prefix": 1,
+        "operator_name": 1
+      },
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p1_mm/exports/validation.dgibi",
+      "original_bytes": 3137,
+      "original_sha256": "58a4a7eacdaa5e43c983102d04e61a81c7ea9093932fef0a41768dad47c861f3",
+      "public_path": "docs/cast3m/preuves/volume_p1_mm/exports/validation.dgibi",
+      "public_bytes": 3137,
+      "public_sha256": "58a4a7eacdaa5e43c983102d04e61a81c7ea9093932fef0a41768dad47c861f3",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p1_mm/exports/cast3m.log",
+      "original_bytes": 13668,
+      "original_sha256": "260b9082fb83d63dad797a02c54a7020da91b1cc2209d7e09c49f76019fb680c",
+      "public_path": "docs/cast3m/preuves/volume_p1_mm/exports/cast3m.log",
+      "public_bytes": 13632,
+      "public_sha256": "0a798558e3ea66213b479fea9c1d85800398028fd6840294cc5aee6710bad6b2",
+      "redaction_counts": {
+        "workspace_prefix": 1,
+        "operator_name": 1
+      },
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p2_mm/exports/validation.dgibi",
+      "original_bytes": 3137,
+      "original_sha256": "5a444ad125ca38f0e01ed6c1423a25ac3a502267db0cbdbd548f7b942e05c175",
+      "public_path": "docs/cast3m/preuves/volume_p2_mm/exports/validation.dgibi",
+      "public_bytes": 3137,
+      "public_sha256": "5a444ad125ca38f0e01ed6c1423a25ac3a502267db0cbdbd548f7b942e05c175",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p2_mm/exports/cast3m.log",
+      "original_bytes": 13674,
+      "original_sha256": "cdc6883ece2372af79cacf0862eb2ecf4c993818a37e6942d2145b42681dea86",
+      "public_path": "docs/cast3m/preuves/volume_p2_mm/exports/cast3m.log",
+      "public_bytes": 13638,
+      "public_sha256": "00242e13bd1910ceda194035a4e14fcc8e85ab609c02c0fe079e33ba33442088",
+      "redaction_counts": {
+        "workspace_prefix": 1,
+        "operator_name": 1
+      },
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p2_m/exports/validation.dgibi",
+      "original_bytes": 3185,
+      "original_sha256": "4dedb6bf14293f21ef14fee99ed83b1aaeea3a4756cb83cd31901348a725d8c9",
+      "public_path": "docs/cast3m/preuves/volume_p2_m/exports/validation.dgibi",
+      "public_bytes": 3185,
+      "public_sha256": "4dedb6bf14293f21ef14fee99ed83b1aaeea3a4756cb83cd31901348a725d8c9",
+      "redaction_counts": {},
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    },
+    {
+      "source_archive": "Mailleur_rc7_verifie_2026-11-07.zip",
+      "source_relative_path": "verification/extended_20261107/cast3m/volume_p2_m/exports/cast3m.log",
+      "original_bytes": 13674,
+      "original_sha256": "852c1b53e828f1f25bbf715e4079aa00db9337d6cdd7fff4f7e597f2aa220102",
+      "public_path": "docs/cast3m/preuves/volume_p2_m/exports/cast3m.log",
+      "public_bytes": 13638,
+      "public_sha256": "96d6988a6f7a6781eb1f9927de6f2bd579e511d9aba67609e8a3334092aa96d1",
+      "redaction_counts": {
+        "workspace_prefix": 1,
+        "operator_name": 1
+      },
+      "non_string_json_values_unchanged": null,
+      "new_execution": false
+    }
+  ],
+  "document_edits": [
+    {
+      "path": ".gitignore",
+      "public_sha256": "aa10638e0af5dcd6449d91fe050a1726ef60a332cda7601792aae7ad527d018a",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "DISTRIBUTION_LEGERE.md",
+      "public_sha256": "85f11c6c7423f3beacba4c091016d2cf2bd517adbf9c9ec97479b77d91cd7746",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "NOUVEAUTES.md",
+      "public_sha256": "dfcb55c0e36ae753d8da99dca6e8a7593028061c8ef8ef25de2a20e3057f5a85",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "README.md",
+      "public_sha256": "c5fd6cb609f6208b74821ab8d8af3c43fa2dcb895b35bd0fbef58e1d0e7f795e",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "docs/CORPUS_ET_LANGAGES.md",
+      "public_sha256": "1b659ea6727e222ecd0b66222b8bd205b8bf73585362f555624fc739988230d8",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "docs/OPTIMISATIONS_RC5.md",
+      "public_sha256": "7fce24df46d920a4d5dcae985da47ab19e475c527a5bb72d1c33e2c722045251",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "docs/TAILLES_ET_CAPACITES.md",
+      "public_sha256": "dedffa5fd5b006c2630ef1e4f3d0a2b7ef7ea6e57e48d3d608deb9d923edf4aa",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "docs/VALIDATION.md",
+      "public_sha256": "3a7ac2439413a74064a96eeed1cb50124099d63edb6d965b0475bb8948feb35d",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "docs/VALIDATION_RC7.md",
+      "public_sha256": "e97cb051b1461d1ef492f0b58ccb0e2c5e19368994158bb52622e2eadfd85eeb",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    },
+    {
+      "path": "verification/extended_20261107/core/README.md",
+      "public_sha256": "da0569ef570951b70331a46dcedd09da041d802b068987c05151f6b94d9e6331",
+      "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
+    }
+  ],
+  "rewritten_external_links": [
+    {
+      "file": "NOUVEAUTES.md",
+      "original_target": "verification/corpus/summary.json",
+      "public_target": "docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "README.md",
+      "original_target": "verification/continuous_learning/summary.json",
+      "public_target": "docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "README.md",
+      "original_target": "verification/corpus/summary.json",
+      "public_target": "docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/CORPUS_ET_LANGAGES.md",
+      "original_target": "../verification/corpus/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/training.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/live.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/live_warm.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/live_storage.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/live_compatibility.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/corpus_resume.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/quality.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/viewport.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/transport.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/bulk.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/corpus/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/OPTIMISATIONS_RC5.md",
+      "original_target": "../verification/optimization/archive_smoke.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/TAILLES_ET_CAPACITES.md",
+      "original_target": "../verification/corpus/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/TAILLES_ET_CAPACITES.md",
+      "original_target": "../verification/continuous_learning/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/continuous_learning/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/corpus/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/cli_rc4/plan.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/cli_rc4/run.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/cli_rc4/status.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/cli_rc4/train.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "docs/VALIDATION.md",
+      "original_target": "../verification/continuous_learning/summary.json",
+      "public_target": "provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "verification/extended_20261107/core/README.md",
+      "original_target": "run-20261107T190216151961/summary.json",
+      "public_target": "../../../docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "verification/extended_20261107/core/README.md",
+      "original_target": "bounds_regressions.txt",
+      "public_target": "../../../docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "verification/extended_20261107/core/README.md",
+      "original_target": "occ_scaled_sphere_probe.json",
+      "public_target": "../../../docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "verification/extended_20261107/core/README.md",
+      "original_target": "run-20261107T185138766837/summary.json",
+      "public_target": "../../../docs/provenance/PREUVES_EXTERNES.md"
+    },
+    {
+      "file": "verification/extended_20261107/core/README.md",
+      "original_target": "run-20261107T185415451486/summary.json",
+      "public_target": "../../../docs/provenance/PREUVES_EXTERNES.md"
+    }
+  ],
+  "numeric_and_boolean_results_changed": false,
+  "original_archives_modified": false,
+  "historical_pdf_docx_modified": false,
+  "restored_upcoming_publication_links": [
+    {
+      "file": "README.md",
+      "target": "docs/cast3m/PROPOSITION_CAST3M.pdf"
+    },
+    {
+      "file": "README.md",
+      "target": "docs/cast3m/PROPOSITION_CAST3M.docx"
+    },
+    {
+      "file": "README.md",
+      "target": "docs/cast3m/PROPOSITION_CAST3M.md"
+    },
+    {
+      "file": "README.md",
+      "target": "docs/cast3m/preuves/RAPPORT_CAST3M_RC7.md"
+    },
+    {
+      "file": "README.md",
+      "target": "docs/provenance/README.md"
+    },
+    {
+      "file": "README.md",
+      "target": "docs/provenance/PUBLICATION.md"
+    },
+    {
+      "file": "docs/VALIDATION_RC7.md",
+      "target": "../ERRATUM_PUBLICATION.md"
+    },
+    {
+      "file": "docs/VALIDATION_RC7.md",
+      "target": "cast3m/preuves/README.md"
+    }
+  ],
+  "canonical_publication_notice": "docs/provenance/README.md"
+}

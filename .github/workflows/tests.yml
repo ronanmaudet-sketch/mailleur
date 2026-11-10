@@ -1,0 +1,42 @@
+name: Tests multiplateformes
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Bibliothèques natives Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libegl1 libxkbcommon0 libxcb-cursor0
+      - name: Tests du noyau Rust
+        run: cargo test --locked --manifest-path rust_core/Cargo.toml
+      - name: Compiler le noyau Rust
+        run: cargo build --locked --release --manifest-path rust_core/Cargo.toml
+      - name: Installer le projet
+        run: python -m pip install -e .
+      - name: Diagnostic système
+        run: python -m atelier doctor
+      - name: Vérifier les sources Python
+        run: python -m compileall -q atelier mailleur scripts
+      - name: Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\scripts\converters\test_solidworks_bridge.ps1
+      - name: Tests
+        run: python -m unittest discover -s tests -v

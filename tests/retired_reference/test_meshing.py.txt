@@ -1,0 +1,134 @@
+"""Checks geometric validity, conformity, quality and bounded execution."""
+from collections import Counter
+import copy
+import math
+import unittest
+
+from mailleur.geometry import polygon_area
+from mailleur.meshing import generate_mesh, quality_summary, validate_mesh
+
+
+SQUARE = [(0, 0), (2, 0), (2, 1), (0, 1)]
+CONCAVE = [(0, 0), (3, 0), (3, 1), (1, 1), (1, 3), (0, 3)]
+
+
+class MeshingTests(unittest.TestCase):
+    def test_rounded_arrow_slivers_trigger_explicit_fallback(self):
+        # A rounded rotation of an arrow leaves nearly collinear nonadjacent
+        # vertices; greedy ears formerly manufactured Jacobians around 2e-13.
+        points = [
+            (0.0, 0.0), (1.508407464845, 0.533579347425),
+            (1.758522783951, -0.173486651721), (1.845752332092, 1.978812353048),
+            (0.424574415388, 3.597532010392), (0.674689734493, 2.890466011246),
+            (-0.833717730352, 2.356886663821),
+        ]
+        for strategy in ("quality", "shortest", "balanced", "first"):
+            with self.subTest(strategy=strategy):
+                mesh = generate_mesh(points, 1.055885225392, strategy, smooth_steps=2)
+                self.assertGreater(quality_summary(mesh)["min_scaled_jacobian"], 0.1)
+                self.assertEqual(mesh.metadata["strategy"], strategy)
+                self.assertEqual(mesh.metadata["effective_triangulation_strategy"], "shortest")
+                self.assertEqual(mesh.metadata["triangulation_fallback"], strategy != "shortest")
+
+    def test_sliver_guard_preserves_genuinely_thin_rectangles(self):
+        for thickness in (1e-8, 1e-11):
+            with self.subTest(thickness=thickness):
+                mesh = generate_mesh([(0, 0), (1, 0), (1, thickness), (0, thickness)], 2, smooth_steps=0)
+                self.assertGreater(quality_summary(mesh)["min_scaled_jacobian"], 0)
+                self.assertFalse(mesh.metadata["triangulation_fallback"])
+                self.assertGreater(mesh.metadata["min_initial_triangle_quality"], mesh.metadata["triangulation_guard_threshold"])
+
+    def assert_valid_conforming(self, mesh, polygon):
+        report = validate_mesh(mesh, polygon)
+        self.assertIsInstance(report, dict)
+        usage = Counter()
+        for quad in mesh.quads:
+            self.assertEqual(len(quad), 4)
+            self.assertEqual(len(set(quad)), 4)
+            self.assertGreater(polygon_area([mesh.points[i] for i in quad]), 0)
+            for a, b in zip(quad, quad[1:] + quad[:1]):
+                usage[tuple(sorted((a, b)))] += 1
+        self.assertTrue(all(n in (1, 2) for n in usage.values()))
+        perimeter = {edge for edge, n in usage.items() if n == 1}
+        self.assertEqual(perimeter, {tuple(sorted(edge)) for edge in mesh.boundary})
+        vertices = {i for q in mesh.quads for i in q}
+        self.assertEqual(len(vertices) - len(usage) + len(mesh.quads), 1)
+        metrics = quality_summary(mesh)
+        self.assertGreater(metrics['min_scaled_jacobian'], 0)
+        self.assertLessEqual(metrics['min_scaled_jacobian'], 1.0 + 1e-12)
+        self.assertTrue(math.isclose(metrics['area'], abs(polygon_area(polygon)), rel_tol=2e-10, abs_tol=0.0))
+
+    def test_all_strategies_mesh_convex_and_concave(self):
+        for strategy in ('quality', 'shortest', 'balanced', 'first'):
+            for polygon in (SQUARE, CONCAVE):
+                with self.subTest(strategy=strategy, polygon=polygon):
+                    mesh = generate_mesh(polygon, 0.7, strategy=strategy, smooth_steps=1)
+                    self.assert_valid_conforming(mesh, polygon)
+
+    def test_refinement_respects_maximum_edge(self):
+        mesh = generate_mesh(SQUARE, 0.3, smooth_steps=0)
+        self.assert_valid_conforming(mesh, SQUARE)
+        self.assertLessEqual(quality_summary(mesh)['max_edge'], 0.3 * (1.0 + 1e-10))
+
+    def test_generation_deterministic_and_clockwise_input_works(self):
+        first = generate_mesh(SQUARE, 0.7)
+        second = generate_mesh(SQUARE, 0.7)
+        self.assertEqual(first.points, second.points)
+        self.assertEqual(first.quads, second.quads)
+        reverse = generate_mesh(list(reversed(SQUARE)), 0.7)
+        self.assert_valid_conforming(reverse, SQUARE)
+
+    def test_smoothing_preserves_boundary_and_minimum_quality(self):
+        raw = generate_mesh(CONCAVE, 0.55, smooth_steps=0)
+        smooth = generate_mesh(CONCAVE, 0.55, smooth_steps=4)
+        self.assertEqual(raw.quads, smooth.quads)
+        self.assertEqual(raw.boundary, smooth.boundary)
+        boundary_nodes = {i for edge in raw.boundary for i in edge}
+        for index in boundary_nodes:
+            self.assertEqual(raw.points[index], smooth.points[index])
+        self.assertGreaterEqual(
+            quality_summary(smooth)['min_scaled_jacobian'] + 1e-12,
+            quality_summary(raw)['min_scaled_jacobian'],
+        )
+        self.assertLessEqual(quality_summary(smooth)['max_edge'], 0.55 * (1.0 + 1e-10))
+        self.assert_valid_conforming(smooth, CONCAVE)
+
+    def test_tiny_scale_is_supported(self):
+        polygon = [(x * 1e-8, y * 1e-8) for x, y in SQUARE]
+        mesh = generate_mesh(polygon, 0.7e-8, smooth_steps=0)
+        self.assert_valid_conforming(mesh, polygon)
+
+    def test_translated_and_thin_polygons(self):
+        translated = [(x + 1e9, y - 1e9) for x, y in SQUARE]
+        thin = [(0, 0), (1000, 0), (1000, 0.001), (0, 0.001)]
+        for polygon, size in ((translated, 0.7), (thin, 2000)):
+            with self.subTest(polygon=polygon):
+                mesh = generate_mesh(polygon, size, smooth_steps=0)
+                self.assert_valid_conforming(mesh, polygon)
+
+    def test_invalid_parameters_fail_instead_of_hanging(self):
+        for target in (0, -1, math.inf, math.nan):
+            with self.subTest(target=target):
+                with self.assertRaises(ValueError):
+                    generate_mesh(SQUARE, target)
+        with self.assertRaises(ValueError):
+            generate_mesh(SQUARE, 0.5, strategy='unknown')
+        with self.assertRaises(ValueError):
+            generate_mesh(SQUARE, 0.5, smooth_steps=-1)
+        with self.assertRaises(ValueError):
+            generate_mesh(SQUARE, 1e-6, max_elements=20)
+
+    def test_nonconforming_or_invalid_mesh_is_rejected(self):
+        mesh = generate_mesh(SQUARE, 1.0, smooth_steps=0)
+        duplicate = copy.deepcopy(mesh)
+        duplicate.quads.append(duplicate.quads[0])
+        with self.assertRaises(ValueError):
+            validate_mesh(duplicate, SQUARE)
+        inverted = copy.deepcopy(mesh)
+        inverted.quads[0] = tuple(reversed(inverted.quads[0]))
+        with self.assertRaises(ValueError):
+            validate_mesh(inverted, SQUARE)
+
+
+if __name__ == '__main__':
+    unittest.main()

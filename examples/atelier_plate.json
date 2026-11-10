@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "name": "Plaque percée à congés",
+  "mode": "planar",
+  "geometry": {
+    "kind": "plate",
+    "width": 10,
+    "height": 6,
+    "thickness": 2,
+    "corner_radius": 0.5,
+    "chamfer": 0,
+    "holes": [
+      {
+        "x": 3,
+        "y": 3,
+        "radius": 0.8
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "radius": 1
+      }
+    ]
+  },
+  "mesh": {
+    "size": 0.65,
+    "min_size": 0.18,
+    "order": 1,
+    "algorithm": "automatic",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 200000
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m"
+  }
+}

@@ -1,0 +1,4 @@
+* Atelier Mailleur : importer depuis le dossier contenant le fichier UNV.
+TAB1 = LIRE 'UNV' 'import_cast3m.unv' ;
+MAIL1 = TAB1 . 'MAILLAGE' ;
+* Completer ensuite modele, materiau, chargement et conditions limites.

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "Traction uniaxiale pour Cast3M",
+  "mode": "volume",
+  "geometry": {"kind": "box", "width": 2.0, "height": 1.0, "depth": 1.0},
+  "units": {"input": "mm", "internal": "m"},
+  "mesh": {
+    "size": 0.4,
+    "min_size": 0.1,
+    "order": 2,
+    "threads": 1,
+    "max_elements": 20000
+  }
+}

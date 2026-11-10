@@ -1,0 +1,210 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        INFORMATIONS SUR LE CALCUL                              ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ UTILISATEUR   : <user>                                                         ║
+║ REPERTOIRE    : <workspace>/verification/ex║
+║tended_20261107/cast3m/plan_p1_mm/exports/.                                     ║
+║ NOM FICHIER   : validation.dgibi                                               ║
+║ TAILLE        : 2504 octets                                                    ║
+║ DATE          : Sat Nov  7 19:03:17 CET 2026                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║           EXECUTION de bin_Cast3M_Darwin_EDURE_26 ORIGINAL                     ║
+║                             Realisation 26.0                                   ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║                                  `/shdddhy+.                                   ║
+║                                .sdhs+ooshdmNh:                                 ║
+║                               -mdo/--.-:+ydNNN+                                ║
+║                               dms/-....:/odmNNN-                               ║
+║                              .Nmy+:---:/oydmNNN+                               ║
+║                               mmdyso+ooyhmmNNNN-                               ║
+║              .---.`           :mNmmddddmmNNNNNyo/-`        .---.`              ║
+║          `/yddddddmh+.         -yNNNmNNNNNNNdsyso+o+:. `/ydhhddddy+.           ║
+║         :ddy+///+shmNmo`         -+ydmdNmho:` `-+syo++ydhs+//+oydmNmo`         ║
+║        /mho:-...-/oymNNy            .y/d+`       `./shmy/-...-:+ydNNNy         ║
+║        mms+:....-/ohmNNN/           `s:d/           `Nds/-...-/+ydmNNN:        ║
+║       `Nmhs+/::/+oydmNNN+           `s:d/           .Nmy+/:://oydmNNNN/        ║
+║        hNmdhyysyhdmmNNNN/`          `s:d/           .dNmhyssyhhdmNNNNm.        ║
+║        .hNNmmmmmmNNNNNNs++/-.       `y/m/       `.-::+mNmmmmmmNNNNNNm:         ║
+║         `+hmNNNNNNNNds:oyyo+++:.   :osohh+`  .-::/+sys/sdNNNNNNNNNds.          ║
+║           `-+syyyso:.   `-+sssoos+ohyo/ohhyss//oyyo-` .++mhsyyys+:.            ║
+║                             .:ods-.:odms--/ymmy/.`   -++dy`                    ║
+║                               `ms+ooymmyosydNN/     -/+ds`                     ║
+║                                smy:.+h:.-+hNNd`    :/+do                       ║
+║                             `-::dh+/hh+/+ydNNo+/.`/:od+                        ║
+║           `-+syyyso:.   `.-::/oyhdmmmNmmmNNmhsso+ooom/  `-+syyyso:.            ║
+║         `+hdysoosydmms:::/+sys/. ./sydsmhs+- .:sysoos+/+hhsoosshmNds.          ║
+║        .hmy/:-.-:/shmNmoyyo:`       `s/d/     ./:dhsysddo/----/oydNNm:         ║
+║        hmh+:....-:oymNNN/`          `y/d/    -/:hy` .mms/-...-:+ydmNNm.        ║
+║       `Nmho/:--:/+ydmNNN+           `y/d/   -:/hs`  .Nms+:--:/+shdNNNN/        ║
+║        mNmhysoosyhdmNNNN/           `s/d/  ::/d+    `NmdysoosyhdmNNNNN-        ║
+║        /mNmmddddmmNNNNNh+:.`        .y+d+`/:od/   `-:oNNmmdddmmNNNNNNs         ║
+║         :dmNNNNNNNNNNmhys+++/-`  -+yhdhdddyyd-`.:://oyhdNNNNNNNNNNNm+          ║
+║          `:sdmmmmmmy+. `:oysoo+oydy+///+shmNmo:/+shs/. `/sdmmmmmmy+.           ║
+║              `.--.`        -+yhmh+:-..-:/shmNNhho:`        .---.               ║
+║                               mmy+:-..-:+shmNNN-                               ║
+║                              .Nmho+////oshdmNNN+                               ║
+║                               dNmdhyyyyhdmNNNNN-                               ║
+║                               -mNNmmmmmNNNNNNN+                                ║
+║                                .smNNNNNNNNNNh-                                 ║
+║                                  `/shdddhs+.                                   ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+ *** PPP CAST3M ***  1 CPU *** VERSION ANNUELLE 2026.0                                           
+
+ *** GEMAT MT  2.1  NOV 25 ***  ESOPE=   511 (Mo)  LIBRE= 15872 (Mo)
+ *********************     INFORMATIONS CAST3M     *********************
+
+                                              DATE     23/04/05
+ Documentation Generale sur Cast3M :
+   http://www-cast3m.cea.fr/index.php?xml=maj2011
+  
+ Modification de la gestion des procedures et des notices.
+  
+ Elles sont maintenant directement lues dans des fichiers eponymes appartenant
+ aux repertoires specifies par les variables d'environnement CASTEM_PROCEDUR
+ et CASTEM_NOTICE.
+  
+ Par defaut et dans l'ordre, ce sont:
+ Le repertoire courant
+ Le repertoire ./procedur
+ Le repertoire d'installation
+  
+  
+ ***********************************************************************
+  
+  
+ $  * OPTI 'DIME' 2 'ECHO' 0; 
+
+ DIMEnsion initiale =  2
+
+ Ouverture du fichier I-Deas/NX (TM)
+
+ LECTURE DES DATASET
+ -> LECTURE du DATASET 2411
+    Nombre de noeuds lus :                   25
+    Numero du noeud min. :                    1
+    Numero du noeud max. :                   25
+ <- Lecture du DATASET 2411 terminee
+
+    Noeuds lus en DIMEnsion 2
+
+ -> LECTURE du DATASET 2412
+    Nombre d elements lus  :                   48
+    Numero d element min.  :                    5
+    Numero d element max.  :                   52
+    Nombre de types EF lus :                    2
+ <- Lecture du DATASET 2412 terminee
+ -> LECTURE du DATASET 2477
+    Groupe lu    3 = BOUNDARY                                
+    Groupe lu    4 = EDGE_001                                
+    Groupe lu    5 = EDGE_002                                
+    Groupe lu    6 = EDGE_003                                
+    Groupe lu    7 = EDGE_004                                
+    Groupe lu    9 = GEOMETRY_1D                             
+    Groupe lu    1 = DOMAIN                                  
+    Groupe lu    2 = PART_001                                
+    Nombre de groupes conserves :                    8
+       3 ==> Groupe separe en 2 parties :
+       3 = BOUNDARY     -> GroupeElements
+       3 = BOUNDARY_GN  -> GroupeNoeuds
+       4 ==> Groupe separe en 2 parties :
+       4 = EDGE_001     -> GroupeElements
+       4 = EDGE_001_GN  -> GroupeNoeuds
+       5 ==> Groupe separe en 2 parties :
+       5 = EDGE_002     -> GroupeElements
+       5 = EDGE_002_GN  -> GroupeNoeuds
+       6 ==> Groupe separe en 2 parties :
+       6 = EDGE_003     -> GroupeElements
+       6 = EDGE_003_GN  -> GroupeNoeuds
+       7 ==> Groupe separe en 2 parties :
+       7 = EDGE_004     -> GroupeElements
+       7 = EDGE_004_GN  -> GroupeNoeuds
+       9 ==> Groupe separe en 2 parties :
+       9 = GEOMETRY_1D     -> GroupeElements
+       9 = GEOMETRY_1D_GN  -> GroupeNoeuds
+       1 ==> Groupe separe en 2 parties :
+       1 = DOMAIN     -> GroupeElements
+       1 = DOMAIN_GN  -> GroupeNoeuds
+       2 ==> Groupe separe en 2 parties :
+       2 = PART_001     -> GroupeElements
+       2 = PART_001_GN  -> GroupeNoeuds
+ <- Lecture du DATASET 2477 terminee
+ FIN LECTURE DES DATASET
+
+ TABLE de pointeur 25593
+         Indice                          Objet
+      Type    Valeur                  Type   Valeur
+ MOT       NOEUDS                    MAILLAGE     25721                
+ MOT       @SEG2                     MAILLAGE     25745                
+ MOT       @TRI3                     MAILLAGE     25753                
+ MOT       MAILLAGE                  MAILLAGE     25761                
+ MOT       BOUNDARY                  MAILLAGE     25793                
+ MOT       BOUNDARY_GN               MAILLAGE     25785                
+ MOT       EDGE_001                  MAILLAGE     25809                
+ MOT       EDGE_001_GN               MAILLAGE     25801                
+ MOT       EDGE_002                  MAILLAGE     25825                
+ MOT       EDGE_002_GN               MAILLAGE     25817                
+ MOT       EDGE_003                  MAILLAGE     25841                
+ MOT       EDGE_003_GN               MAILLAGE     25833                
+ MOT       EDGE_004                  MAILLAGE     25857                
+ MOT       EDGE_004_GN               MAILLAGE     25849                
+ MOT       GEOMETRY_1D               MAILLAGE     25873                
+ MOT       GEOMETRY_1D_GN            MAILLAGE     25865                
+ MOT       DOMAIN                    MAILLAGE     25889                
+ MOT       DOMAIN_GN                 MAILLAGE     25881                
+ MOT       PART_001                  MAILLAGE     25905                
+ MOT       PART_001_GN               MAILLAGE     25897                
+MAILLEUR_NODES=25
+MAILLEUR_ELEMENTS=48
+MAILLEUR_TYPE_SEG2=16
+MAILLEUR_TYPE_TRI3=32
+MAILLEUR_G_000=16
+MAILLEUR_GN_000=16
+MAILLEUR_G_001=32
+MAILLEUR_GN_001=25
+MAILLEUR_G_002=5
+MAILLEUR_GN_002=6
+MAILLEUR_G_003=3
+MAILLEUR_GN_003=4
+MAILLEUR_G_004=5
+MAILLEUR_GN_004=6
+MAILLEUR_G_005=3
+MAILLEUR_GN_005=4
+MAILLEUR_G_006=16
+MAILLEUR_GN_006=16
+MAILLEUR_G_007=32
+MAILLEUR_GN_007=25
+MAILLEUR_MIN_1= 0.00000E+00
+MAILLEUR_MAX_1= 2.00000E+00
+MAILLEUR_MIN_2= 0.00000E+00
+MAILLEUR_MAX_2= 1.00000E+00
+ Taille de la matrice: 294 Facteur: 2.1492     Conditionnement: 2.2579     Performance (Gflop/s): 2.00400E-03
+MAILLEUR_UERROR= 1.62630E-19
+MAILLEUR_YERROR= 5.59042E-20
+MAILLEUR_UMAX= 9.52381E-05
+MAILLEUR_YMIN=-1.42857E-05
+MAILLEUR_SMIN= 1.00000E+01
+MAILLEUR_SMAX= 1.00000E+01
+MAILLEUR_FORCE_X= 1.00000E+01
+MAILLEUR_REACTION_X=-1.00000E+01
+MAILLEUR_VALIDATION_OK
+
+
+
+ **********     Arret du programme Cast3M. Niveau d'erreur: 0     **********
+
+
+
+Note: The following floating-point exceptions are signalling: IEEE_INVALID_FLAG
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                        INFORMATIONS FINALES                                    ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║DATE DEBUT      : 2026-11-07     HEURE DEBUT : 19:03:17                         ║
+║DATE FIN        : 2026-11-07     HEURE FIN   : 19:03:17                         ║
+║                                   DUREE     : 0j: 0h: 0m: 0s                   ║
+║                                                                                ║
+║Support  Cast3M : support-cast3m@cea.fr                                         ║
+║Site web Cast3M : https://www-cast3m.cea.fr/index.php                           ║
+╚════════════════════════════════════════════════════════════════════════════════╝

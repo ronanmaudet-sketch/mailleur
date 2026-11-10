@@ -1,0 +1,174 @@
+"""Independent geometric checks, computed without the engine's validation helpers."""
+from collections import Counter
+import math
+import unittest
+
+from mailleur.meshing import generate_mesh, quality_summary
+from mailleur.geometry import geometry_id
+from mailleur.learning import collect_corpus
+
+
+def signed_area(points):
+    ox, oy = points[0]
+    p = [(x - ox, y - oy) for x, y in points]
+    return math.fsum(a[0] * b[1] - a[1] * b[0]
+                     for a, b in zip(p, p[1:] + p[:1])) * 0.5
+
+
+def on_segment(point, first, second, tolerance):
+    dx, dy = second[0] - first[0], second[1] - first[1]
+    length = math.hypot(dx, dy)
+    cross = dx * (point[1] - first[1]) - dy * (point[0] - first[0])
+    if abs(cross) > tolerance * length:
+        return False
+    dot = (point[0] - first[0]) * dx + (point[1] - first[1]) * dy
+    return -tolerance * length <= dot <= length * length + tolerance * length
+
+
+def inside_or_on(point, polygon, tolerance):
+    inside = False
+    for a, b in zip(polygon, polygon[1:] + polygon[:1]):
+        if on_segment(point, a, b, tolerance):
+            return True
+        if (a[1] > point[1]) != (b[1] > point[1]):
+            intersection_x = a[0] + (point[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+            if point[0] < intersection_x:
+                inside = not inside
+    return inside
+
+
+class IndependentGeometricProperties(unittest.TestCase):
+    def assert_geometric_mesh(self, polygon, size, *, smooth_steps=2):
+        mesh = generate_mesh(polygon, size, smooth_steps=smooth_steps)
+        span = max(max(x for x, _ in polygon) - min(x for x, _ in polygon),
+                   max(y for _, y in polygon) - min(y for _, y in polygon))
+        tolerance = max(span * 1e-10, max(math.ulp(c) for p in polygon for c in p) * 8)
+        usage = Counter()
+        total_area = 0.0
+        for quad in mesh.quads:
+            nodes = [mesh.points[i] for i in quad]
+            area = signed_area(nodes)
+            self.assertGreater(area, 0)
+            total_area += area
+            center = tuple(math.fsum(p[axis] for p in nodes) / 4 for axis in (0, 1))
+            self.assertTrue(inside_or_on(center, polygon, tolerance))
+            for a, b in zip(quad, quad[1:] + quad[:1]):
+                usage[tuple(sorted((a, b)))] += 1
+        expected_area = abs(signed_area(polygon))
+        self.assertAlmostEqual(total_area / expected_area, 1.0, delta=2e-7)
+        for edge, count in usage.items():
+            self.assertIn(count, (1, 2))
+            a, b = [mesh.points[i] for i in edge]
+            # An unrelated vertex strictly inside an edge is a hanging node,
+            # even when all recorded edge incidences are one or two.
+            for node_id, point in enumerate(mesh.points):
+                if node_id in edge:
+                    continue
+                endpoint_distance = min(math.dist(point, a), math.dist(point, b))
+                if endpoint_distance > tolerance:
+                    self.assertFalse(on_segment(point, a, b, tolerance),
+                                     f'hanging node {node_id} on edge {edge}')
+            if count == 1:
+                midpoint = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+                self.assertTrue(any(on_segment(midpoint, p, q, tolerance)
+                                    for p, q in zip(polygon, polygon[1:] + polygon[:1])))
+        original_perimeter = math.fsum(math.dist(a, b) for a, b in
+                                      zip(polygon, polygon[1:] + polygon[:1]))
+        mesh_perimeter = math.fsum(math.dist(mesh.points[a], mesh.points[b])
+                                  for (a, b), count in usage.items() if count == 1)
+        self.assertAlmostEqual(mesh_perimeter / original_perimeter, 1.0, delta=2e-7)
+        return mesh
+
+    def test_deep_concavity_with_independent_hanging_node_check(self):
+        polygon = [(0, 0), (4, 0), (4, 4), (3, 4), (3, 1), (1, 1), (1, 4), (0, 4)]
+        self.assert_geometric_mesh(polygon, 1.2)
+        self.assert_geometric_mesh(list(reversed(polygon)), 1.2)
+
+    def test_radial_concavity(self):
+        polygon = [(radius * math.cos(i * math.pi / 6),
+                    radius * math.sin(i * math.pi / 6))
+                   for i, radius in enumerate([2.0, 0.9] * 6)]
+        self.assert_geometric_mesh(polygon, 0.9)
+
+    def test_coordinate_scale_and_translation(self):
+        base = [(0, 0), (3, 0), (3, 1), (1, 1), (1, 2), (0, 2)]
+        for factor, offset in [(1e-8, (0, 0)), (1e6, (-1e7, 3e7)), (1, (1e9, -1e9))]:
+            polygon = [(factor * x + offset[0], factor * y + offset[1]) for x, y in base]
+            with self.subTest(factor=factor, offset=offset):
+                self.assert_geometric_mesh(polygon, factor * 1.0)
+
+    def test_equivalent_ring_order_does_not_change_strategy_outcomes(self):
+        polygon = [(0, 0), (3, 0), (3, 1), (1, 1), (1, 3), (0, 3)]
+        variants = [polygon[shift:] + polygon[:shift] for shift in range(len(polygon))]
+        variants += [list(reversed(points)) for points in variants]
+        for strategy in ("quality", "shortest", "balanced", "first"):
+            reference = generate_mesh(polygon, 0.8, strategy=strategy, smooth_steps=0)
+            for points in variants:
+                actual = generate_mesh(points, 0.8, strategy=strategy, smooth_steps=0)
+                with self.subTest(strategy=strategy, points=points):
+                    self.assertEqual(reference.points, actual.points)
+                    self.assertEqual(reference.quads, actual.quads)
+                    self.assertEqual(reference.boundary, actual.boundary)
+        negative_zero = [(-0.0 if x == 0 else x, -0.0 if y == 0 else y) for x, y in polygon]
+        self.assertEqual(geometry_id(polygon), geometry_id(negative_zero))
+
+    def test_cached_equivalent_ring_labels_match_actual_meshes(self):
+        polygon = [(0, 0), (3, 0), (3, 1), (1, 1), (1, 3), (0, 3)]
+        shifted = polygon[1:] + polygon[:1]
+        cases = [{"name": name, "points": points, "target_size": 0.8}
+                 for name, points in [("original", polygon), ("shifted", shifted)]]
+        rows = collect_corpus(cases, smooth_steps=0)
+        self.assertEqual(rows[0]["state_id"], rows[1]["state_id"])
+        for row, case in zip(rows, cases):
+            actual_rewards = []
+            for strategy in ("quality", "shortest", "balanced", "first"):
+                metrics = quality_summary(generate_mesh(case["points"], 0.8, strategy=strategy,
+                                                        smooth_steps=0))
+                actual_rewards.append(0.5 * metrics["min_scaled_jacobian"]
+                                      + 0.5 * metrics["mean_scaled_jacobian"])
+            self.assertEqual(row["rewards"], actual_rewards)
+
+    def test_rounded_rotated_arrow_does_not_create_numerical_slivers(self):
+        # This ordinary arrow has non-consecutive, nearly aligned vertices
+        # after rotation and rounding. Earlier ear clipping created elements
+        # with Jacobian around 1e-13 although a good triangulation exists.
+        polygon = [(0.0, 0.0), (1.508407464845, 0.533579347425),
+                   (1.758522783951, -0.173486651721),
+                   (1.845752332092, 1.978812353048),
+                   (0.424574415388, 3.597532010392),
+                   (0.674689734493, 2.890466011246),
+                   (-0.833717730352, 2.356886663821)]
+        for strategy in ("quality", "shortest", "balanced", "first"):
+            with self.subTest(strategy=strategy):
+                mesh = generate_mesh(polygon, 1.055885225392, strategy=strategy, smooth_steps=2)
+                self.assertGreater(quality_summary(mesh)["min_scaled_jacobian"], 0.1)
+
+    def test_genuinely_thin_and_acute_sources_remain_meshable(self):
+        # A low Jacobian forced by the source geometry must not be confused
+        # with avoidable numerical slivers manufactured by triangulation.
+        polygons = [[(0, 0), (2, 0), (2, 2e-8), (0, 2e-8)],
+                    [(0, 0), (2, 0), (2, 2e-8)]]
+        for polygon in polygons:
+            for strategy in ("quality", "shortest", "balanced", "first"):
+                with self.subTest(polygon=polygon, strategy=strategy):
+                    mesh = generate_mesh(polygon, 1.1, strategy=strategy, smooth_steps=0)
+                    quality = quality_summary(mesh)
+                    self.assertGreater(quality["min_scaled_jacobian"], 0)
+                    self.assertLess(quality["min_scaled_jacobian"], 1e-6)
+                    self.assertAlmostEqual(quality["area"] / abs(signed_area(polygon)), 1.0,
+                                           delta=1e-8)
+
+    def test_input_not_modified(self):
+        polygon = [[0, 0], [2, 0], [2, 1], [0, 1]]
+        saved = [list(p) for p in polygon]
+        generate_mesh(polygon, 0.7)
+        self.assertEqual(polygon, saved)
+
+    def test_element_limit_bounds_even_initial_triangulation(self):
+        polygon = [(0, 0), (2, 0), (2, 1), (0, 1)]
+        with self.assertRaises(ValueError):
+            generate_mesh(polygon, 1000, max_elements=3)
+
+
+if __name__ == '__main__':
+    unittest.main()

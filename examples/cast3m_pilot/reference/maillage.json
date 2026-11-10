@@ -1,0 +1,128 @@
+{
+  "schema": "mailleur.cast3m.example.mesh.v1",
+  "generated_at_utc": "2026-11-10T20:21:26.835840+00:00",
+  "versions": {
+    "mailleur": "1.0.0rc7",
+    "python": "3.12.16",
+    "gmsh": "4.15.2",
+    "native_kernel": "mailleur-core 1.0.0-rc.7",
+    "native_kernel_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85"
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m",
+    "export": "mm"
+  },
+  "expected": {
+    "nodes": 497,
+    "elements": 443,
+    "cell_counts": {
+      "SEG3": 44,
+      "TRI6": 178,
+      "TE10": 221
+    },
+    "groups": {
+      "BOUNDARY": {
+        "elements": 178,
+        "nodes": 358
+      },
+      "DOMAIN": {
+        "elements": 221,
+        "nodes": 497
+      },
+      "FACE_001": {
+        "elements": 26,
+        "nodes": 65
+      },
+      "FACE_002": {
+        "elements": 24,
+        "nodes": 61
+      },
+      "FACE_003": {
+        "elements": 32,
+        "nodes": 81
+      },
+      "FACE_004": {
+        "elements": 32,
+        "nodes": 81
+      },
+      "FACE_005": {
+        "elements": 32,
+        "nodes": 81
+      },
+      "FACE_006": {
+        "elements": 32,
+        "nodes": 81
+      },
+      "GEOMETRY_1D": {
+        "elements": 44,
+        "nodes": 84
+      },
+      "GEOMETRY_2D": {
+        "elements": 178,
+        "nodes": 358
+      },
+      "PART_001": {
+        "elements": 221,
+        "nodes": 497
+      }
+    }
+  },
+  "quality": {
+    "accepted": true,
+    "below_0_1": 0,
+    "critical_bad_boundary_count": 0,
+    "critical_bad_count": 0,
+    "critical_bad_top_count": 0,
+    "critical_severity": 0.0,
+    "critical_zones": [],
+    "diagnostic_only": false,
+    "entities": [
+      {
+        "critical_bad_count": 0,
+        "dimension": 3,
+        "elements": 221,
+        "mean": 0.8034823647870967,
+        "minimum": 0.42491507390732447,
+        "poor_count": 0,
+        "tag": 1
+      }
+    ],
+    "evaluated_elements": 221,
+    "invalid_elements": 0,
+    "mean": 0.8034823647870967,
+    "metric": "minSICN",
+    "min_jacobian_determinant": 1.2102855217189638e-11,
+    "minimum": 0.42491507390732447,
+    "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+    "policy": {
+      "configured": false,
+      "max_poor_elements": null,
+      "max_poor_fraction": null,
+      "minimum_quality": 0.0,
+      "poor_threshold": 0.2,
+      "strict": true
+    },
+    "poor_count": 0,
+    "poor_element_tags": [],
+    "poor_element_tags_truncated": false,
+    "poor_fraction": 0.0,
+    "poor_samples": [],
+    "poor_severity": -0.0,
+    "poor_threshold": 0.2,
+    "protected_elements": 0,
+    "violations": []
+  },
+  "timing_seconds": {
+    "generation": 0.1935304169965093,
+    "export": 0.20990237499790965
+  },
+  "files_sha256": {
+    "project.json": "c8380859bad454bed400aaad58062c00df9d3dd924f78a95a52ce6b80a7bba8f",
+    "import_cast3m.dgibi": "8d4012fc93d43627ce24d91383a9ae86c0f1af23bf76926d8cccd58acb83f465",
+    "import_cast3m.unv": "0dc54eb1e26f5d4b91f82ce1557befc640a409bbb7a5b9ef48566d5383b048f0",
+    "import_cast3m.dgibi.units.json": "9c1e638e55d06686df49220f50a0ea0160e0baeadc02dc99fd14f1dff3a859ff",
+    "traction.dgibi": "7ff3cbe83132bc91d07db8b3ddcd7095c0579213e59e45becf8006e6440f38d2"
+  },
+  "cast3m_executed": false
+}
