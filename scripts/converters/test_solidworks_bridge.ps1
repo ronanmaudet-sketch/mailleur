@@ -18,6 +18,15 @@ function Expect-Failure([scriptblock]$Action, [string]$MessageFragment) {
     Assert-True $caught 'Un echec devait etre signale.'
 }
 
+function New-FakeApplicationFactory([object]$Application) {
+    # GetNewClosure copies local variables. In Windows PowerShell 5.1 an
+    # inherited $app inside Expect-Failure is not a reliable capture: the
+    # converter's own local $app = $null can then be resolved by the factory.
+    # Capture the explicit parameter in this function's local scope instead.
+    $capturedApplication = $Application
+    return { $capturedApplication }.GetNewClosure()
+}
+
 function New-FakeComponent([int]$State) {
     $component = [pscustomobject]@{State=$State;Name2='component-1';IsSpeedPak=$false}
     $component | Add-Member ScriptMethod GetSuppression2 { return $this.State }
@@ -90,7 +99,17 @@ try {
     [IO.File]::WriteAllText($assembly,'mock source')
     $output=Join-Path $folder 'result.step'
     $app=New-FakeApplication
-    $report=Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())
+    $factory=New-FakeApplicationFactory -Application $app
+    # Exercise an extra invocation scope with colliding variable names, as in
+    # Expect-Failure -> converter -> factory, and preserve object identity.
+    $captured= & {
+        param([scriptblock]$FactoryToInvoke)
+        $app=$null
+        $capturedApplication=$null
+        & $FactoryToInvoke
+    } $factory
+    Assert-True ([object]::ReferenceEquals($captured,$app)) 'La factory doit conserver le double explicitement capture.'
+    $report=Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory $factory
     Assert-True ([IO.File]::Exists($output)) 'La sortie doit etre publiee apres succes.'
     Assert-True ($report.status -eq 'converted' -and $app.Closed.Count -eq 1) 'Fermer seulement le document ouvert.'
     Assert-True ($app.WorkingDirectory -eq 'initial-workdir') 'Restaurer le repertoire courant de SOLIDWORKS.'
@@ -99,39 +118,39 @@ try {
 
     $app=New-FakeApplication
     $app.DocumentCount=1
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'contient deja'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'contient deja'
     Assert-True ($app.OpenCalls -eq 0 -and $app.Closed.Count -eq 0) 'Ne pas toucher a une session occupee.'
 
     $app=New-FakeApplication
     $app.Model.Components=@(New-FakeComponent 0)
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $assembly -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'Export partiel refuse'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $assembly -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'Export partiel refuse'
     Assert-True (-not [IO.File]::Exists($output)) 'Aucune sortie partielle publiee.'
     $app=New-FakeApplication
     $app.Model.Components=@(New-FakeComponent 0)
-    $report=Invoke-MailleurSolidWorksToStep -Source $assembly -Destination $output -PermitSuppressed -ApplicationFactory ({$app}.GetNewClosure())
+    $report=Invoke-MailleurSolidWorksToStep -Source $assembly -Destination $output -PermitSuppressed -ApplicationFactory (New-FakeApplicationFactory -Application $app)
     Assert-True ($report.suppressed_components_excluded -eq 1) 'Une exclusion acceptee doit etre rapportee.'
     [IO.File]::Delete($output)
 
     $app=New-FakeApplication
     $app.OpenWarnings=8
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'Ouverture incomplete'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'Ouverture incomplete'
     Assert-True ($app.Closed.Count -eq 1) 'Nettoyer le document possede apres avertissement.'
     $app=New-FakeApplication
     $app.SaveErrors=1
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'Export STEP refuse'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'Export STEP refuse'
     Assert-True (-not [IO.File]::Exists($output)) 'Un echec SaveAs ne doit rien publier.'
     Assert-True (@(Get-ChildItem -LiteralPath $folder -Filter '.mailleur-*.step').Count -eq 0) 'Supprimer seulement le fichier temporaire cree.'
     $app=New-FakeApplication
     $app.WrongDocument=$true
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'document retourne'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'document retourne'
     Assert-True ($app.Closed.Count -eq 0) 'Ne pas fermer un document non possede.'
     $app=New-FakeApplication
     $app.InvalidStep=$true
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'Signature STEP'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'Signature STEP'
     Assert-True (-not [IO.File]::Exists($output)) 'Refuser une signature de sortie invalide.'
     [IO.File]::WriteAllText($output,'keep')
     $app=New-FakeApplication
-    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory ({$app}.GetNewClosure())} 'existe deja'
+    Expect-Failure {Invoke-MailleurSolidWorksToStep -Source $part -Destination $output -ApplicationFactory (New-FakeApplicationFactory -Application $app)} 'existe deja'
     Assert-True ([IO.File]::ReadAllText($output) -eq 'keep' -and $app.OpenCalls -eq 0) 'Refuser l''ecrasement avant COM.'
     Write-Output '9 scenarios de protocole reussis avec doubles ; aucune conversion SOLIDWORKS reelle testee.'
 } finally {

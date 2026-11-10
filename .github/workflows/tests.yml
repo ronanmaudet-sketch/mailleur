@@ -34,9 +34,9 @@ jobs:
         run: python -m atelier doctor
       - name: Vérifier les sources Python
         run: python -m compileall -q atelier mailleur scripts
-      - name: Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: .\scripts\converters\test_solidworks_bridge.ps1
       - name: Tests
         run: python -m unittest discover -s tests -v
+      - name: Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
+        shell: powershell
+        run: .\scripts\converters\test_solidworks_bridge.ps1

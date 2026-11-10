@@ -440,5 +440,19 @@
       "corrected_sha256": "a3fc11da88444bdd002ec30c6107c92ee88ff553b11ffd2254004684b7a0d5ae",
       "change": "correctif de portabilité Windows pour la sauvegarde durable ; voir CORRECTIF_WINDOWS.md"
     }
+  ],
+  "test_and_ci_corrections": [
+    {
+      "path": "scripts/converters/test_solidworks_bridge.ps1",
+      "previous_sha256": "bcc8e4f7475a974cb7227de6577ef3a4b1a58b770f339a5c0990fd8911c90edf",
+      "corrected_sha256": "53890c1865f1c00aaa5b64eabd3fb4fe2fb8ca9d4f9414f5419e9c27a548c290",
+      "change": "capture explicite des objets simulés sous Windows PowerShell 5.1 ; critères conservés"
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "previous_sha256": "40c95e319d1b56740f5c9037653480fbe9001c04196220a55a4bee8661bb4d08",
+      "corrected_sha256": "39ef7c203e6406e230a3763993104389daa8859235d389a7fe7a8a03cfd777c0",
+      "change": "recueillir les tests Python et les contrats PowerShell indépendamment"
+    }
   ]
 }

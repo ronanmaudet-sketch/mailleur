@@ -13,7 +13,7 @@ Le 10 novembre 2026, sur Mac ARM64 :
 
 | Contrôle exécuté avec les sources/binaire corrigés | Résultat |
 | --- | --- |
-| Suite Rust release | **132 réussis**, 0 échec, 0 ignoré ; **7,12 s** |
+| Suite Rust (profil de test non optimisé) | **132 réussis**, 0 échec, 0 ignoré ; **7,12 s** |
 | Suite Python | **200 réussis**, 0 échec/erreur, 0 ignoré ; **31,270 s** |
 | Éprouvette réelle Cast3M 2026.0 | **43/43 comparaisons**, 497 nœuds et 221 TE10 ; **0,4357 s** |
 

@@ -36,6 +36,22 @@ Cast3M historiques restent inchangées. Le binaire Mac public est reconstruit
 depuis les sources corrigées ; sa nouvelle empreinte figure dans
 [BUILD_PUBLIC.json](BUILD_PUBLIC.json).
 
+## Portée des doubles PowerShell
+
+Au [passage suivant](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/42902528550),
+les 130 tests Rust passent dans chacun des deux jobs Windows. Les contrats
+simulés SOLIDWORKS révèlent ensuite un défaut de capture de variable sous
+Windows PowerShell 5.1 : une factory créée dans une portée imbriquée peut
+renvoyer une valeur nulle au lieu du double d'application attendu.
+
+Le script `scripts/converters/test_solidworks_bridge.ps1` capture désormais
+explicitement l'objet reçu en paramètre dans une variable locale dédiée.
+Une assertion vérifie son identité malgré des variables homonymes nulles
+dans la portée appelante. Les neuf scénarios et leurs critères sont conservés ;
+le convertisseur COM de production reste inchangé. Le workflow exécute les tests
+Python avant ces contrats et conserve le contrôle PowerShell après un échec
+indépendant, afin de recueillir les deux résultats sans masquer un échec.
+
 ## Validation
 
 La régression locale sur Mac ARM64 du binaire corrigé a réussi : **132 tests
