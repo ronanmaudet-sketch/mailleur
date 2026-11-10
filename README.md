@@ -18,6 +18,10 @@ reconstruit avec remappage des chemins de compilation ; les rapports publics
 ont été expurgés des chemins personnels. Les archives vérifiées du 7 novembre
 restent inchangées. [Provenance de cette préparation](docs/provenance/README.md).
 
+Les essais GitHub ont ensuite révélé deux problèmes de sauvegarde sous Windows.
+Le [correctif de portabilité](docs/provenance/CORRECTIF_WINDOWS.md) décrit leur
+cause, les modifications et leur validation.
+
 Dépôt public : [ronanmaudet-sketch/mailleur](https://github.com/ronanmaudet-sketch/mailleur).
 Les commandes pour récupérer une copie et publier les mises à jour figurent
 dans [PUBLICATION_GITHUB.md](PUBLICATION_GITHUB.md).

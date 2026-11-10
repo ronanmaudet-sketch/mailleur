@@ -14,6 +14,12 @@ du binaire public, reconstruit séparément si nécessaire, doit être lue dans
 [sa notice de construction](BUILD_PUBLIC.json) : les empreintes de noyau figurant dans les résultats
 historiques désignent toujours le noyau effectivement testé à cette date.
 
+Après la première publication, les essais GitHub sous Windows ont révélé deux
+défauts d'ouverture de fichiers dans la sauvegarde du corpus et du journal
+d'apprentissage. Le [correctif de portabilité](CORRECTIF_WINDOWS.md) est distinct
+des expurgations documentaires décrites ci-dessous. Il conserve les calculs de
+maillage, les contrôles d'intégrité et la provenance des résultats historiques.
+
 ## Copies expurgées
 
 Le [relevé JSON](expurgations.json) indique chaque fichier source relatif,
@@ -31,8 +37,9 @@ Le rapport final et les cinq scripts Gibiane sont copiés sans modification.
 
 Les PDF/Word historiques ne sont pas régénérés. Leurs mesures ou formulations
 anciennes sont complétées par l’[erratum](../../ERRATUM_PUBLICATION.md).
-Les rapports publiés sont des preuves d’exécutions antérieures, jamais une
-nouvelle campagne exécutée lors de la préparation du dépôt.
+Les rapports sous `docs/cast3m/preuves` sont des preuves d’exécutions antérieures.
+Les essais réellement exécutés pour la publication sont décrits séparément dans
+[verification/publication_20261110](../../verification/publication_20261110/README.md).
 
 ## Liens et données externes
 

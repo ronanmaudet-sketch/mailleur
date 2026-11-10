@@ -364,18 +364,22 @@ fn append_event(
     let mut bytes = serde_json::to_vec(&event).map_err(|e| e.to_string())?;
     bytes.push(b'\n');
     let path = directory.join("events.jsonl");
+    // The caller holds MemoryLock across recovery and append. A writable,
+    // non-truncating handle permits repairing an incomplete tail on Windows;
+    // append(true) deliberately excludes FILE_WRITE_DATA there, even when
+    // write(true) is also set. Seek to the end explicitly under that lock.
     let mut file = OpenOptions::new()
         .create(true)
-        .append(true)
         .write(true)
+        .truncate(false)
         .open(&path)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Ouverture du journal d'apprentissage en écriture : {e}"))?;
     let mut size = file.metadata().map_err(|e| e.to_string())?.len();
     if memory["journal_incomplete_tail"] == true {
         size = memory["journal_position"]
             .as_u64()
             .ok_or("Position de récupération absente")?;
-        file.set_len(size).map_err(|e| e.to_string())?;
+        file.set_len(size).map_err(|e| format!("Reprise de la fin incomplète du journal : {e}"))?;
         memory
             .as_object_mut()
             .unwrap()
@@ -384,6 +388,8 @@ fn append_event(
     if size + bytes.len() as u64 > MAX_EVENT_BYTES {
         return Err("Le journal atteindrait 512 Mio ; l'historique existant est conservé sans suppression automatique".into());
     }
+    file.seek(SeekFrom::End(0))
+        .map_err(|e| format!("Positionnement à la fin du journal d'apprentissage : {e}"))?;
     file.write_all(&bytes).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
     memory["journal_position"] = json!(size + bytes.len() as u64);
@@ -1546,6 +1552,7 @@ mod tests {
                 .as_nanos()
         ));
         fs::create_dir_all(&directory).unwrap();
+        let lock = MemoryLock::acquire(&directory).unwrap();
         let mut memory = json!({"schema":MEMORY_SCHEMA,"generation":0,"contexts":[{"context_id":"context","geometry_id":"geometry","observations":[]}]});
         let first = json!({"recipe_id":"first","accepted":false,"attempts":1,"score":0.,"error":"échec conservé"});
         save_observation(&mut memory, 0, first.clone()).unwrap();
@@ -1558,6 +1565,7 @@ mod tests {
         let mut recovered = load_memory(&directory).unwrap();
         assert_eq!(observation_count(&recovered), 2);
         assert_eq!(recovered["journal_events"], 2);
+        let durable_prefix = fs::read(directory.join("events.jsonl")).unwrap();
         let mut file = OpenOptions::new()
             .append(true)
             .open(directory.join("events.jsonl"))
@@ -1573,8 +1581,22 @@ mod tests {
         assert_eq!(final_state["journal_events"], 3);
         assert_eq!(final_state["contexts"][0]["observations"][0]["attempts"], 2);
         let log = fs::read_to_string(directory.join("events.jsonl")).unwrap();
+        assert!(log.as_bytes().starts_with(&durable_prefix));
         assert_eq!(log.lines().count(), 3);
         assert!(log.contains("échec conservé"));
+        // Repeat a normal append and replace the existing index once more
+        // after recovery; a fresh handle must not overwrite the durable prefix.
+        let third = json!({"recipe_id":"third","accepted":false,"attempts":1,"score":0.,"error":"après reprise"});
+        save_observation(&mut recovered, 0, third.clone()).unwrap();
+        append_event(&directory, &mut recovered, 0, &third).unwrap();
+        atomic_json(&directory.join("memory.json"), &recovered).unwrap();
+        let repeated = load_memory(&directory).unwrap();
+        assert_eq!(repeated["journal_events"], 4);
+        assert_eq!(observation_count(&repeated), 3);
+        let repeated_log = fs::read_to_string(directory.join("events.jsonl")).unwrap();
+        assert!(repeated_log.starts_with(&log));
+        assert_eq!(repeated_log.lines().count(), 4);
+        drop(lock);
         fs::remove_dir_all(directory).unwrap();
     }
 

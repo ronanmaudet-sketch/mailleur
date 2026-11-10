@@ -2,15 +2,50 @@
   "schema": "atelier.public_build.v1",
   "version": "mailleur-core 1.0.0-rc.7",
   "date": "2026-11-10",
-  "source": "rc7 sans modification du code de calcul",
-  "changes": "Remappage des chemins de compilation pour ne pas publier le chemin personnel du développeur",
+  "source": "rc7 avec correctif de sauvegarde Windows ; algorithmes de géométrie, maillage et qualité inchangés",
+  "changes": "Droits d’écriture nécessaires à la synchronisation du registre durable et à la récupération de la fin du journal ; remappage des chemins personnels conservé",
   "rustflags": [
     "--remap-path-prefix=<personal-home>=mailleur-build",
     "--remap-path-prefix=<temporary>=mailleur-build/tmp"
   ],
   "original_binary_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
-  "public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
-  "bytes": 2308992,
+  "public_binary_sha256": "85e3952da15bb445ebe00c003f48644444c430f5ff68779778e7cae186319aa6",
+  "bytes": 2309376,
   "private_paths_absent": true,
-  "validation": "voir verification/publication_20261110 après les essais dédiés"
+  "validation": "Régression locale du binaire corrigé consignée dans verification/publication_20261110 ; résultats CI à consulter par révision dans Actions",
+  "updated_utc": "2026-11-10T21:09:21.414748+00:00",
+  "previous_public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+  "modified_source_files": [
+    "rust_core/src/corpus.rs",
+    "rust_core/src/experience.rs"
+  ],
+  "source_sha256": {
+    "rust_core/src/corpus.rs": "75ee661aa77483d6d91a9ebfd39def7dcab7bdb1871dc536feb7b42fbd5743f3",
+    "rust_core/src/experience.rs": "a3fc11da88444bdd002ec30c6107c92ee88ff553b11ffd2254004684b7a0d5ae"
+  },
+  "release_build_seconds": 22.47,
+  "local_validation": {
+    "report": "verification/publication_20261110/summary.json",
+    "rust_passed": 132,
+    "python_passed": 200,
+    "cast3m_checks_passed": 43,
+    "host": "macOS ARM64"
+  },
+  "github_actions": "https://github.com/ronanmaudet-sketch/mailleur/actions",
+  "initial_public_build": {
+    "schema": "atelier.public_build.v1",
+    "version": "mailleur-core 1.0.0-rc.7",
+    "date": "2026-11-10",
+    "source": "rc7 sans modification du code de calcul",
+    "changes": "Remappage des chemins de compilation pour ne pas publier le chemin personnel du développeur",
+    "rustflags": [
+      "--remap-path-prefix=<personal-home>=mailleur-build",
+      "--remap-path-prefix=<temporary>=mailleur-build/tmp"
+    ],
+    "original_binary_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
+    "public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+    "bytes": 2308992,
+    "private_paths_absent": true,
+    "validation": "voir verification/publication_20261110 après les essais dédiés"
+  }
 }

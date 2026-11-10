@@ -1,26 +1,135 @@
 {
   "schema": "atelier.publication_validation.v1",
   "date": "2026-11-10",
+  "updated_utc": "2026-11-10T21:09:21.414748+00:00",
   "code_version": "1.0.0rc7",
-  "public_core_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+  "validation_scope": "régression locale Mac après correctif de sauvegarde Windows",
+  "local_validation_passed": true,
+  "public_core_sha256": "85e3952da15bb445ebe00c003f48644444c430f5ff68779778e7cae186319aa6",
+  "public_core_bytes": 2309376,
+  "previous_public_core_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+  "rust_tests": {
+    "passed": 132,
+    "failed": 0,
+    "ignored": 0,
+    "seconds": 7.12,
+    "host": "macOS ARM64"
+  },
   "python_tests": {
+    "tests_run": 200,
     "passed": 200,
     "failed": 0,
+    "errors": 0,
     "skipped": 0,
-    "seconds": 34.787
+    "seconds": 31.27,
+    "host": "macOS ARM64",
+    "dependencies": "venv de développement existant ; cette vérification ne constitue pas une installation vierge"
   },
-  "source_rust_suite": "132 tests passés pendant campagne rc7, mêmes sources de calcul ; voir preuves historiques",
   "cast3m_demo": {
     "passed": true,
     "checks": 43,
     "nodes": 497,
     "TE10": 221,
+    "cell_counts": {
+      "SEG3": 44,
+      "TRI6": 178,
+      "TE10": 221
+    },
     "version": "2026.0",
     "error_levels": [
       0
     ],
-    "seconds_including_launch_import_checks_solve": 0.4858,
-    "scope": "un seul cas affine, pas un gain solveur"
+    "returncode": 0,
+    "fortran_flags": [
+      "IEEE_INVALID_FLAG"
+    ],
+    "seconds_including_launch_import_checks_solve": 0.4356899170015822,
+    "input_files_unchanged": true,
+    "scope": "un seul cas affine volumique quadratique, pas une mesure de gain solveur",
+    "mesh_metadata_sha256": "fccd8975416df53bfc80165bb8340086585b15652d6a99c13dd0554878e3516f",
+    "solver_result_sha256": "4a314dda7c0bde622057d6c549cd178744eb6c8ee0df96a903a9b963582230f5",
+    "local_artifacts_in_ignored_output": [
+      "output/cast3m_windowsfix/maillage.json",
+      "output/cast3m_windowsfix/resultat_cast3m.json"
+    ]
   },
-  "source_note": "Le binaire public est reconstruit uniquement avec remappage des chemins de compilation."
+  "initial_validation": {
+    "schema": "atelier.publication_validation.v1",
+    "date": "2026-11-10",
+    "code_version": "1.0.0rc7",
+    "public_core_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+    "python_tests": {
+      "passed": 200,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 34.787
+    },
+    "source_rust_suite": "132 tests passés pendant campagne rc7, mêmes sources de calcul ; voir preuves historiques",
+    "cast3m_demo": {
+      "passed": true,
+      "checks": 43,
+      "nodes": 497,
+      "TE10": 221,
+      "version": "2026.0",
+      "error_levels": [
+        0
+      ],
+      "seconds_including_launch_import_checks_solve": 0.4858,
+      "scope": "un seul cas affine, pas un gain solveur"
+    },
+    "source_note": "Le binaire public est reconstruit uniquement avec remappage des chemins de compilation."
+  },
+  "restricted_python_attempt": {
+    "status": "failed",
+    "tests_run": 188,
+    "errors": 7,
+    "seconds": 27.574,
+    "cause": "permissions du contexte d’exécution : ouverture de sockets locales et commande ps refusées",
+    "followup": "même commande réexécutée avec les autorisations système nécessaires ; résultat ci-dessus",
+    "log_sha256": "a659653875fef536704d53627bab1e5149ad30fc70e65baec1e6e03316b0e656"
+  },
+  "local_evidence_logs": [
+    {
+      "filename": "portability_release_build_mac.txt",
+      "sha256": "bec2997238ec918ff0a6151f0cf62453978a861623ce81faf9716dda1f6f4f16",
+      "bytes": 1844,
+      "location": "dossier ci_github de la préparation locale, hors dépôt public"
+    },
+    {
+      "filename": "portability_rust_tests_mac.txt",
+      "sha256": "fc42dff3cae11ff4b4f52fd13ece44e4b93a83102de875e65e9cb3a0f7081be7",
+      "bytes": 13309,
+      "location": "dossier ci_github de la préparation locale, hors dépôt public"
+    },
+    {
+      "filename": "portability_python_tests_mac_restrictions.txt",
+      "sha256": "a659653875fef536704d53627bab1e5149ad30fc70e65baec1e6e03316b0e656",
+      "bytes": 43764,
+      "location": "dossier ci_github de la préparation locale, hors dépôt public"
+    },
+    {
+      "filename": "portability_python_tests_mac.txt",
+      "sha256": "c16ed794cc2cf714e627219f794703dc2f5998295bf612f45f9ab3ba93fcf795",
+      "bytes": 34472,
+      "location": "dossier ci_github de la préparation locale, hors dépôt public"
+    },
+    {
+      "filename": "portability_cast3m_mac.txt",
+      "sha256": "26d0d99c859f5a6de48f34038673979fc7bc078916827aaa5c47b4b5273efeeb",
+      "bytes": 230,
+      "location": "dossier ci_github de la préparation locale, hors dépôt public"
+    }
+  ],
+  "github_actions": {
+    "url": "https://github.com/ronanmaudet-sketch/mailleur/actions",
+    "results_scope": "consulter les résultats rattachés à chaque révision dans Actions",
+    "ci_success_claimed_by_local_report": false,
+    "initial_snapshot": "github_actions_initial.json",
+    "initial_snapshot_sha256": "0012d12c66e573f40f95869019f06416fd5ba8bc6a4cc42f0257f2b9986e788a",
+    "initial_run_id": 42900383130,
+    "initial_run_head_sha": "fdb74a9d41fd384ddc27c2b82132039d522532f7",
+    "initial_snapshot_updated_utc": "2026-11-10T21:02:28.270Z",
+    "initial_windows_failures_per_job": 4
+  },
+  "source_note": "Ouvertures de fichiers du corpus et du journal corrigées pour Windows ; algorithmes de géométrie, maillage et qualité inchangés. Les validations antérieures restent attribuées à leur binaire."
 }

@@ -1,8 +1,10 @@
 # Erratum de publication — 10 novembre 2026
 
-La publication du dépôt n’est pas une nouvelle campagne de calcul. Les
-archives rc7 du 7 novembre et les PDF/Word historiques sont conservés sans
+Les archives rc7 du 7 novembre et les PDF/Word historiques sont conservés sans
 réécriture ; le présent erratum précise leurs deux limites de présentation.
+Les essais supplémentaires réalisés pour la publication sont décrits dans
+[leur rapport dédié](verification/publication_20261110/README.md), et le
+[correctif Windows](docs/provenance/CORRECTIF_WINDOWS.md) possède sa propre provenance.
 
 ## Durées Cast3M finales
 

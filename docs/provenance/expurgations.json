@@ -203,7 +203,7 @@
     },
     {
       "path": "README.md",
-      "public_sha256": "c5fd6cb609f6208b74821ab8d8af3c43fa2dcb895b35bd0fbef58e1d0e7f795e",
+      "public_sha256": "fffbfc0965a24c3c0b76d24dbe1aa8e031d6248f5bca47d42ec1274dbc3875a2",
       "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
     },
     {
@@ -426,5 +426,19 @@
       "target": "cast3m/preuves/README.md"
     }
   ],
-  "canonical_publication_notice": "docs/provenance/README.md"
+  "canonical_publication_notice": "docs/provenance/README.md",
+  "source_corrections": [
+    {
+      "path": "rust_core/src/corpus.rs",
+      "first_published_sha256": "8dbaaccd7ffd20603b1f14b66ec418d4197a7054401df1cc66cbdcad8f047d05",
+      "corrected_sha256": "75ee661aa77483d6d91a9ebfd39def7dcab7bdb1871dc536feb7b42fbd5743f3",
+      "change": "correctif de portabilité Windows pour la sauvegarde durable ; voir CORRECTIF_WINDOWS.md"
+    },
+    {
+      "path": "rust_core/src/experience.rs",
+      "first_published_sha256": "cca35ba5333229cac1797adfa11ea92910fc0003ea903196361af3d1c7d6e822",
+      "corrected_sha256": "a3fc11da88444bdd002ec30c6107c92ee88ff553b11ffd2254004684b7a0d5ae",
+      "change": "correctif de portabilité Windows pour la sauvegarde durable ; voir CORRECTIF_WINDOWS.md"
+    }
+  ]
 }

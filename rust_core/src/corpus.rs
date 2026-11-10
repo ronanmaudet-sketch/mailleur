@@ -598,7 +598,13 @@ fn recover_with_adoption(root: &Path, plan: &Plan, cp: &mut Value, adopt: bool) 
     verify_ledger_tail(&ledger_path,plan,latest.as_ref())?;
     if legacy {
         if root.join(LEDGER_NAME).is_symlink() { return Err("Le registre d'intégrité est un lien symbolique".into()); }
-        File::open(&ledger_path).and_then(|f|f.sync_all()).map_err(|e|e.to_string())?;
+        // Windows FlushFileBuffers requires write access; File::open only
+        // grants read access. Preserve every staged byte and close this handle
+        // before publishing the ledger under its final name.
+        let ledger_file=OpenOptions::new().write(true).truncate(false).open(&ledger_path)
+            .map_err(|e|format!("Ouverture du registre d'intégrité à synchroniser : {e}"))?;
+        ledger_file.sync_all().map_err(|e|format!("Synchronisation du registre d'intégrité : {e}"))?;
+        drop(ledger_file);
         fs::rename(&ledger_path,root.join(LEDGER_NAME)).map_err(|e|e.to_string())?;
         working["integrity"]=json!({"schema":"atelier.corpus.integrity.v1",
             "adopted_legacy_integrity":true,"historical_integrity_proven":false,"adopted_at":now(),
@@ -1522,6 +1528,10 @@ mod tests {
         cp["journal_cursor"].as_object_mut().unwrap().remove("closed_shards");
         atomic_json(&root.join("checkpoint.json"),&cp).unwrap();fs::remove_file(root.join(LEDGER_NAME)).unwrap();
         let before=fs::read(root.join("checkpoint.json")).unwrap();let original_manifest=fs::read(root.join("manifest.json")).unwrap();
+        let durable_shards=(0..3).map(|number| {
+            let path=shard(&root,number*plan.shard_size,&plan);
+            let bytes=fs::read(&path).unwrap();(path,bytes)
+        }).collect::<Vec<_>>();
         assert!(process(&json!({"operation":"corpus_status","corpus_dir":root})).err().unwrap().contains("--adopt-legacy-integrity"));
         assert_eq!(fs::read(root.join("checkpoint.json")).unwrap(),before);assert!(!root.join(LEDGER_NAME).exists());
         let adopted=process(&json!({"operation":"corpus_status","corpus_dir":root,"adopt_legacy_integrity":true})).unwrap();
@@ -1529,8 +1539,12 @@ mod tests {
         assert_eq!(adopted["integrity"]["historical_integrity_proven"],false);
         assert_eq!(adopted["source_core_version"],"1.0.0-rc.6");assert_eq!(adopted["can_resume_generation"],false);
         assert_eq!(fs::read(root.join("manifest.json")).unwrap(),original_manifest);
+        for (path,bytes) in &durable_shards { assert_eq!(fs::read(path).unwrap(),*bytes); }
+        let published_ledger=fs::read(root.join(LEDGER_NAME)).unwrap();
         let again=process(&json!({"operation":"corpus_status","corpus_dir":root})).unwrap();
         assert_eq!(again["integrity"],adopted["integrity"]);
+        assert_eq!(fs::read(root.join(LEDGER_NAME)).unwrap(),published_ledger);
+        for (path,bytes) in &durable_shards { assert_eq!(fs::read(path).unwrap(),*bytes); }
         assert!(run(&root,&json!({})).err().unwrap().contains("Provenance numérique"));
         let _=fs::remove_dir_all(root);
     }

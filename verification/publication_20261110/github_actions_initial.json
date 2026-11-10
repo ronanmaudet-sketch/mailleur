@@ -1,0 +1,124 @@
+{
+  "run_id": 42900383130,
+  "run_url": "https://github.com/ronanmaudet-sketch/mailleur/actions/runs/42900383130",
+  "head_sha": "fdb74a9d41fd384ddc27c2b82132039d522532f7",
+  "updated_utc": "2026-11-10T21:02:28.270Z",
+  "jobs": [
+    {
+      "id": 130124474603,
+      "name": "windows-latest / Python 3.12",
+      "status": "completed",
+      "conclusion": "failure",
+      "rust": {
+        "passed": 126,
+        "failed": 4,
+        "ignored": 0,
+        "total": 130
+      },
+      "python": null,
+      "failed_steps": [
+        "Tests du noyau Rust"
+      ],
+      "skipped_steps": [
+        "Bibliothèques natives Linux",
+        "Compiler le noyau Rust",
+        "Installer le projet",
+        "Diagnostic système",
+        "Vérifier les sources Python",
+        "Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)",
+        "Tests",
+        "Post Run actions/setup-python@v5"
+      ]
+    },
+    {
+      "id": 130124474819,
+      "name": "ubuntu-latest / Python 3.12",
+      "status": "completed",
+      "conclusion": "success",
+      "rust": {
+        "passed": 132,
+        "failed": 0,
+        "ignored": 0,
+        "total": 132
+      },
+      "python": {
+        "tests_run": 200,
+        "seconds": 41.692,
+        "skipped": 0,
+        "summary": "OK"
+      },
+      "failed_steps": [],
+      "skipped_steps": [
+        "Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)"
+      ]
+    },
+    {
+      "id": 130124474835,
+      "name": "macos-latest / Python 3.12",
+      "status": "queued",
+      "conclusion": null,
+      "rust": null,
+      "python": null,
+      "failed_steps": [],
+      "skipped_steps": []
+    },
+    {
+      "id": 130124474997,
+      "name": "windows-latest / Python 3.11",
+      "status": "completed",
+      "conclusion": "failure",
+      "rust": {
+        "passed": 126,
+        "failed": 4,
+        "ignored": 0,
+        "total": 130
+      },
+      "python": null,
+      "failed_steps": [
+        "Tests du noyau Rust"
+      ],
+      "skipped_steps": [
+        "Bibliothèques natives Linux",
+        "Compiler le noyau Rust",
+        "Installer le projet",
+        "Diagnostic système",
+        "Vérifier les sources Python",
+        "Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)",
+        "Tests",
+        "Post Run actions/setup-python@v5"
+      ]
+    },
+    {
+      "id": 130124475039,
+      "name": "ubuntu-latest / Python 3.11",
+      "status": "completed",
+      "conclusion": "success",
+      "rust": {
+        "passed": 132,
+        "failed": 0,
+        "ignored": 0,
+        "total": 132
+      },
+      "python": {
+        "tests_run": 200,
+        "seconds": 28.076,
+        "skipped": 0,
+        "summary": "OK"
+      },
+      "failed_steps": [],
+      "skipped_steps": [
+        "Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)"
+      ]
+    },
+    {
+      "id": 130124475467,
+      "name": "macos-latest / Python 3.11",
+      "status": "queued",
+      "conclusion": null,
+      "rust": null,
+      "python": null,
+      "failed_steps": [],
+      "skipped_steps": []
+    }
+  ]
+}
