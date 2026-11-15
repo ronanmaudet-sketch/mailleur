@@ -1,0 +1,60 @@
+name: Publier Mailleur 1.0.0-rc7
+
+on:
+  push:
+    branches: [publication/v1.0.0-rc7]
+    paths: [.github/workflows/publish-rc7.yml]
+
+permissions: {}
+
+concurrency: publish-mailleur-rc7
+
+jobs:
+  release:
+    if: github.repository == 'ronanmaudet-sketch/mailleur'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: v1.0.0-rc7
+      RELEASE_SHA: a45b77b4ac658d7d414e0516677529575c0cd77a
+      ARCHIVE: Mailleur-1.0.0-rc7.zip
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Vérifier les sources et préparer l’archive
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          sha256sum --strict -c MANIFEST_PUBLIC.sha256 >/dev/null
+          git archive --format=zip --prefix=Mailleur-1.0.0-rc7/ --output="$ARCHIVE" "$RELEASE_SHA"
+          unzip -tq "$ARCHIVE"
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Publier la préversion et les fichiers
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Une préversion existe déjà pour ce tag. Vérifier ses fichiers avant de relancer."
+            exit 1
+          fi
+          result=0
+          git ls-remote --tags --exit-code origin "refs/tags/$RELEASE_TAG" >/dev/null || result=$?
+          test "$result" -eq 2
+          gh release create "$RELEASE_TAG" "$ARCHIVE" "$ARCHIVE.sha256" \
+            --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" --prerelease --latest=false \
+            --title "Mailleur 1.0.0-rc7 · Préversion" --notes-file - <<'NOTES'
+          Mailleur prépare et contrôle des maillages pour le calcul par éléments finis. Cette préversion contient les sources, les guides et un noyau compilé pour macOS Apple Silicon. Sous Linux, compiler le noyau selon le guide d’installation.
+
+          - [Installation et premier maillage](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc7/README.md#installation-et-lancement)
+          - [Exemple Cast3M](https://github.com/ronanmaudet-sketch/mailleur/tree/v1.0.0-rc7/examples/cast3m_pilot) : le maillage et le script Gibiane fournis permettent de rejouer la traction avec Cast3M et Python, sans installer Mailleur.
+          - [Retour après un essai Cast3M](https://github.com/ronanmaudet-sketch/mailleur/issues/new?template=retour_cast3m.yml)
+
+          La suite [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/42903867933) passe sur macOS et Ubuntu avec Python 3.11 et 3.12. La validation sous Windows se poursuit après des délais dépassés dans les tests de maillage.
+
+          Le ZIP joint correspond au tag de cette préversion. Le fichier `.sha256` permet d’en vérifier l’intégrité. Code sous GPL-3.0-or-later.
+          NOTES
