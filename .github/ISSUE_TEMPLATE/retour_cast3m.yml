@@ -1,0 +1,29 @@
+name: Retour après un essai Cast3M
+description: Partager le résultat d’un essai, qu’il ait réussi ou non.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci d’avoir essayé l’[exemple Cast3M](https://github.com/ronanmaudet-sketch/mailleur/tree/main/examples/cast3m_pilot). Quelques lignes suffisent. Ce retour sera public.
+  - type: input
+    id: environnement
+    attributes:
+      label: Système et version de Cast3M
+      placeholder: macOS ARM64, Cast3M 2026.0
+    validations:
+      required: true
+  - type: dropdown
+    id: resultat
+    attributes:
+      label: Résultat de l’essai
+      options:
+        - Le calcul est allé au bout
+        - Le calcul a démarré puis s’est arrêté
+        - Je n’ai pas pu lancer le calcul
+    validations:
+      required: true
+  - type: textarea
+    id: retour
+    attributes:
+      label: Qu’est-ce qui t’a aidé ou freiné ?
+      description: Si tu peux, indique le parcours utilisé, l’étape concernée et tes remarques sur les unités ou les groupes. Pour partager un journal, retire les chemins et données privés.

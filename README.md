@@ -1,5 +1,23 @@
 # Atelier Mailleur — 1.0.0rc7
 
+Mailleur est un outil libre qui transforme une géométrie CAO en maillage pour
+le calcul par éléments finis. Il permet de contrôler la qualité du maillage et
+de l’exporter, notamment au format UNV avec un script d’import pour Cast3M.
+
+[Télécharger Mailleur](https://github.com/ronanmaudet-sketch/mailleur/releases) ·
+[Essayer l’exemple Cast3M](examples/cast3m_pilot/README.md#tester-le-maillage-fourni-sans-installer-mailleur) ·
+[Installer Mailleur](#installation-et-lancement) ·
+[Partager un retour d’essai](https://github.com/ronanmaudet-sketch/mailleur/issues/new?template=retour_cast3m.yml)
+
+Si tu as déjà Cast3M, tu peux rejouer le calcul de traction avec le maillage
+fourni. L’option `--reference` fonctionne sans installer Mailleur. Que le calcul
+réussisse ou bloque, indique ton système, ta version de Cast3M et ce qui a
+facilité ou ralenti l’essai.
+
+**État de la préversion.** Les tests automatisés passent sur macOS et Ubuntu
+avec Python 3.11 et 3.12. La validation sous Windows se poursuit : des tests de
+maillage dépassent leur délai. [Résultats des tests de la rc7](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/42903867933).
+
 ## Présentation à l'équipe Cast3M — 10 novembre 2026
 
 [Note de présentation PDF](docs/cast3m/PROPOSITION_CAST3M.pdf) ·
