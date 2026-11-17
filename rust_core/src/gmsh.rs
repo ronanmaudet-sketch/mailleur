@@ -7,6 +7,8 @@
 use libloading::{Library, Symbol};
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
+use std::io::Write;
 use std::path::Path;
 use std::ptr;
 use std::rc::Rc;
@@ -27,16 +29,26 @@ pub struct ElementBlock {
 }
 
 pub struct Gmsh {
-    lib: Library,
+    lib: ManuallyDrop<Library>,
     initialized: bool,
     _not_thread_safe: PhantomData<Rc<()>>,
 }
 
+fn trace(message: &str) {
+    if std::env::var_os("ATELIER_GMSH_TRACE").is_some() {
+        eprintln!("MAILLEUR_GMSH_TRACE {message}");
+        let _ = std::io::stderr().flush();
+    }
+}
+
 macro_rules! invoke {
     ($self:ident, $name:literal, $signature:ty $(, $argument:expr)* $(,)?) => {{
+        trace(concat!("before ", $name));
         let function: Symbol<$signature> = unsafe { $self.lib.get(concat!($name, "\0").as_bytes()) }
             .map_err(|error| format!("Symbole Gmsh {} indisponible : {error}", $name))?;
-        unsafe { function($($argument),*) }
+        let value = unsafe { function($($argument),*) };
+        trace(concat!("after ", $name));
+        value
     }};
 }
 
@@ -68,10 +80,12 @@ fn paired(values: Vec<i32>) -> Result<Vec<DimTag>, String> {
 impl Gmsh {
     pub fn new(library_path: &str) -> Result<Self, String> {
         // The caller supplies the installed, official native library path.
+        trace("before Library::new");
         let lib = unsafe { Library::new(library_path) }
             .map_err(|error| format!("Chargement du moteur natif impossible : {error}"))?;
+        trace("after Library::new");
         let mut context = Self {
-            lib,
+            lib: ManuallyDrop::new(lib),
             initialized: false,
             _not_thread_safe: PhantomData,
         };
@@ -1671,11 +1685,16 @@ impl Drop for Gmsh {
             } {
                 let mut ierr = 0;
                 unsafe {
+                    trace("before gmshFinalize");
                     function(&mut ierr);
+                    trace("after gmshFinalize");
                 }
             }
             self.initialized = false;
         }
+        trace("before Library unload");
+        unsafe { ManuallyDrop::drop(&mut self.lib); }
+        trace("after Library unload");
     }
 }
 

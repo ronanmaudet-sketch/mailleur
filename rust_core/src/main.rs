@@ -160,7 +160,16 @@ fn process(request: &Value) -> Result<Value, String> {
     Ok(report)
 }
 
+fn diagnostic_phase(message: &str) {
+    use std::io::Write;
+    if std::env::var_os("ATELIER_GMSH_TRACE").is_some() {
+        eprintln!("MAILLEUR_MAIN_TRACE {message}");
+        let _ = std::io::stderr().flush();
+    }
+}
+
 fn main() {
+    diagnostic_phase("main started");
     let args: Vec<String> = env::args().skip(1).collect();
     if args == ["--version"] {
         println!("mailleur-core {}", env!("CARGO_PKG_VERSION"));
@@ -171,12 +180,17 @@ fn main() {
         [path] => path,
         _ => { eprintln!("Usage : mailleur-core --request requete.json"); std::process::exit(2); }
     };
+    diagnostic_phase("before reading request");
     let request = fs::read(path).map_err(|e| e.to_string())
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).map_err(|e|e.to_string()));
     // The GUI reads the authoritative artifacts. Avoid serializing the same
     // potentially large result a second time into its diagnostic log.
+    diagnostic_phase("request read and parsed");
     let summary_response = request.as_ref().is_ok_and(|value| value["response_mode"] == "summary");
+    diagnostic_phase("before process request");
     let result = request.and_then(|request| process(&request));
+    diagnostic_phase("after process request");
+    diagnostic_phase("before final response");
     match result {
         Ok(_) if summary_response => println!("{}", json!({"ok":true})),
         Ok(report) => println!("{}", json!({"ok":true,"result":report})),
