@@ -42,6 +42,14 @@ journal natif et un diagnostic JSON. GitHub joint ce dossier aux artefacts du
 job après un échec. Les six combinaisons macOS, Ubuntu et Windows avec
 Python 3.11 et 3.12 et les neuf contrats PowerShell restent dans la suite.
 
+Lors du premier passage rc8, GitHub a annulé les deux jobs macOS ARM64 avant
+leur démarrage, après plusieurs tentatives d'attribution de runner. Ses notices
+signalent un manque de capacité ARM64. Le workflow utilise donc le runner
+standard `macos-15-intel`, proposé dans la
+[liste officielle des runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+Les contrôles Mac ARM64 exécutés localement sont conservés dans le rapport de
+vérification rc8. Les résultats Windows et Ubuntu du premier passage ont réussi.
+
 ## Versions et provenance
 
 Le paquet Python porte la version `1.0.0rc8` et le noyau Rust `1.0.0-rc.8`.
