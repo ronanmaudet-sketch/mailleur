@@ -23,7 +23,7 @@ MODELS = {
 
 class ShareModelTests(unittest.TestCase):
     def model(self, kind):
-        return json.loads(MODELS[kind].read_text())
+        return json.loads(MODELS[kind].read_text(encoding="utf-8"))
 
     def test_three_shipped_models_export_with_checksums_and_without_sibling_files(self):
         with tempfile.TemporaryDirectory() as folder:

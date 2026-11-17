@@ -46,7 +46,7 @@ class QuadraticOptimizerFailure(unittest.TestCase):
                 self.assertFalse((root / "native/mesh.msh").exists())
                 self.assertFalse((root / "native/mesh.state.msh").exists())
             else:
-                report = json.loads((root / "native/report.json").read_text())
+                report = json.loads((root / "native/report.json").read_text(encoding="utf-8"))
                 self.assertEqual(report["mesh_settings"]["order"], 2)
                 self.assertEqual(report["quality"]["invalid_elements"], 0)
                 self.assertGreater(report["quality"]["minimum"], 0)

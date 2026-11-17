@@ -203,7 +203,7 @@
     },
     {
       "path": "README.md",
-      "public_sha256": "fdec915f41fcb7c532715371e84b8cc625626cc5c40609cd22441802d43c746f",
+      "public_sha256": "53464bc9d0f084de1ce0fb58254b1a2727c9242a21df067597390d5f5a8a3412",
       "change": "adaptation documentaire de publication ; aucune valeur de calcul modifiée"
     },
     {
@@ -454,5 +454,12 @@
       "corrected_sha256": "39ef7c203e6406e230a3763993104389daa8859235d389a7fe7a8a03cfd777c0",
       "change": "recueillir les tests Python et les contrats PowerShell indépendamment"
     }
-  ]
+  ],
+  "rc8_correction": {
+    "date": "2026-11-17",
+    "source": "rust_core/src/gmsh.rs",
+    "previous_source_sha256": "477a99ef7da141a2cce362cba012fc866569a491053a229723f992715a90be7f",
+    "corrected_source_sha256": "3138701213d89d119da6dca0f42871323d1cd79698a76f496046a7bff4f69230",
+    "report": "docs/CORRECTIONS_RC8.md"
+  }
 }

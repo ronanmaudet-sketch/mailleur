@@ -47,7 +47,7 @@ class OptimizedNativeTransport(unittest.TestCase):
                                  capture_output=True, text=True, timeout=10, check=True)
             reply = json.loads(run.stdout)
             self.assertTrue(reply["ok"])
-            report = json.loads((directory / "report.json").read_text())
+            report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
             reports.append(report)
             if mode == "full":
                 self.assertEqual(reply["result"], report)
@@ -63,7 +63,7 @@ class OptimizedNativeTransport(unittest.TestCase):
         request = {"operation": "mesh", "project": native_project(self.project()),
                    "report_only": True, "output_dir": str(directory)}
         self.session._call(request, directory)
-        report = json.loads((directory / "report.json").read_text())
+        report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
         for field in ("quality", "nodes", "elements", "cell_counts", "groups", "correspondences", "algorithms"):
             self.assertEqual(report[field], full["report"][field], field)
         self.assertFalse(report["artifacts_written"])

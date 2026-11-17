@@ -41,7 +41,7 @@ class PythonNumericalBoundary(unittest.TestCase):
         for name in ("atelier/backend.py", "atelier/advisor.py", "mailleur/geometry.py",
                      "mailleur/meshing.py", "mailleur/learning.py"):
             with self.subTest(path=name):
-                tree = ast.parse((ROOT / name).read_text())
+                tree = ast.parse((ROOT / name).read_text(encoding="utf-8"))
                 imports = set()
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Import): imports.update(alias.name.split(".")[0] for alias in node.names)

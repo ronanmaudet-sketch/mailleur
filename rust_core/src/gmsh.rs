@@ -70,6 +70,18 @@ impl Gmsh {
         // The caller supplies the installed, official native library path.
         let lib = unsafe { Library::new(library_path) }
             .map_err(|error| format!("Chargement du moteur natif impossible : {error}"))?;
+        #[cfg(windows)]
+        let lib = {
+            // After a full CAD/mesh operation, Gmsh's Windows DLL can block in
+            // FreeLibrary even after gmshFinalize has returned. Keep the image
+            // mapped until this worker process exits. Each context is still
+            // finalized normally, including successive training evaluations.
+            let library: libloading::os::windows::Library = lib.into();
+            library.pin().map_err(|error| {
+                format!("Maintien du moteur natif Windows en mémoire impossible : {error}")
+            })?;
+            Library::from(library)
+        };
         let mut context = Self {
             lib,
             initialized: false,

@@ -60,7 +60,7 @@ class GmshIntegration(unittest.TestCase):
         self.assertGreater(report["quality"]["min_jacobian_determinant"], 0)
         self.assertEqual(report["quality"]["invalid_elements"], 0)
         self.assertGreater((self.directory / "result/mesh.msh").stat().st_size, 100)
-        return report, json.loads((self.directory / "result/preview.json").read_text())
+        return report, json.loads((self.directory / "result/preview.json").read_text(encoding="utf-8"))
 
     def test_plate_hole_has_no_elements_in_hole(self):
         p = plate()

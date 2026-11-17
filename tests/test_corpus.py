@@ -71,7 +71,7 @@ class CorpusNativeIntegration(unittest.TestCase):
     def records(self):
         rows = []
         for path in sorted((self.corpus / "shards").glob("cases-*.jsonl")):
-            rows.extend(json.loads(line) for line in path.read_text().splitlines() if line)
+            rows.extend(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line)
         return rows
 
     def test_million_case_plan_is_metadata_and_does_not_generate_meshes(self):
@@ -186,7 +186,7 @@ class CorpusNativeIntegration(unittest.TestCase):
         project = plate()
         first = self.session.learn(project, max_trials=1, epochs=3)
         memory_path = self.session.workspace / "experience/memory.json"
-        memory = json.loads(memory_path.read_text())
+        memory = json.loads(memory_path.read_text(encoding="utf-8"))
         old_context = next(row for row in memory["contexts"]
                            if row["context_id"] == first["report"]["experience"]["context_id"])
         observation = old_context["observations"][0]
@@ -201,7 +201,7 @@ class CorpusNativeIntegration(unittest.TestCase):
         second = self.session.learn(changed, max_trials=1, epochs=3)
         migrated = second["report"]["experience"]["representation_migration"]
         self.assertGreaterEqual(migrated["legacy_examples_reencoded"], 1)
-        updated = json.loads(memory_path.read_text())
+        updated = json.loads(memory_path.read_text(encoding="utf-8"))
         previous = next(row for row in updated["contexts"] if row["context_id"] == old_context["context_id"])
         row = previous["observations"][0]
         self.assertEqual(len(row["features"]), 128)
@@ -242,7 +242,7 @@ class CorpusStreamingIntegration(unittest.TestCase):
         self.session._call({"operation": "corpus_train", "corpus_dir": str(directory),
                             "output_dir": str(output), "training": config},
                            output, needs_gmsh=False)
-        return json.loads((output / "report.json").read_text())
+        return json.loads((output / "report.json").read_text(encoding="utf-8"))
 
     def test_streaming_training_is_not_limited_to_the_interactive_memory_capacity(self):
         self.fixture(self.corpus, training=33010, validation=2, testing=2)
@@ -265,8 +265,8 @@ class CorpusStreamingIntegration(unittest.TestCase):
         self.fixture(second_dir, test_target=.9)
         first = self.train_direct(first_dir)
         second = self.train_direct(second_dir)
-        first_model = json.loads(Path(first["model_path"]).read_text())
-        second_model = json.loads(Path(second["model_path"]).read_text())
+        first_model = json.loads(Path(first["model_path"]).read_text(encoding="utf-8"))
+        second_model = json.loads(Path(second["model_path"]).read_text(encoding="utf-8"))
         self.assertEqual(first_model["network"], second_model["network"])
         self.assertEqual(first["deploy_enabled"], second["deploy_enabled"])
         self.assertNotEqual(first["test"]["oracle_reward"], second["test"]["oracle_reward"])
@@ -276,17 +276,18 @@ class CorpusStreamingIntegration(unittest.TestCase):
         first = self.train_direct(self.corpus, batch_size=4, max_batches=1)
         self.assertTrue(first["stopped_by_budget"])
         self.assertEqual(first["epochs_completed"], 0)
-        checkpoint = json.loads(Path(first["checkpoint_path"]).read_text())
+        checkpoint = json.loads(Path(first["checkpoint_path"]).read_text(encoding="utf-8"))
         self.assertFalse(checkpoint["complete"])
         second = self.train_direct(self.corpus, batch_size=4)
         self.assertTrue(second["resumed"])
         self.assertEqual(second["epochs_completed"], 3)
-        self.assertTrue(json.loads(Path(second["checkpoint_path"]).read_text())["complete"])
+        self.assertTrue(json.loads(Path(second["checkpoint_path"]).read_text(encoding="utf-8"))["complete"])
 
     def test_family_leakage_is_rejected_before_training(self):
         self.fixture(self.corpus)
         path = self.corpus / "shards/cases-000000.jsonl"
-        path.write_text(path.read_text().replace('"family":"fixture-validation"', '"family":"fixture-train"'))
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            '"family":"fixture-validation"', '"family":"fixture-train"'), encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "(?i)(fuite|famille|partition)"):
             self.train_direct(self.corpus)
 

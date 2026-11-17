@@ -294,6 +294,8 @@ class JobLifecycle(unittest.TestCase):
 
     def slow_worker(self, original, processes):
         def launch(command, *args, **kwargs):
+            if list(command[:3]) != [sys.executable, "-m", "atelier.worker"]:
+                return original(command, *args, **kwargs)
             process = original([sys.executable, "-c", "import time; time.sleep(20)"], *args, **kwargs)
             processes.append(process)
             return process

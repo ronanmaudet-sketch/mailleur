@@ -1,4 +1,4 @@
-# Atelier Mailleur — 1.0.0rc7
+# Atelier Mailleur — 1.0.0rc8
 
 Mailleur est un outil libre qui transforme une géométrie CAO en maillage pour
 le calcul par éléments finis. Il permet de contrôler la qualité du maillage et
@@ -14,9 +14,12 @@ fourni. L’option `--reference` fonctionne sans installer Mailleur. Que le calc
 réussisse ou bloque, indique ton système, ta version de Cast3M et ce qui a
 facilité ou ralenti l’essai.
 
-**État de la préversion.** Les tests automatisés passent sur macOS et Ubuntu
-avec Python 3.11 et 3.12. La validation sous Windows se poursuit : des tests de
-maillage dépassent leur délai. [Résultats des tests de la rc7](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/42903867933).
+[![Tests multiplateformes](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain)
+
+La rc8 corrige les erreurs relevées sous Windows. Les contrôles automatiques
+couvrent macOS, Ubuntu et Windows avec Python 3.11 et 3.12. Les résultats de
+chaque version sont consultables dans [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain).
+Le [détail des corrections rc8](docs/CORRECTIONS_RC8.md) décrit les changements et les vérifications.
 
 ## Présentation à l'équipe Cast3M — 10 novembre 2026
 
@@ -105,9 +108,9 @@ Python / 111 tests Rust** décrivent la révision mesurée à cette date ; elles
 ne constituent pas une nouvelle campagne de validation des formats rc6.
 Les preuves Linux initiales et les campagnes plus récentes restent séparées.
 
-`rc7` désigne une version candidate. La disponibilité d'une commande ne prouve
+`rc8` désigne une version candidate. La disponibilité d'une commande ne prouve
 pas que toutes les géométries ou toutes les versions de solveurs ont été
-validées. Le projet n'est pas publié automatiquement sur GitHub. Le code propre
+validées. Les préversions sont disponibles dans GitHub Releases. Le code propre
 au projet est distribué sous **GNU GPL version 3 ou toute version ultérieure**
 (`GPL-3.0-or-later`) selon le choix du titulaire ; voir [LICENSE](LICENSE).
 
@@ -428,10 +431,10 @@ n'est pas une application macOS signée/notariée ni un installeur Windows natif
 Une compilation correspondant au système est nécessaire si son binaire n'est
 pas fourni dans l'archive.
 
-La CI préparée teste Rust et Python sur les trois systèmes avec Python 3.11 et
-3.12. Sa présence ne signifie pas qu'elle a déjà été exécutée. Les résultats
-réellement obtenus, les cas de réparation, les unités, le remaillage partiel et
-les imports solveur sont consignés séparément dans les rapports de livraison.
+La CI exécute les tests Rust et Python sur les trois systèmes avec Python 3.11
+et 3.12. Les [résultats de chaque révision](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain)
+sont consultables sur GitHub. Les rapports de livraison décrivent les cas de
+réparation, les unités, le remaillage partiel et les imports solveur vérifiés.
 
 Consulter [LIMITES.md](docs/LIMITES.md), [VALIDATION.md](docs/VALIDATION.md),
 [FORMATS.md](docs/FORMATS.md) et [THIRD_PARTY.md](docs/THIRD_PARTY.md).

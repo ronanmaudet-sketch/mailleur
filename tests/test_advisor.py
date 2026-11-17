@@ -30,7 +30,7 @@ class AdvisorTransport(unittest.TestCase):
                 session.return_value.train.return_value = {"directory": str(native), "report": report}
                 self.assertIs(train_advisor(root / "result", [{"project": {}}], epochs=3, seed=9), report)
             session.return_value.train.assert_called_once_with(cases=[{"project": {}}], epochs=3, seed=9)
-            self.assertEqual(json.loads((root / "result/guide.json").read_text()), {"native": True})
+            self.assertEqual(json.loads((root / "result/guide.json").read_text(encoding="utf-8")), {"native": True})
 
     def test_python_fit_and_forward_are_not_available(self):
         from atelier.advisor import _fit, _forward

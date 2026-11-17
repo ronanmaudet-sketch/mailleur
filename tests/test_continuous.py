@@ -128,7 +128,7 @@ class ContinuousNativeIntegration(unittest.TestCase):
                          second["report"]["experience"]["context_id"])
         self.assertGreater(other_session.memory_info()["total_trials"], info_before["total_trials"])
         self.assertEqual(project, before)
-        saved = json.loads((Path(second["directory"]) / "session.json").read_text())
+        saved = json.loads((Path(second["directory"]) / "session.json").read_text(encoding="utf-8"))
         self.assertEqual(saved["project"], second["report"]["experience"]["chosen_project"])
 
     def test_critical_context_change_cannot_reuse_an_unqualified_recipe(self):
@@ -212,9 +212,9 @@ class ContinuousNativeIntegration(unittest.TestCase):
         info = self.session.memory_info()
         self.assertGreaterEqual(info["failed_observations"], 1)
         reports = [path for path in (self.session.workspace / "native").glob("*/report.json")
-                   if json.loads(path.read_text()).get("operation") == "learn"]
+                   if json.loads(path.read_text(encoding="utf-8")).get("operation") == "learn"]
         self.assertEqual(len(reports), 1)
-        failure = json.loads(reports[0].read_text())
+        failure = json.loads(reports[0].read_text(encoding="utf-8"))
         self.assertFalse(failure["experience"]["accepted"])
         self.assertLessEqual(failure["experience"]["executed_trials"], 2)
         self.assertFalse((reports[0].parent / "mesh.msh").exists())

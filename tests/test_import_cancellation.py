@@ -52,7 +52,7 @@ class ImportOperationBudget(unittest.TestCase):
             self.decoded(request, directory)
             clock[0] += .6
         def launch(arguments, **kwargs):
-            request = json.loads(Path(arguments[-1]).read_text())
+            request = json.loads(Path(arguments[-1]).read_text(encoding="utf-8"))
             self.assertEqual(request["operation"], "prepare_mesh_import")
             Path(request["output_mesh"]).write_text("native prepared mesh")
             write_json(Path(request["output_dir"]) / "report.json", {"warnings": []})

@@ -192,7 +192,7 @@ class ImportNativeIntegration(unittest.TestCase):
                 self.assertIn("native_preparation", result["report"]["import_preparation"])
                 self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), digest)
                 directory = Path(result["directory"])
-                metadata = json.loads((directory / "session.json").read_text())
+                metadata = json.loads((directory / "session.json").read_text(encoding="utf-8"))
                 self.assertTrue((directory / metadata["source"]).is_file())
                 self.assertTrue((directory / metadata["prepared_source"]).is_file())
                 self.assertFalse((directory / "prepared/mesh_input.json").exists())
@@ -237,7 +237,7 @@ class ImportNativeIntegration(unittest.TestCase):
         meshio.write(source, meshio.Mesh(POINTS, [("tetra", [[0,1,2,3]])]), file_format="vtu")
         first = self.session.generate(imported_project(), source)
         directory = Path(first["directory"])
-        metadata = json.loads((directory / "session.json").read_text())
+        metadata = json.loads((directory / "session.json").read_text(encoding="utf-8"))
         (directory / metadata["prepared_source"]).write_bytes(b"changed")
         with self.assertRaisesRegex(ValueError, "altérée"):
             self.session.remesh(imported_project(), previous_directory=directory)
