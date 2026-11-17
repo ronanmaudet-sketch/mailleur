@@ -1,0 +1,64 @@
+name: Publier Mailleur 1.0.0-rc8
+on: create
+permissions: {}
+concurrency: publish-mailleur-rc8
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/publication/v1.0.0-rc8'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: v1.0.0-rc8
+      RELEASE_SHA: 5092474e337ef76620489a900b228f57cdc1e61d
+      ARCHIVE: Mailleur-1.0.0-rc8.zip
+      CI_RUN: '44174001010'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Contrôler la révision et ses résultats
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .head_sha)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .conclusion)" = success
+          sha256sum --strict -c MANIFEST_PUBLIC.sha256 >/dev/null
+      - name: Préparer les fichiers à télécharger
+        shell: bash
+        run: |
+          git archive --format=zip --prefix=Mailleur-1.0.0-rc8/ --output="$ARCHIVE" "$RELEASE_SHA"
+          unzip -tq "$ARCHIVE"
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Publier la préversion
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Une préversion existe déjà. Vérifier ses fichiers avant toute relance."
+            exit 1
+          fi
+          result=0
+          git ls-remote --tags --exit-code origin "refs/tags/$RELEASE_TAG" >/dev/null || result=$?
+          test "$result" -eq 2
+          gh release create "$RELEASE_TAG" "$ARCHIVE" "$ARCHIVE.sha256" \
+            --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" --prerelease --latest=false \
+            --title "Mailleur 1.0.0-rc8 · Correctifs Windows" --notes-file - <<'NOTES'
+          Cette préversion corrige le blocage de fermeture du noyau natif sous Windows, la lecture UTF-8 des fichiers de test et la simulation d'arrêt du worker HTTP. Un premier maillage borné est vérifié avant la suite Python, avec conservation du diagnostic après échec.
+
+          Les six combinaisons Windows, Ubuntu et macOS avec Python 3.11 et 3.12 ont réussi leurs [contrôles GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/44174001010). Sur le Mac de préparation, 132 tests Rust, 200 tests Python et les 43 contrôles de l'exemple Cast3M 2026.0 réussissent avec le noyau rc8.
+
+          - [Détail des corrections](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc8/docs/CORRECTIONS_RC8.md)
+          - [Installation et utilisation](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc8/README.md#installation-et-lancement)
+          - [Exemple Cast3M](https://github.com/ronanmaudet-sketch/mailleur/tree/v1.0.0-rc8/examples/cast3m_pilot)
+          - [Partager un retour](https://github.com/ronanmaudet-sketch/mailleur/issues/new?template=retour_cast3m.yml)
+
+          Le ZIP contient les sources, les guides et le noyau précompilé macOS Apple Silicon. Sous Windows ou Linux, suivre le guide pour compiler le noyau. Le fichier .sha256 permet de vérifier l'intégrité de l'archive. Code GPL-3.0-or-later.
+          NOTES
