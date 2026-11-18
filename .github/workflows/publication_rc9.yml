@@ -1,0 +1,65 @@
+name: Publier Mailleur 1.0.0-rc9
+on: create
+permissions: {}
+concurrency: publish-mailleur-rc9
+jobs:
+  release:
+    if: github.ref == 'refs/heads/publication/v1.0.0-rc9'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: v1.0.0-rc9
+      RELEASE_SHA: 8da5d7825e316af6b12a2e2c212871ecc9e97807
+      ARCHIVE: Mailleur-1.0.0-rc9.zip
+      CI_RUN: '44394090028'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Vérifier la révision et ses contrôles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .head_sha)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$RELEASE_SHA"
+          sha256sum --strict -c MANIFEST_PUBLIC.sha256
+      - name: Préparer l'archive vérifiée
+        run: |
+          git archive --format=zip --prefix=Mailleur-1.0.0-rc9/ --output="$ARCHIVE" "$RELEASE_SHA"
+          unzip -tq "$ARCHIVE"
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Publier la préversion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
+          then
+            echo "Cette version existe déjà ; aucun fichier ne sera remplacé." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1
+          then
+            echo "Ce tag existe déjà ; aucun déplacement ne sera effectué." >&2
+            exit 1
+          fi
+          cat > notes.md <<'NOTES'
+          Les maillages de calcul acceptés sont exclusivement quadrilatéraux en surface et hexaédriques en volume, y compris les frontières, les nouveaux exemples d’apprentissage et les exports. Ordre 1 : QUA4/HEXA8 ; ordre 2 : QUA8/HEXA20. Les triangles/tétraèdres intermédiaires servent au calcul interne, sans devenir des résultats ou exemples acceptés. Un résultat incompatible est refusé.
+
+          Les anciens modèles et données sans preuve stricte sont conservés mais exclus du nouveau guidage et de l’apprentissage. Trois petits modèles ont été réentraînés réellement ; ils restent désactivés faute de gain validé. Le remaillage local est actuellement refusé pour préserver les zones extérieures. Les hexaèdres ne sont pas nécessairement des cubes réguliers.
+
+          Vérifications : six configurations Windows, Ubuntu et macOS Intel avec Python 3.11/3.12 réussies dans [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/44394090028). Sur le Mac Apple Silicon : 143 tests Rust, 207 tests Python et 48 imports réussis sans test ignoré. Cast3M 2026.0 : cinq cas et 193 comparaisons ; CalculiX 2.23 : huit cas. Le pilote public et sa réexécution autonome réussissent chacun 43 comparaisons. Le budget Cast3M de cet exemple est configurable, 1024 Mio par défaut.
+
+          - [Fonctionnement, utilisation, apprentissage et limites](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc9/docs/QUADRILATERES_HEXAEDRES.md)
+          - [Preuves et modèles de démonstration](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc9/verification/quad_hex_20261118/README.md)
+          - [Exemple Cast3M quadrilatères/hexaèdres](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc9/examples/cast3m_pilot/README.md)
+          - [Installation](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc9/README.md#installation-et-lancement)
+
+          Le ZIP contient les sources GPL-3.0-or-later, les guides, la référence Cast3M, les poids de démonstration et le noyau précompilé macOS Apple Silicon. Sous Windows/Linux, suivre le guide pour compiler le noyau. Les essais ne certifient pas tous les solveurs, versions 2020+ ou géométries industrielles. Le fichier .sha256 permet de vérifier l’intégrité du téléchargement.
+          NOTES
+          gh release create "$RELEASE_TAG" "$ARCHIVE" "$ARCHIVE.sha256" --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" --prerelease --latest=false --title "Mailleur 1.0.0-rc9 · Quadrilatères et hexaèdres" --notes-file notes.md
