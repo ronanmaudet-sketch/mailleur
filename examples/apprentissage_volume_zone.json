@@ -19,7 +19,8 @@
     "algorithm": "delaunay",
     "recombine": false,
     "threads": 1,
-    "max_elements": 100000
+    "max_elements": 100000,
+    "element_policy": "quad_hex_only"
   },
   "repair": {
     "enabled": false,

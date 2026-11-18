@@ -13,6 +13,7 @@ from .import_registry import SOURCE_EXTENSIONS, source_extension
 
 MAX_UPLOAD = 50 * 1024 * 1024
 CAD_EXTENSIONS = SOURCE_EXTENSIONS
+ELEMENT_POLICY = "quad_hex_only"
 
 
 def _constant(value):
@@ -83,7 +84,8 @@ def normalize_project(project: dict) -> dict:
     repair = data.setdefault("repair", {})
     if not isinstance(mesh, dict) or not isinstance(repair, dict):
         raise ValueError("mesh et repair doivent être des objets JSON")
-    defaults = {"size": .5, "min_size": .1, "order": 1, "algorithm": "automatic", "recombine": False, "threads": 1, "max_elements": 200000}
+    defaults = {"size": .5, "min_size": .1, "order": 1, "algorithm": "automatic", "recombine": False, "threads": 1, "max_elements": 200000,
+                "element_policy": ELEMENT_POLICY}
     for key, value in defaults.items(): mesh.setdefault(key, value)
     for key in ("size", "min_size"):
         value = mesh[key]
@@ -100,6 +102,8 @@ def normalize_project(project: dict) -> dict:
         raise ValueError("Algorithme inconnu")
     if type(mesh["recombine"]) is not bool:
         raise ValueError("recombine doit être vrai ou faux")
+    if mesh["element_policy"] != ELEMENT_POLICY:
+        raise ValueError("mesh.element_policy doit être quad_hex_only : quadrilatères en surface, hexaèdres en volume")
     for key, default, maximum in (("smoothing", 1, 100), ("curvature_elements", 16, 100)):
         if key in mesh and (type(mesh[key]) is not int or not 0 <= mesh[key] <= maximum):
             raise ValueError(f"mesh.{key} doit être un entier de 0 à {maximum}")

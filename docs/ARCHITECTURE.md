@@ -1,5 +1,11 @@
 # Architecture native de la version rc6
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 La rc6 ajoute une couche d'entrée explicite : catalogue `import_registry.py`,
 lecteurs de fichiers `imports.py`, processus isolé `import_worker.py`, puis
 opération Rust `prepare_mesh_import` pour extraire, orienter et trianguler une

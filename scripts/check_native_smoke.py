@@ -9,6 +9,9 @@ from pathlib import Path
 import platform
 import sys
 import time
+from copy import deepcopy
+
+import meshio
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,19 +62,42 @@ def main(argv=None):
                 "recombine": False,
             },
         }
-        result = session.generate(project)
-        report = result["report"]
-        mesh = Path(result["directory"]) / "mesh.msh"
-        if (report["nodes"] <= 0 or report["elements"] <= 0
-                or report["quality"]["minimum"] <= 0 or not mesh.is_file()):
-            raise RuntimeError("The native smoke mesh is empty or has invalid quality")
-        diagnostic.update({
-            "passed": True,
-            "nodes": report["nodes"],
-            "elements": report["elements"],
-            "minimum_quality": report["quality"]["minimum"],
-            "mesh_file": str(mesh),
-        })
+        diagnostic["cases"] = []
+        for mode in ("planar", "volume"):
+            for order in (1, 2):
+                case = deepcopy(project)
+                case["mode"] = mode
+                case["mesh"].update(order=order, max_elements=10000,
+                                    element_policy="quad_hex_only")
+                if mode == "volume":
+                    case["geometry"] = {"kind": "box", "width": 2, "height": 1, "depth": 1}
+                result = session.generate(case)
+                report = result["report"]
+                mesh = Path(result["directory"]) / "mesh.msh"
+                evidence = report.get("element_policy", {})
+                if (report["nodes"] <= 0 or report["elements"] <= 0
+                        or report["quality"]["minimum"] <= 0 or not mesh.is_file()
+                        or evidence.get("verified") is not True
+                        or evidence.get("requested") != "quad_hex_only"):
+                    raise RuntimeError("The native mesh has no verified quad/hex policy or valid quality")
+                restored = meshio.read(mesh)
+                counts = {}
+                for block in restored.cells:
+                    counts[block.type] = counts.get(block.type, 0) + len(block.data)
+                domain = ("hexahedron" if order == 1 else "hexahedron20") if mode == "volume" else ("quad" if order == 1 else "quad8")
+                allowed = {"vertex", "line", "line3", "quad", "quad8", "quad9"}
+                if mode == "volume":
+                    allowed |= {"hexahedron", "hexahedron20", "hexahedron27"}
+                if not counts.get(domain) or any(n and kind not in allowed for kind, n in counts.items()):
+                    raise RuntimeError(f"The written mesh violates the quad/hex policy: {counts}")
+                diagnostic["cases"].append({
+                    "mode": mode, "order": order, "passed": True,
+                    "nodes": report["nodes"], "elements": report["elements"],
+                    "minimum_quality": report["quality"]["minimum"],
+                    "cell_counts_readback": counts, "element_policy": evidence,
+                    "mesh_file": str(mesh),
+                })
+        diagnostic["passed"] = True
     except Exception as error:
         diagnostic["error_type"] = type(error).__name__
         diagnostic["error"] = str(error)

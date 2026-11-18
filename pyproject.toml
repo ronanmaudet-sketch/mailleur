@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atelier-mailleur"
-version = "1.0.0rc8"
+version = "1.0.0rc9"
 description = "Interface CAO et maillage PySide6 avec noyau numérique natif Rust"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"

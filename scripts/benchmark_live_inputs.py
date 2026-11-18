@@ -81,7 +81,7 @@ def command(args, cwd):
     result = subprocess.run([str(x) for x in args], cwd=cwd, capture_output=True,
                             text=True, timeout=600)
     if result.returncode:
-        raise RuntimeError(result.stderr[-8000:])
+        raise RuntimeError(f"Commande échouée ({result.returncode}) :\n{result.stdout[-2000:]}\n{result.stderr[-8000:]}")
     return result.stdout
 
 
@@ -98,7 +98,8 @@ def main():
     # The build runs in a temporary crate. Preserve a caller-supplied relative
     # executable path before changing the subprocess working directory.
     if "/" in args.cargo or "\\" in args.cargo:
-        args.cargo = str(Path(args.cargo).expanduser().resolve())
+        # Resolving Cargo's symlink to rustup would change its multicall mode.
+        args.cargo = str(Path(args.cargo).expanduser().absolute())
     if min(args.rows, args.epochs, args.repetitions) < 1:
         parser.error("Les tailles et répétitions doivent être positives")
     if args.baseline.is_file() and zipfile.is_zipfile(args.baseline):
@@ -125,7 +126,8 @@ def main():
             (work / f"src/bin/{name}.rs").write_text(
                 '#![recursion_limit="256"]\n'
                 'mod representation { pub const INPUTS:usize=128; '
-                'pub const SCHEMA:&str="atelier.geometry_action_features.v2"; }\n'
+                'pub const SCHEMA:&str="atelier.synthetic_live_input_benchmark.v1"; }\n'
+                'mod dataset_model { pub const ELEMENT_POLICY:&str="quad_hex_only"; }\n'
                 f'#[path="../modules/{name}.rs"] mod guide;\n'
                 'fn main() { let n:Vec<usize>=std::env::args().skip(1)'
                 '.map(|x|x.parse().unwrap()).collect(); '
@@ -153,6 +155,9 @@ def main():
                              "speedup":medians["baseline"] / medians["candidate"]}
         comparisons.append(result)
     report = {"schema":"atelier.live_input_benchmark.v1", "synthetic":True,
+              "dataset_kind":"synthetic_network_benchmark", "element_policy":"not_applicable_no_mesh",
+              "deploy_enabled":False, "model_exported":False, "real_meshes_generated":0,
+              "meshing_speedup_claimed":False, "quality_improvement_claimed":False,
               "scope":"MLP only; excludes CAD, meshing, replay preparation and model publication",
               "platform":platform.platform(), "machine":platform.machine(),
               "cargo":command([args.cargo, "--version"], ROOT).strip(),

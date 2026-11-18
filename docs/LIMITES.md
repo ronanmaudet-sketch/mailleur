@@ -38,9 +38,12 @@ plus complexes sont importés à partir d'une CAO déjà préparée.
 
 ## Types d'éléments et qualité
 
-Le mode volume génère des tétraèdres. Une surface peut contenir des triangles
-et, avec recombinaison, des quadrilatères. Aucun maillage tout-hexa automatique
-de volumes arbitraires n'est revendiqué.
+Les résultats acceptés depuis la rc9 sont exclusivement quadrilatéraux en
+surface et hexaédriques en volume, après subdivision native. Ce ne sont pas
+nécessairement des carrés ou des cubes réguliers, ni un découpage structuré en
+blocs. Un résultat de forme ou de qualité non admissible est refusé. Le
+remaillage local est actuellement refusé car la subdivision globale pourrait
+modifier les cellules hors sélection. Voir [le contrat strict](QUADRILATERES_HEXAEDRES.md).
 
 Les éléments d'ordre 2 sont conservés seulement dans les formats et types
 effectivement pris en charge par les convertisseurs. Une conversion qui ne

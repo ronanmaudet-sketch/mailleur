@@ -23,13 +23,15 @@ class FormatIntegrationTests(unittest.TestCase):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.root = Path(cls.temporary.name)
         cls.surface = cls.root / "source_surface.msh"
-        cls.solid = cls.root / "source_tetra10.msh"
+        cls.solid = cls.root / "source_hex20.msh"
         for path, dimension, order in ((cls.surface, 2, 1), (cls.solid, 3, 2)):
             gmsh.initialize(["test-formats", "-nopopup"], readConfigFiles=False)
             try:
                 gmsh.option.setNumber("General.Terminal", 0)
                 gmsh.option.setNumber("Mesh.MeshSizeMin", .5)
                 gmsh.option.setNumber("Mesh.MeshSizeMax", .5)
+                gmsh.option.setNumber("Mesh.SubdivisionAlgorithm", 1 if dimension == 2 else 2)
+                gmsh.option.setNumber("Mesh.SecondOrderIncomplete", 1)
                 if dimension == 2:
                     tag = gmsh.model.occ.addRectangle(0, 0, 0, 1, 1)
                 else:
@@ -106,25 +108,25 @@ class FormatIntegrationTests(unittest.TestCase):
         target = self.root / "surface.inp"
         result = convert_mesh(self.surface, target, "inp", planar=True)
         text = target.read_text()
-        self.assertIn("TYPE=CPS3", text)
+        self.assertIn("TYPE=CPS4", text)
         self.assertNotIn("TYPE=B31", text)
         self.assertIn("*NSET, NSET=BOUNDARY", text)
         self.assertIn("*ELSET, ELSET=DOMAIN", text)
         restored = meshio.read(target)
-        self.assertEqual(set(restored.cells_dict), {"triangle"})
-        self.assertEqual(len(restored.cells_dict["triangle"]), result["elements"])
+        self.assertEqual(set(restored.cells_dict), {"quad"})
+        self.assertEqual(len(restored.cells_dict["quad"]), result["elements"])
         self.assertEqual(result["verification"]["formulation"], "plane_stress")
 
-    def test_inp_solid_keeps_quadratic_tetra_connectivity(self):
+    def test_inp_solid_keeps_quadratic_hexa_connectivity(self):
         import meshio
         import numpy as np
         target = self.root / "volume.inp"
         result = convert_mesh(self.solid, target, "inp")
-        self.assertIn("TYPE=C3D10", target.read_text())
+        self.assertIn("TYPE=C3D20", target.read_text())
         restored = meshio.read(target)
         original = meshio.read(self.solid)
-        self.assertEqual(set(restored.cells_dict), {"tetra10"})
-        np.testing.assert_array_equal(original.cells_dict["tetra10"], restored.cells_dict["tetra10"])
+        self.assertEqual(set(restored.cells_dict), {"hexahedron20"})
+        np.testing.assert_array_equal(original.cells_dict["hexahedron20"], restored.cells_dict["hexahedron20"])
         self.assertEqual(result["verification"]["formulation"], "solid")
 
     def test_inp_hex20_uses_continuation_without_node_loss(self):
@@ -153,7 +155,7 @@ class FormatIntegrationTests(unittest.TestCase):
         result = convert_mesh(self.solid, self.root / "ansys.dat", "ansys")
         text = (self.root / "ansys.dat").read_text()
         self.assertIn("ET,1,200", text)
-        self.assertIn("KEYOPT,1,1,9", text)
+        self.assertIn("KEYOPT,1,1,11", text)
         self.assertIn("EMORE,", text)
         self.assertIn("CM,DOMAIN,ELEM", text)
         self.assertIn("CM,N_BOUNDARY,NODE", text)

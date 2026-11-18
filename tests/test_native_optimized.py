@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 class OptimizedNativeTransport(unittest.TestCase):
@@ -31,6 +32,17 @@ class OptimizedNativeTransport(unittest.TestCase):
                              "holes": [{"x": 3, "y": 2, "radius": .6}]},
                 "mesh": {"size": .55, "min_size": .15, "order": 1,
                          "algorithm": "delaunay", "threads": 1, "max_elements": 10000}}
+
+    def test_an_old_native_binary_without_element_evidence_is_not_accepted(self):
+        def old_binary_result(request, directory):
+            (directory / "report.json").write_text('{"quality":{"accepted":true}}', encoding="utf-8")
+            (directory / "mesh.msh").write_text('old mesh', encoding="utf-8")
+        with patch.object(self.session, "_call", side_effect=old_binary_result):
+            with self.assertRaisesRegex(RuntimeError, "(?i)(certifie|mettre à jour)"):
+                self.session.generate(self.project())
+        self.assertIsNone(self.session.last_directory)
+        self.assertFalse((self.session.last_attempt_directory / "mesh.msh").exists())
+        self.assertTrue((self.session.last_attempt_directory / "report.json").exists())
 
     def test_summary_ack_keeps_the_authoritative_report_and_full_protocol(self):
         payload = {"operation": "metrics", "preview": {

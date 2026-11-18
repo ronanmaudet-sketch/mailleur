@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-pub const GENERATOR_VERSION: &str = "atelier.corpus.generator.v1";
+pub const GENERATOR_VERSION: &str = "atelier.corpus.generator.v2";
 pub const FAMILIES: [&str; 24] = [
     "plate_hole_2d",
     "plate_many_holes_2d",
@@ -280,7 +280,7 @@ pub fn case_at(index: u64, plan: &Plan) -> Result<Value, String> {
     let size = w.min(h) * (0.10 + 0.11 * resolution);
     let mut project = json!({"schema_version":1,"name":format!("{}_{index:07}",FAMILIES[family]),"mode":mode,
         "units":{"input":"mm","internal":"m"},"geometry":geometry,
-        "mesh":{"size":size,"min_size":size*0.22,"order":1,"algorithm":"automatic","recombine":false,"threads":1,"max_elements":50000,"smoothing":1,"optimize":true,"curvature_elements":16},
+        "mesh":{"size":size,"min_size":size*0.22,"order":1,"algorithm":"automatic","recombine":false,"element_policy":"quad_hex_only","threads":1,"max_elements":50000,"smoothing":1,"optimize":true,"curvature_elements":16},
         "repair":{"enabled":false,"tolerance":1e-7,"sew":true,"small_edges":true,"small_faces":false,"make_solids":false},
         "quality_policy":{"poor_threshold":0.2,"minimum_quality":0.03,"strict":false}});
     // Small local spherical sizing is part of the configuration, independently
@@ -300,7 +300,7 @@ pub fn case_at(index: u64, plan: &Plan) -> Result<Value, String> {
     };
     Ok(
         json!({"schema":"atelier.corpus.generated_case.v1","case_id":case_id,"index":index,"origin":if random{"random"}else{"structured"},
-        "family":FAMILIES[family],"family_index":family,"geometry_id":geometry_id,"geometry_group":geometry_id,"split":split_for_family(family),
+        "element_policy":"quad_hex_only","generator_version":GENERATOR_VERSION,"family":FAMILIES[family],"family_index":family,"geometry_id":geometry_id,"geometry_group":geometry_id,"split":split_for_family(family),
         "expected_invalid":family==17,"defect":defect,"critical_zone_template":zone_template,"project":project}),
     )
 }

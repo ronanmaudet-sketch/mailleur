@@ -107,6 +107,12 @@ class ContinuousNativeIntegration(unittest.TestCase):
         self.assertGreater(result["report"]["quality"]["minimum"], 0)
         self.assertTrue(result["preview"]["points"])
         self.assertEqual(result["report"]["native_kernel"]["language"].lower(), "rust")
+        self.assertIs(result["report"]["element_policy"]["verified"], True)
+        import meshio
+        restored = meshio.read(directory / "mesh.msh")
+        allowed = {"vertex", "line", "line3", "quad", "quad8", "quad9",
+                   "hexahedron", "hexahedron20", "hexahedron27"}
+        self.assertTrue(all(not len(block.data) or block.type in allowed for block in restored.cells))
 
     def test_unseen_geometry_is_really_meshed_and_a_second_session_revalidates_recipe(self):
         project = plate()

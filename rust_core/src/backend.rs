@@ -8,7 +8,129 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 const MAX_PREVIEW_FACES: usize = 250_000;
+/// Public numerical contract: no triangular/tetrahedral result may be accepted.
+pub const ELEMENT_POLICY: &str = "quad_hex_only";
 type R<T> = Result<T, String>;
+
+pub fn validate_element_policy(mesh: &Value) -> R<()> {
+    if let Some(policy) = mesh.get("element_policy") {
+        if policy.as_str() != Some(ELEMENT_POLICY) {
+            return Err(format!("mesh.element_policy doit être {ELEMENT_POLICY} ; les maillages mixtes, triangulaires ou tétraédriques ne sont pas autorisés"));
+        }
+    }
+    Ok(())
+}
+
+fn allowed_element_family(dim: i32, primary: usize, order: i32, nodes: usize) -> Option<&'static str> {
+    match (dim, primary, order, nodes) {
+        (1, 2, 1, 2) | (1, 2, 2, 3) => Some("segment"),
+        (2, 4, 1, 4) | (2, 4, 2, 8 | 9) => Some("quadrilateral"),
+        (3, 8, 1, 8) | (3, 8, 2, 20 | 27) => Some("hexahedron"),
+        _ => None,
+    }
+}
+
+/// Read actual native connectivity, including volume boundaries. A label in a
+/// project/report is never sufficient evidence of the element family.
+pub fn validate_native_element_policy(api: &Gmsh, dimension: i32) -> R<Value> {
+    if ![2, 3].contains(&dimension) {
+        return Err("La politique quadrilatères/hexaèdres exige un maillage de dimension 2 ou 3".into());
+    }
+    let mut counts = BTreeMap::from([
+        ("segment", 0usize), ("quadrilateral", 0usize), ("hexahedron", 0usize),
+    ]);
+    for dim in 1..=3 {
+        for block in api.elements(dim, -1)? {
+            if block.tags.is_empty() { continue; }
+            let family = allowed_element_family(block.dim, block.num_primary, block.order, block.num_nodes)
+                .ok_or_else(|| format!("Politique {ELEMENT_POLICY} : {} interdit ; seuls quadrilatères en surface et hexaèdres en volume sont acceptés", block.name))?;
+            if block.num_nodes.checked_mul(block.tags.len()) != Some(block.nodes.len()) {
+                return Err("Connectivité incohérente pendant la vérification de la famille des éléments".into());
+            }
+            for row in block.nodes.chunks_exact(block.num_nodes) {
+                let corners = &row[..block.num_primary];
+                if corners.iter().enumerate().any(|(i,tag)|corners[..i].contains(tag)) {
+                    return Err(format!("Politique {ELEMENT_POLICY} : sommets répétés dans {} ; un triangle ou tétraèdre déguisé en quadrilatère/hexaèdre est interdit",block.name));
+                }
+            }
+            let next = counts[family].checked_add(block.tags.len()).ok_or("Nombre d'éléments hors plage")?;
+            *counts.get_mut(family).unwrap() = next;
+        }
+    }
+    let top = if dimension == 3 { "hexahedron" } else { "quadrilateral" };
+    if counts[top] == 0 || (dimension == 2 && counts["hexahedron"] != 0) {
+        return Err("Aucun maillage conforme à la dimension et à la politique quadrilatères/hexaèdres".into());
+    }
+    Ok(json!({"requested":ELEMENT_POLICY,"verified":true,"dimension":dimension,"surface_family":"quadrilateral",
+        "volume_family":"hexahedron","method":"native_element_inventory",
+        "final_cell_counts":counts}))
+}
+
+fn subdivided_top_count(dimension: i32, primary: usize, count: usize) -> R<usize> {
+    let multiplier = match (dimension, primary) {
+        (2, 3) => 3,
+        (2, 4) => 4,
+        (3, 4) => 4,
+        (3, 8) => 8,
+        _ => return Err("La subdivision quadrilatères/hexaèdres ne prend pas en charge cette famille intermédiaire".into()),
+    };
+    count.checked_mul(multiplier).ok_or_else(|| "Nombre d'éléments après subdivision hors plage".into())
+}
+
+/// First generate an internal linear mesh, check the exact subdivision cost,
+/// then subdivide and only finally elevate the order. Intermediate simplices
+/// are never persisted, exported or admitted as learning observations.
+fn generate_quad_hex(api: &Gmsh, dimension: i32, mesh: &Value, order: i32, max_elements: usize,
+    periodic: &[(i32,i32,i32,[f64;16])], is_cad: bool) -> R<Value> {
+    validate_element_policy(mesh)?;
+    api.set_number("Mesh.ElementOrder", 1.)?;
+    api.set_number("Mesh.SubdivisionAlgorithm", 0.)?;
+    api.set_number("Mesh.SecondOrderIncomplete", 1.)?;
+    api.set_number("Mesh.RecombineAll", if dimension == 2 && flag(mesh,"recombine",false)? {1.} else {0.})?;
+    api.mesh_generate(dimension)?;
+    let mut initial = 0usize;
+    let mut predicted = 0usize;
+    for block in api.elements(dimension, -1)? {
+        initial = initial.checked_add(block.tags.len()).ok_or("Nombre d'éléments hors plage")?;
+        predicted = predicted.checked_add(subdivided_top_count(dimension,block.num_primary,block.tags.len())?)
+            .ok_or("Nombre d'éléments après subdivision hors plage")?;
+        if predicted > max_elements {
+            return Err(format!("La subdivision quadrilatères/hexaèdres produirait {predicted} éléments, au-delà de la limite {max_elements} ; résultat refusé avant subdivision"));
+        }
+    }
+    let subdivision = if dimension == 3 {2.} else {1.};
+    api.set_number("Mesh.SubdivisionAlgorithm", subdivision)?;
+    // A discrete source describes planar facets, not an exact CAD surface.
+    // Interpolation preserves that source instead of projecting newly created
+    // vertices through an approximate/possibly singular parametrization.
+    api.set_number("Mesh.SecondOrderLinear",if is_cad {0.} else {1.})?;
+    api.mesh_refine()?;
+    // This global operation must not accidentally be repeated by any later
+    // generation/optimization call in the same native session.
+    api.set_number("Mesh.SubdivisionAlgorithm", 0.)?;
+    // Refinement creates face-centre nodes in 3D. Rebuild native periodic maps
+    // now, before elevating the order, rather than retaining an incomplete map
+    // from the internal triangular/tetrahedral mesh.
+    for (dim,slave,master,affine) in periodic {
+        api.mesh_set_periodic(*dim,&[*slave],&[*master],affine)?;
+    }
+    api.set_number("Mesh.ElementOrder", order as f64)?;
+    if order == 2 { api.mesh_set_order(2)?; }
+    let mut evidence = validate_native_element_policy(api,dimension)?;
+    let final_count = evidence["final_cell_counts"][if dimension == 3 {"hexahedron"} else {"quadrilateral"}]
+        .as_u64().ok_or("Compte final d'éléments absent")? as usize;
+    if final_count != predicted || final_count > max_elements {
+        return Err(format!("Subdivision incohérente : {predicted} éléments prévus, {final_count} mesurés ; résultat refusé"));
+    }
+    evidence["method"] = json!("gmsh_subdivision");
+    evidence["subdivision_algorithm"] = json!(subdivision as i32);
+    evidence["intermediate_top_elements"] = json!(initial);
+    evidence["predicted_final_top_elements"] = json!(predicted);
+    evidence["intermediate_elements_exported"] = json!(false);
+    evidence["boundary_geometry"] = json!(if is_cad {"cad_projected_subdivision"} else {"piecewise_linear_source_interpolation"});
+    evidence["high_order_geometry"] = json!(if order == 1 {"linear_elements"} else if is_cad {"cad_projected"} else {"linear_source_geometry_quadratic_basis"});
+    Ok(evidence)
+}
 
 fn number(value: Option<&Value>, default: f64, name: &str, positive: bool) -> R<f64> {
     let x = match value {
@@ -289,12 +411,12 @@ fn validated_rings(g: &Value) -> R<(Vec<[f64; 2]>, Vec<Vec<[f64; 2]>>)> {
     }
     Ok((outer, holes))
 }
-fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>]) -> R<i32> {
+fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>], factor: f64) -> R<i32> {
     let mut loops = Vec::new();
     for r in std::iter::once(outer).chain(holes.iter().map(Vec::as_slice)) {
         let p = r
             .iter()
-            .map(|p| api.occ_add_point(p[0], p[1], 0.))
+            .map(|p| api.occ_add_point(p[0]*factor, p[1]*factor, 0.))
             .collect::<R<Vec<_>>>()?;
         let edges = (0..p.len())
             .map(|i| api.occ_add_line(p[i], p[(i + 1) % p.len()]))
@@ -303,7 +425,7 @@ fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>]) -> R<i3
     }
     api.occ_add_plane_surface(&loops)
 }
-fn plate(api: &Gmsh, g: &Value) -> R<Vec<DimTag>> {
+fn plate(api: &Gmsh, g: &Value, factor: f64) -> R<Vec<DimTag>> {
     let w = n(g, "width", 10., true)?;
     let h = n(g, "height", 6., true)?;
     let r = n(g, "corner_radius", 0., false)?;
@@ -325,9 +447,10 @@ fn plate(api: &Gmsh, g: &Value) -> R<Vec<DimTag>> {
                 [0., c],
             ],
             &[],
+            factor,
         )?
     } else {
-        api.occ_add_rectangle(0., 0., 0., w, h, r)?
+        api.occ_add_rectangle(0., 0., 0., w*factor, h*factor, r*factor)?
     };
     let mut disks = Vec::new();
     let mut circles: Vec<(f64, f64, f64)> = Vec::new();
@@ -370,7 +493,7 @@ fn plate(api: &Gmsh, g: &Value) -> R<Vec<DimTag>> {
                 return Err("Deux trous se touchent ou se chevauchent".into());
             }
             circles.push((x, y, hr));
-            disks.push((2, api.occ_add_disk(x, y, 0., hr, hr)?));
+            disks.push((2, api.occ_add_disk(x*factor, y*factor, 0., hr*factor, hr*factor)?));
         }
     }
     if disks.is_empty() {
@@ -379,22 +502,22 @@ fn plate(api: &Gmsh, g: &Value) -> R<Vec<DimTag>> {
         api.occ_cut(&[(2, surface)], &disks)
     }
 }
-fn native(api: &Gmsh, project: &Value) -> R<()> {
+fn native(api: &Gmsh, project: &Value, factor: f64) -> R<()> {
     let g = &project["geometry"];
     let kind = g["kind"].as_str().ok_or("Type géométrique absent")?;
     let volume = project["mode"] == "volume";
     match kind {
         "plate" => {
-            let surfaces = plate(api, g)?;
+            let surfaces = plate(api, g, factor)?;
             if volume {
-                api.occ_extrude(&surfaces, 0., 0., n(g, "thickness", 2., true)?)?;
+                api.occ_extrude(&surfaces, 0., 0., n(g, "thickness", 2., true)?*factor)?;
             }
         }
         "polygon" => {
             let (o, h) = validated_rings(g)?;
-            let s = ring_surface(api, &o, &h)?;
+            let s = ring_surface(api, &o, &h, factor)?;
             if volume {
-                api.occ_extrude(&[(2, s)], 0., 0., n(g, "thickness", 2., true)?)?;
+                api.occ_extrude(&[(2, s)], 0., 0., n(g, "thickness", 2., true)?*factor)?;
             }
         }
         "box" => {
@@ -402,26 +525,26 @@ fn native(api: &Gmsh, project: &Value) -> R<()> {
                 0.,
                 0.,
                 0.,
-                n(g, "width", 10., true)?,
-                n(g, "height", 6., true)?,
-                n(g, "depth", 4., true)?,
+                n(g, "width", 10., true)?*factor,
+                n(g, "height", 6., true)?*factor,
+                n(g, "depth", 4., true)?*factor,
             )?;
         }
         "sphere" => {
-            api.occ_add_sphere(0., 0., 0., n(g, "radius", 3., true)?)?;
+            api.occ_add_sphere(0., 0., 0., n(g, "radius", 3., true)?*factor)?;
         }
         "bracket" => {
-            let w = n(g, "width", 10., true)?;
-            let h = n(g, "height", 8., true)?;
-            let d = n(g, "depth", 4., true)?;
-            let wall = n(g, "wall", 2., true)?;
+            let w = n(g, "width", 10., true)?*factor;
+            let h = n(g, "height", 8., true)?*factor;
+            let d = n(g, "depth", 4., true)?*factor;
+            let wall = n(g, "wall", 2., true)?*factor;
             if wall >= w.min(h) {
                 return Err("Paroi d'équerre trop épaisse".into());
             }
             let a = api.occ_add_box(0., 0., 0., w, d, wall)?;
             let b = api.occ_add_box(0., 0., wall, wall, d, h - wall)?;
             let solid = api.occ_fuse(&[(3, a)], &[(3, b)])?;
-            let r = n(g, "throughhole_radius", 0., false)?;
+            let r = n(g, "throughhole_radius", 0., false)?*factor;
             if r < 0. {
                 return Err("Rayon de perçage négatif".into());
             }
@@ -891,7 +1014,8 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
     let q = api.element_qualities(&top_tags, "minSICN")?;
     let jac = api.element_qualities(&top_tags, "minDetJac")?;
     if q.is_empty() || q.iter().chain(&jac).any(|x| !x.is_finite() || *x <= 0.) {
-        return Err("Éléments inversés ou dégénérés détectés ; résultat non exporté".into());
+        return Err(format!("Éléments inversés ou dégénérés détectés ; résultat non exporté (minSICN={:.6e}, minDetJac={:.6e})",
+            q.iter().copied().fold(f64::INFINITY,f64::min),jac.iter().copied().fold(f64::INFINITY,f64::min)));
     }
     let quality = crate::quality::assess(api, project, dimension, factor, &map, &points, &top_tags, &q, &jac, &top_blocks)?;
     if !build_preview {
@@ -1037,6 +1161,19 @@ fn optimize_high_order(api:&Gmsh, warnings:&mut Vec<String>) -> R<()> {
     Ok(())
 }
 
+fn optimize_high_order_if_needed(api:&Gmsh, project:&Value, dimension:i32, factor:f64,
+    max_elements:usize, warnings:&mut Vec<String>) -> R<&'static str> {
+    // The direct optimizer can be very expensive on valid hexahedron20 meshes.
+    // Assess the complete actual mesh and all declared protected zones first;
+    // satisfying the same acceptance criteria makes a repair unnecessary.
+    if mesh_data(api,dimension,max_elements,project,factor,false)
+        .is_ok_and(|(quality,_,_,_)|quality["accepted"] == true) {
+        return Ok("not_needed_quality_already_accepted");
+    }
+    optimize_high_order(api,warnings)?;
+    Ok("native_high_order_repair_attempted")
+}
+
 fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, warnings:&mut Vec<String>) -> R<()> {
     let m = &p["mesh"];
     let size = n(m, "size", 0.5, true)? * factor;
@@ -1104,7 +1241,12 @@ fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, wa
 /// Execute a complete isolated native operation and persist its reviewable result.
 pub fn run(request: &Value) -> R<Value> {
     let started = Instant::now();
-    let project = request.get("project").ok_or("Projet absent")?;
+    let mut normalized_project = request.get("project").filter(|p|p.is_object()).ok_or("Projet absent ou invalide")?.clone();
+    if normalized_project.get("mesh").is_none() { normalized_project["mesh"] = json!({}); }
+    if !normalized_project["mesh"].is_object() { return Err("mesh doit être un objet".into()); }
+    validate_element_policy(&normalized_project["mesh"])?;
+    normalized_project["mesh"]["element_policy"] = json!(ELEMENT_POLICY);
+    let project = &normalized_project;
     let operation = request["operation"].as_str().unwrap_or("mesh");
     let report_only = flag(request, "report_only", false)?;
     if report_only && !["mesh", "inspect"].contains(&operation) {
@@ -1112,6 +1254,9 @@ pub fn run(request: &Value) -> R<Value> {
     }
     if !["mesh", "inspect", "remesh"].contains(&operation) {
         return Err("Opération inconnue".into());
+    }
+    if operation == "remesh" {
+        return Err("Le remaillage local strict tout-quadrilatères/tout-hexaèdres n'est pas disponible : la subdivision native modifierait le maillage extérieur à la sélection. Régénérer explicitement un maillage complet ; aucun remaillage de remplacement n'est effectué".into());
     }
     let mode = project["mode"].as_str().unwrap_or("planar");
     let requested_dim = match mode {
@@ -1150,9 +1295,6 @@ pub fn run(request: &Value) -> R<Value> {
         return Err("Le frontal 3D ne prend pas en charge les champs de taille locaux ; utiliser Delaunay ou Automatique".into());
     }
     let recombine = flag(mesh, "recombine", false)?;
-    if dimension == 3 && recombine {
-        return Err("La recombinaison quadrangulaire est réservée aux surfaces".into());
-    }
     let units = project.get("units").unwrap_or(&Value::Null);
     let input_unit = units["input"].as_str().unwrap_or("mm");
     let factor = unit_factor(input_unit)?;
@@ -1296,22 +1438,22 @@ pub fn run(request: &Value) -> R<Value> {
     let mut warnings = Vec::new();
     let is_cad = if kind == "import" {
         let source = source.as_ref().ok_or("Sélectionner la source CAO")?;
-        // Ask OCC for the selected coordinate unit, then convert exactly once to SI.
-        let target = match input_unit {
-            "m" => "M",
-            "cm" => "CM",
-            "in" | "inch" => "INCH",
-            _ => "MM",
-        };
-        api.set_string("Geometry.OCCTargetUnit", target)?;
+        // STEP/IGES carry physical units: request SI directly from OCC. A later
+        // dilation can retain stale curve/surface parameters on periodic CAD
+        // (notably spheres), which corrupts projected subdivision nodes.
+        api.set_string("Geometry.OCCTargetUnit", "M")?;
         import_geometry(&api, source, project, factor, &mut warnings)?
     } else {
-        native(&api, project)?;
+        // Construct primitives in SI from the outset. Keep input-unit project
+        // values intact, including default lengths and polygon validation.
+        native(&api, project, factor)?;
         true
     };
     if is_cad {
         let all = maximal_entities(&api)?;
-        if factor != 1. {
+        let unitless_cad_import = kind == "import" && source.as_ref().and_then(|p|p.extension())
+            .and_then(|e|e.to_str()).is_some_and(|e|e.eq_ignore_ascii_case("brep"));
+        if factor != 1. && unitless_cad_import {
             api.occ_dilate(&all, 0., 0., 0., factor, factor, factor)?;
             api.occ_sync()?;
         }
@@ -1539,8 +1681,9 @@ pub fn run(request: &Value) -> R<Value> {
     } else {
         None
     };
-    let estimate =
-        mass.map(|m| m / scaled_size.powi(dimension) * if dimension == 3 { 2. } else { 1. });
+    let estimate = mass.map(|m| m / scaled_size.powi(dimension)
+        * if dimension == 3 { 2. } else { 1. }
+        * if operation == "inspect" {1.} else if dimension == 3 {4.} else {if recombine {4.} else {3.}});
     if estimate.is_some_and(|e| !e.is_finite() || e > 8. * max_elements as f64) {
         return Err("L'estimation préalable dépasse largement la limite d'éléments".into());
     }
@@ -1572,9 +1715,10 @@ pub fn run(request: &Value) -> R<Value> {
         },
     )?;
     api.set_number("Mesh.SecondOrderLinear", 0.)?;
+    api.set_number("Mesh.SecondOrderIncomplete", 1.)?;
     api.set_number(
         "Mesh.RecombineAll",
-        if recombine && operation != "inspect" {
+        if recombine && dimension == 2 && operation != "inspect" {
             1.
         } else {
             0.
@@ -1669,7 +1813,7 @@ pub fn run(request: &Value) -> R<Value> {
                     affine[i * 4 + 3] = delta[i] * factor;
                 }
                 api.mesh_set_periodic(dim, &[slave], &[master], &affine)?;
-                periodic_requests.push((dim, slave, master));
+                periodic_requests.push((dim, slave, master, affine));
             }
         }
     }
@@ -1678,9 +1822,21 @@ pub fn run(request: &Value) -> R<Value> {
         api.write(&output.join("model.brep"))?;
     }
     let mesh_started = Instant::now();
-    api.mesh_generate(dimension)?;
-    if order == 2 && operation != "inspect" && operation != "remesh" {
-        optimize_high_order(&api,&mut warnings)?;
+    let mut element_evidence = if operation == "inspect" {
+        api.set_number("Mesh.SubdivisionAlgorithm",0.)?;
+        api.mesh_generate(dimension)?;
+        json!({"requested":ELEMENT_POLICY,"verified":false,"diagnostic_only":true,"dimension":dimension,
+            "method":"geometry_tessellation","note":"La tessellation de visualisation n'est pas un maillage accepté pour le calcul ou l'apprentissage"})
+    } else {
+        generate_quad_hex(&api,dimension,mesh,order,max_elements,&periodic_requests,is_cad)?
+    };
+    let high_order_optimization = if order == 2 && operation != "inspect" && operation != "remesh" {
+        optimize_high_order_if_needed(&api,project,dimension,factor,max_elements,&mut warnings)?
+    } else {"not_applicable"};
+    if operation != "inspect" {
+        // Check again after high-order optimization, before any mesh is saved.
+        let final_evidence = validate_native_element_policy(&api,dimension)?;
+        element_evidence["final_cell_counts"] = final_evidence["final_cell_counts"].clone();
     }
     let generation_seconds = mesh_started.elapsed().as_secs_f64();
     let validation_started = Instant::now();
@@ -1699,7 +1855,7 @@ pub fn run(request: &Value) -> R<Value> {
     let (mut quality, preview, elements, cell_counts) = mesh_data(&api, dimension, max_elements, quality_project, factor, !report_only)?;
     quality["diagnostic_only"] = json!(operation=="inspect");
     let mut correspondences = Vec::new();
-    for (dim, slave, master) in periodic_requests {
+    for (dim, slave, master, _) in periodic_requests {
         let (actual_master, slave_nodes, master_nodes, affine) =
             api.mesh_get_periodic_nodes(dim, slave)?;
         // Serialize the exact native node correspondence, not a guessed geometric match.
@@ -1709,18 +1865,29 @@ pub fn run(request: &Value) -> R<Value> {
         {
             return Err("La correspondance n'a produit aucun appariement nodal valide".into());
         }
+        let (expected_nodes,_) = api.nodes_for(dim,slave,true)?;
+        let expected: BTreeSet<_> = expected_nodes.into_iter().collect();
+        let actual: BTreeSet<_> = slave_nodes.iter().copied().collect();
+        let actual_masters: BTreeSet<_> = master_nodes.iter().copied().collect();
+        if actual != expected || actual.len() != slave_nodes.len()
+            || actual_masters.len() != master_nodes.len() {
+            return Err("La correspondance périodique ne couvre pas tous les nœuds du maillage quadrilatères/hexaèdres final".into());
+        }
         let node_pairs = slave_nodes
             .iter()
             .zip(&master_nodes)
             .map(|(a, b)| [*a, *b])
             .collect::<Vec<_>>();
-        correspondences.push(json!({"dimension":dim,"slave":slave,"master":master,"matched_nodes":node_pairs.len(),"node_pairs":node_pairs,"affine_transform":affine}));
+        correspondences.push(json!({"dimension":dim,"slave":slave,"master":master,"matched_nodes":node_pairs.len(),"all_slave_nodes_covered":true,"node_pairs":node_pairs,"affine_transform":affine}));
     }
     if quality["below_0_1"].as_u64().unwrap_or(0) > 0 {
         warnings.push("Certains éléments ont un minSICN inférieur à 0,1 ; contrôler leur acceptabilité dans le solveur".into());
     }
-    if recombine {
-        warnings.push("La recombinaison peut conserver des triangles ; un maillage tout quadrilatères n'est pas garanti".into());
+    if operation != "inspect" {
+        warnings.push("Les maillages intermédiaires internes sont subdivisés en quadrilatères/hexaèdres et ne sont ni exportés ni utilisés comme exemples d'apprentissage ; la subdivision augmente le nombre d'éléments et ne garantit pas des cubes réguliers".into());
+        if !is_cad {
+            warnings.push("Source discrète : les sommets ajoutés interpolent la peau polygonale fournie. L'ordre 2 enrichit les fonctions d'élément sur cette géométrie linéaire ; aucune surface CAO courbe exacte n'est reconstruite".into());
+        }
     }
     let free = api.boundary(&api.entities(2)?, true, false, false)?.len();
     let mut report = json!({"schema":"atelier.report.v1","project_name":project["name"].as_str().unwrap_or("Nouvelle pièce"),"mode":mode,"operation":operation,"display_only":operation=="inspect","dimension":dimension,"requested_dimension":requested_dim,"nodes":preview["point_count"].as_u64().unwrap_or_else(||preview["points"].as_array().map_or(0,Vec::len) as u64),"elements":elements,"cell_counts":cell_counts,"quality":quality,"entity_catalog":catalog,"units":{"input":input_unit,"internal":"m","input_to_internal":factor},"geometry_diagnostics":{"entity_counts":counts(&api)?,"free_boundary_curves":free,"bounds":[bbox[..3].to_vec(),bbox[3..].to_vec()],"bounds_source":if is_cad{"opencascade_stl_tessellation"}else{"discrete_geometry"},"bounds_approximate":is_cad,"bounds_tessellation":if is_cad{json!({"relative_linear_deflection":api.get_number("Mesh.StlLinearDeflection")?,"relative_to_curve_length":api.get_number("Mesh.StlLinearDeflectionRelative")?!=0.,"angular_deflection_radians":api.get_number("Mesh.StlAngularDeflection")?,"not_an_exact_analytical_envelope":true})}else{Value::Null},"intersection_check":"not_exhaustive","source_format":source.as_ref().and_then(|p|p.extension()).and_then(|s|s.to_str())},"repair":repair_report,"groups":groups,"warnings":warnings,"selection":{"scope":scope,"dimension":dimension,"tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>()},"correspondences":correspondences,"remesh":if operation=="remesh"{json!({"requested_tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>(),"preserved_entities":unselected,"unselected_elements_unchanged":true,"boundary_policy":"existing_boundary_mesh_locked","strategy":"replay_then_local","replay_seconds":replay_seconds,"replayed_local_steps":recipe["steps"].as_array().map_or(0,Vec::len),"coordinate_tolerance_relative":64.*f64::EPSILON})}else{Value::Null},"backend":{"name":"Rust / Gmsh / OpenCASCADE","language":"Rust","gmsh_version":"4.15.2","python_numerical_backend":false},"algorithms":{"surface":algo2,"volume":if dimension==3{Some(algo3)}else{None}},"preflight":{"estimated_elements":estimate,"estimate_kind":"indicative_not_a_memory_bound"},"mesh_settings":mesh,"timings":{"geometry_seconds":geometry_seconds,"generation_seconds":generation_seconds,"validation_seconds":validation_started.elapsed().as_secs_f64(),"total_seconds":started.elapsed().as_secs_f64()},"limitations":["Réparation arbitraire des défauts et intersections non garantie","Remaillage local par entité géométrique, pas par sous-ensemble arbitraire de cellules","La validation du fichier ne remplace pas les contrôles du solveur"]});
@@ -1731,6 +1898,9 @@ pub fn run(request: &Value) -> R<Value> {
         }
         return Err(error);
     }
+    report["element_policy"] = element_evidence;
+    report["high_order_optimization"] = json!({"status":high_order_optimization,
+        "acceptance_criteria_unchanged":true});
     if report["quality"]["accepted"] == false {
         report["warnings"].as_array_mut().unwrap().push(json!("Maillage d'essai non admissible : les critères de qualité ne sont pas satisfaits"));
     }
@@ -1777,6 +1947,37 @@ pub fn run(request: &Value) -> R<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mandatory_element_policy_rejects_legacy_or_mixed_requests() {
+        assert!(validate_element_policy(&json!({})).is_ok());
+        assert!(validate_element_policy(&json!({"element_policy":"quad_hex_only"})).is_ok());
+        for value in [json!("tetra"),json!("mixed"),json!(true),Value::Null] {
+            assert!(validate_element_policy(&json!({"element_policy":value})).is_err());
+        }
+    }
+    #[test]
+    fn element_inventory_allows_only_quad_hex_and_their_boundary_segments() {
+        for (dim,primary,order,nodes,expected) in [
+            (1,2,1,2,"segment"),(1,2,2,3,"segment"),
+            (2,4,1,4,"quadrilateral"),(2,4,2,8,"quadrilateral"),(2,4,2,9,"quadrilateral"),
+            (3,8,1,8,"hexahedron"),(3,8,2,20,"hexahedron"),(3,8,2,27,"hexahedron"),
+        ] {
+            assert_eq!(allowed_element_family(dim,primary,order,nodes),Some(expected));
+        }
+        // Quadratic triangles/tetrahedra are still the forbidden families.
+        for args in [(2,3,1,3),(2,3,2,6),(3,4,1,4),(3,4,2,10),(3,6,1,6),(3,5,1,5),(2,4,2,4)] {
+            assert_eq!(allowed_element_family(args.0,args.1,args.2,args.3),None);
+        }
+    }
+    #[test]
+    fn subdivision_budget_counts_exact_final_cells_and_rejects_overflow() {
+        assert_eq!(subdivided_top_count(2,3,10).unwrap(),30);
+        assert_eq!(subdivided_top_count(2,4,10).unwrap(),40);
+        assert_eq!(subdivided_top_count(3,4,10).unwrap(),40);
+        assert_eq!(subdivided_top_count(3,8,10).unwrap(),80);
+        assert!(subdivided_top_count(3,6,10).is_err());
+        assert!(subdivided_top_count(3,4,usize::MAX).is_err());
+    }
     fn sample_snapshot() -> BTreeMap<i32, Value> {
         BTreeMap::from([(
             1,

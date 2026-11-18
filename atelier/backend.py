@@ -34,8 +34,6 @@ def normalize_project(project):
     result = _normalize_project(data)
     if result["mode"] == "planar" and result["geometry"]["kind"] in ("box", "sphere", "bracket"):
         raise ValueError("Choisir le mode surface ou volume pour cette géométrie 3D")
-    if result["mode"] == "volume" and result["mesh"]["recombine"]:
-        raise ValueError("La recombinaison quadrangulaire est réservée aux surfaces")
     return result
 
 

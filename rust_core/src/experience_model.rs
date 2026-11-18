@@ -205,6 +205,9 @@ fn load_model(value: &Value) -> Result<(Network, BTreeSet<String>, BTreeSet<Stri
     if value["schema"] != SCHEMA || value["schema_version"] != 2 {
         return Err("Version du modèle cumulatif incompatible : les poids rc3 à 16 entrées ne peuvent pas être repris par la représentation spatiale rc4".into());
     }
+    if value["element_policy"] != crate::dataset_model::ELEMENT_POLICY {
+        return Err("Modèle historique sans provenance quadrilatères/hexaèdres : les anciens poids sont conservés sans reprise".into());
+    }
     if value["input_count"] != INPUTS
         || value["hidden_count"] != HIDDEN
         || value["feature_schema"] != crate::representation::SCHEMA
@@ -512,6 +515,7 @@ pub fn update(
         "schema": SCHEMA,
         "schema_version": 2,
         "feature_schema": crate::representation::SCHEMA,
+        "element_policy": crate::dataset_model::ELEMENT_POLICY,
         "revision": revision,
         "weight_revision": weight_revision,
         "input_count": INPUTS,
@@ -814,6 +818,19 @@ mod tests {
         assert_eq!(next["input_count"], 128);
         assert_eq!(next["parameter_count"], 1561);
         assert_eq!(next["feature_schema"], crate::representation::SCHEMA);
+    }
+    #[test]
+    fn old_same_architecture_weights_without_strict_policy_are_not_warm_started() {
+        let rows=examples(&["one","two","three"]);
+        let mut old=update(None,&rows,10,42).unwrap();
+        old.as_object_mut().unwrap().remove("element_policy");
+        let before=old.clone();
+        assert!(predict(&old,&rows[0].features).is_none());
+        let next=update(Some(&old),&rows,10,42).unwrap();
+        assert_eq!(next["warm_started"],false);
+        assert!(next["previous_model_rejected"].is_string());
+        assert_eq!(next["element_policy"],crate::dataset_model::ELEMENT_POLICY);
+        assert_eq!(old,before);
     }
 
     #[test]

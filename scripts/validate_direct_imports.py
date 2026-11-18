@@ -118,11 +118,11 @@ def run_case(output, source, work_unit, order, *, mode='volume', repair=False, t
     result = session.generate(project, source)
     elapsed = time.perf_counter() - started
     native_dir = Path(result['directory'])
-    metadata = json.loads((native_dir / 'session.json').read_text())
+    metadata = json.loads((native_dir / 'session.json').read_text(encoding='utf-8'))
     mesh, _ = _read(native_dir / 'mesh.msh')
     actual_min = np.min(mesh.points, axis=0).tolist()
     actual_max = np.max(mesh.points, axis=0).tolist()
-    expected_domain = ('tetra' if order == 1 else 'tetra10') if mode == 'volume' else ('triangle' if order == 1 else 'triangle6')
+    expected_domain = ('hexahedron' if order == 1 else 'hexahedron20') if mode == 'volume' else ('quad' if order == 1 else 'quad8')
     counts = {}
     for block in mesh.cells:
         counts[block.type] = counts.get(block.type, 0) + len(block.data)
@@ -130,19 +130,29 @@ def run_case(output, source, work_unit, order, *, mode='volume', repair=False, t
     for block in mesh.cells:
         if block.type != expected_domain:
             continue
-        corners = mesh.points[block.data[:, :4 if mode == 'volume' else 3]]
+        corners = mesh.points[block.data[:, :8 if mode == 'volume' else 4]]
         if mode == 'volume':
-            edges = corners[:, 1:] - corners[:, :1]
-            measure += float(np.sum(np.abs(np.linalg.det(edges))) / 6)
+            # Independent volume check for the linear corners of the subdivided
+            # hexahedra. These import fixtures have planar faces.
+            for indices in ((0,1,2,6), (0,2,3,6), (0,3,7,6),
+                            (0,7,4,6), (0,4,5,6), (0,5,1,6)):
+                tetra = corners[:, indices]
+                edges = tetra[:, 1:] - tetra[:, :1]
+                measure += float(np.sum(np.abs(np.linalg.det(edges))) / 6)
         else:
-            measure += float(np.sum(np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0],
-                                                            corners[:, 2] - corners[:, 0]), axis=1)) / 2)
+            for indices in ((0,1,2), (0,2,3)):
+                tri = corners[:, indices]
+                measure += float(np.sum(np.linalg.norm(np.cross(tri[:,1] - tri[:,0],
+                                                                tri[:,2] - tri[:,0]), axis=1)) / 2)
     expected_measure = (2e-9 / (6 if source.stem.startswith('tetra_') else 1)) if mode == 'volume' else 1e-5
     checks = {
         'source_sha256_unchanged': digest(source) == source_before,
         'session_original_copy_identical': digest(native_dir / metadata['source']) == source_before,
         'accepted_quality': result['report']['quality']['accepted'] is True,
         'expected_domain_elements_present': counts.get(expected_domain, 0) > 0,
+        'quad_hex_policy_verified': result['report'].get('element_policy', {}).get('verified') is True,
+        'only_quad_hex_cells': all(not count or kind in {'vertex','line','line3','quad','quad8','quad9',
+            'hexahedron','hexahedron20','hexahedron27'} for kind,count in counts.items()),
         'minimum_coordinates_and_origin': bool(np.all(np.abs(np.array(actual_min) - MINIMUM) <= 1e-11)),
         'maximum_coordinates_and_dimensions': bool(np.all(np.abs(np.array(actual_max) - MAXIMUM) <= 1e-11)),
         'internal_units_metres': result['report']['units']['internal'] == 'm',

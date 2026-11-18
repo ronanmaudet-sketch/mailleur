@@ -1046,6 +1046,17 @@ impl Gmsh {
         );
         self.check(ierr)
     }
+    /// Refine the current mesh using Gmsh's explicitly selected subdivision.
+    pub fn mesh_refine(&self) -> Result<(), String> {
+        let mut ierr = 0;
+        invoke!(
+            self,
+            "gmshModelMeshRefine",
+            unsafe extern "C" fn(*mut c_int),
+            &mut ierr
+        );
+        self.check(ierr)
+    }
     pub fn mesh_set_order(&self, order: i32) -> Result<(), String> {
         let mut ierr = 0;
         invoke!(

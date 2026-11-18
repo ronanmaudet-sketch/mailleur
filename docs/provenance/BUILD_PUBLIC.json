@@ -1,72 +1,131 @@
 {
   "schema": "atelier.public_build.v1",
-  "version": "mailleur-core 1.0.0-rc.8",
-  "date": "2026-11-17",
-  "source": "rc8 avec correction du cycle de vie Gmsh sous Windows",
-  "changes": "Module Gmsh résident sous Windows ; finalisation normale des contextes ; versions Python/Rust rc8",
+  "version": "mailleur-core 1.0.0-rc.9",
+  "date": "2026-11-18",
+  "source": "Sources du dépôt public, politique quad_hex_only rc9",
+  "changes": [
+    "Subdivision native stricte quadrilatères/hexaèdres et contrôle des connectivités finales",
+    "Primitives en SI, import STEP/IGES en mètres, sources discrètes explicitement polygonales",
+    "Périodicité reconstruite et budgets vérifiés avant subdivision",
+    "Anciennes données d’apprentissage exclues et caractéristiques v3"
+  ],
   "rustflags": [
-    "--remap-path-prefix=<personal-home>=mailleur-build",
-    "--remap-path-prefix=<temporary>=mailleur-build/tmp"
+    "--remap-path-prefix=<local-user-directory>=mailleur-build",
+    "--remap-path-prefix=/private/tmp=mailleur-build/tmp"
   ],
-  "public_binary_sha256": "f65604b7c2630b820300ea76532ae4a3babfb8a6449bceacb59b8db4187e4bb5",
-  "bytes": 2309392,
+  "public_binary_sha256": "537eb405731ed53efc43ff07a52a20004ba5e19d7aa9d8c176937fafca3ddfd2",
+  "bytes": 2384448,
   "private_paths_absent": true,
-  "modified_source_files": [
-    "rust_core/src/gmsh.rs"
-  ],
   "source_sha256": {
-    "rust_core/src/gmsh.rs": "3138701213d89d119da6dca0f42871323d1cd79698a76f496046a7bff4f69230"
+    "rust_core/src/advisor.rs": "9554dcbb6c1212336e472204f938bbff4975c927233e8e09cf6c8f4b195fc1cc",
+    "rust_core/src/backend.rs": "f0b2bfb3a63a8a84bfcd9fa7e356a96a1f2ea08020481cc2fe184ff0b1dda3ad",
+    "rust_core/src/corpus.rs": "1a8740c504e1a0041514849b2d3c64c8434721a0a474e9a4ee8a9867cc787e4d",
+    "rust_core/src/corpus_generator.rs": "272196d7f1c6b284a6dcb2dd8e734f8ebb83adde29dcfae27b3b06fd30dbac82",
+    "rust_core/src/dataset_model.rs": "7357322f643c392c828c65e843abcaddc7f3a5125315d8331ead275a35ab043e",
+    "rust_core/src/experience.rs": "239ca6d056a9b89f14ea51abb1f7cc9a162c3e0b0da0306c3a9c2fe30120da68",
+    "rust_core/src/experience_model.rs": "37c96bb3965a79c12acd53d515afe63e365db76864f433dfb06bc8190d27adeb",
+    "rust_core/src/gmsh.rs": "dd0c6603b90683433c1193f0c76d31c9c345681eb16f1555f6decd449842e132",
+    "rust_core/src/learning.rs": "6549a852d1a2768b9af66e5a9f7498d20187f562dc44cc55d5ec2718fec23d06",
+    "rust_core/src/main.rs": "259a5b95c8179dbe0b95a2b1bf0a2af34c3caa41015e080b852f6928638b2c9b",
+    "rust_core/src/mesh_import.rs": "a9c5246ec4e61dcd1336290d231ccd8cebe8ddc1bd53a3df650ec63fc39bde5e",
+    "rust_core/src/metrics.rs": "096d27635ce162921678f1062aef00909cfeab05d48e916db8156ce66a3522b8",
+    "rust_core/src/quality.rs": "3f1f22ceefa1f1fb48e77f15e24794a1430b42b8eb480eb6100eeead2b5d166b",
+    "rust_core/src/representation.rs": "b7129af6ee7760fa3aabcfa6fbdf90320600d3bf2a5d6a9870e42bbad9a8f9e6",
+    "rust_core/Cargo.toml": "dbc858ec3bb1e2b430e1814781b41390ac85fa273047114dd945f9fd96340c0c",
+    "rust_core/Cargo.lock": "b8cab710487d02f6baf41de920bca0fabcd83bf699b85807ef0542fe078b6664"
   },
-  "validation": "verification/correction_20261117/summary.json",
+  "validation": {
+    "local_checks": "verification/quad_hex_20261118/local_checks.json",
+    "rust": {
+      "passed": 143,
+      "failed": 0,
+      "ignored": 0,
+      "test_seconds": 7.41
+    },
+    "python": {
+      "run": 207,
+      "passed": 207,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 29.247
+    },
+    "direct_imports": 48,
+    "cast3m_cases": 5,
+    "calculix_cases": 8,
+    "cast3m_pilot_checks": 43,
+    "cast3m_reference_replay_checks": 43
+  },
   "previous_public_build": {
     "schema": "atelier.public_build.v1",
-    "version": "mailleur-core 1.0.0-rc.7",
-    "date": "2026-11-10",
-    "source": "rc7 avec correctif de sauvegarde Windows ; algorithmes de géométrie, maillage et qualité inchangés",
-    "changes": "Droits d’écriture nécessaires à la synchronisation du registre durable et à la récupération de la fin du journal ; remappage des chemins personnels conservé",
+    "version": "mailleur-core 1.0.0-rc.8",
+    "date": "2026-11-17",
+    "source": "rc8 avec correction du cycle de vie Gmsh sous Windows",
+    "changes": "Module Gmsh résident sous Windows ; finalisation normale des contextes ; versions Python/Rust rc8",
     "rustflags": [
       "--remap-path-prefix=<personal-home>=mailleur-build",
       "--remap-path-prefix=<temporary>=mailleur-build/tmp"
     ],
-    "original_binary_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
-    "public_binary_sha256": "85e3952da15bb445ebe00c003f48644444c430f5ff68779778e7cae186319aa6",
-    "bytes": 2309376,
+    "public_binary_sha256": "f65604b7c2630b820300ea76532ae4a3babfb8a6449bceacb59b8db4187e4bb5",
+    "bytes": 2309392,
     "private_paths_absent": true,
-    "validation": "Régression locale du binaire corrigé consignée dans verification/publication_20261110 ; résultats CI à consulter par révision dans Actions",
-    "updated_utc": "2026-11-10T21:09:21.414748+00:00",
-    "previous_public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
     "modified_source_files": [
-      "rust_core/src/corpus.rs",
-      "rust_core/src/experience.rs"
+      "rust_core/src/gmsh.rs"
     ],
     "source_sha256": {
-      "rust_core/src/corpus.rs": "75ee661aa77483d6d91a9ebfd39def7dcab7bdb1871dc536feb7b42fbd5743f3",
-      "rust_core/src/experience.rs": "a3fc11da88444bdd002ec30c6107c92ee88ff553b11ffd2254004684b7a0d5ae"
+      "rust_core/src/gmsh.rs": "3138701213d89d119da6dca0f42871323d1cd79698a76f496046a7bff4f69230"
     },
-    "release_build_seconds": 22.47,
-    "local_validation": {
-      "report": "verification/publication_20261110/summary.json",
-      "rust_passed": 132,
-      "python_passed": 200,
-      "cast3m_checks_passed": 43,
-      "host": "macOS ARM64"
-    },
-    "github_actions": "https://github.com/ronanmaudet-sketch/mailleur/actions",
-    "initial_public_build": {
+    "validation": "verification/correction_20261117/summary.json",
+    "previous_public_build": {
       "schema": "atelier.public_build.v1",
       "version": "mailleur-core 1.0.0-rc.7",
       "date": "2026-11-10",
-      "source": "rc7 sans modification du code de calcul",
-      "changes": "Remappage des chemins de compilation pour ne pas publier le chemin personnel du développeur",
+      "source": "rc7 avec correctif de sauvegarde Windows ; algorithmes de géométrie, maillage et qualité inchangés",
+      "changes": "Droits d’écriture nécessaires à la synchronisation du registre durable et à la récupération de la fin du journal ; remappage des chemins personnels conservé",
       "rustflags": [
         "--remap-path-prefix=<personal-home>=mailleur-build",
         "--remap-path-prefix=<temporary>=mailleur-build/tmp"
       ],
       "original_binary_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
-      "public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
-      "bytes": 2308992,
+      "public_binary_sha256": "85e3952da15bb445ebe00c003f48644444c430f5ff68779778e7cae186319aa6",
+      "bytes": 2309376,
       "private_paths_absent": true,
-      "validation": "voir verification/publication_20261110 après les essais dédiés"
+      "validation": "Régression locale du binaire corrigé consignée dans verification/publication_20261110 ; résultats CI à consulter par révision dans Actions",
+      "updated_utc": "2026-11-10T21:09:21.414748+00:00",
+      "previous_public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+      "modified_source_files": [
+        "rust_core/src/corpus.rs",
+        "rust_core/src/experience.rs"
+      ],
+      "source_sha256": {
+        "rust_core/src/corpus.rs": "75ee661aa77483d6d91a9ebfd39def7dcab7bdb1871dc536feb7b42fbd5743f3",
+        "rust_core/src/experience.rs": "a3fc11da88444bdd002ec30c6107c92ee88ff553b11ffd2254004684b7a0d5ae"
+      },
+      "release_build_seconds": 22.47,
+      "local_validation": {
+        "report": "verification/publication_20261110/summary.json",
+        "rust_passed": 132,
+        "python_passed": 200,
+        "cast3m_checks_passed": 43,
+        "host": "macOS ARM64"
+      },
+      "github_actions": "https://github.com/ronanmaudet-sketch/mailleur/actions",
+      "initial_public_build": {
+        "schema": "atelier.public_build.v1",
+        "version": "mailleur-core 1.0.0-rc.7",
+        "date": "2026-11-10",
+        "source": "rc7 sans modification du code de calcul",
+        "changes": "Remappage des chemins de compilation pour ne pas publier le chemin personnel du développeur",
+        "rustflags": [
+          "--remap-path-prefix=<personal-home>=mailleur-build",
+          "--remap-path-prefix=<temporary>=mailleur-build/tmp"
+        ],
+        "original_binary_sha256": "39fde2270d7282ebe460591308edebd6d7a978601e519fdddf441ee8d9d9cd85",
+        "public_binary_sha256": "598732bd9fa802acc22b424fde5072a0a0d56fe57851b557a0a88968ee3e61d8",
+        "bytes": 2308992,
+        "private_paths_absent": true,
+        "validation": "voir verification/publication_20261110 après les essais dédiés"
+      }
     }
   }
 }

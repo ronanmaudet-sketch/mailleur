@@ -1,6 +1,6 @@
 [package]
 name = "mailleur-core"
-version = "1.0.0-rc.8"
+version = "1.0.0-rc.9"
 edition = "2021"
 rust-version = "1.83"
 description = "Noyau natif Rust de l'Atelier Mailleur"

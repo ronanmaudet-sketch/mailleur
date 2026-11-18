@@ -18,7 +18,7 @@
     name: "Plaque percée",
     mode: "planar",
     geometry: { kind: "plate", width: 10, height: 6, thickness: 2, corner_radius: 0.6, chamfer: 0, holes: [{ x: 5, y: 3, radius: 1.2 }] },
-    mesh: { size: 0.5, min_size: 0.1, order: 1, algorithm: "automatic", recombine: false, threads: 1, max_elements: 200000 },
+    mesh: { size: 0.5, min_size: 0.1, order: 1, algorithm: "automatic", recombine: false, element_policy: "quad_hex_only", threads: 1, max_elements: 200000 },
     repair: { enabled: false, tolerance: 1e-7, sew: true, small_edges: true, small_faces: false, make_solids: false },
   };
 
@@ -165,7 +165,7 @@
       mode: currentMode(), geometry,
       mesh: { ...(state.baseProject.mesh || {}), size, min_size: minSize,
         order: value("mesh-order", "Ordre", { integer: true, min: 1 }),
-        algorithm: $("mesh-algorithm").value, recombine: $("mesh-recombine").checked,
+        algorithm: $("mesh-algorithm").value, recombine: false, element_policy: "quad_hex_only",
         threads: value("mesh-threads", "Fils de calcul", { integer: true, min: 1, max: 32 }),
         max_elements: value("mesh-max-elements", "Limite d’éléments", { integer: true, min: 10, max: 2000000 }) },
       repair: { ...(state.baseProject.repair || {}), enabled: $("repair-enabled").checked,
@@ -223,10 +223,7 @@
     $("native-geometry").hidden = kind === "import";
     $("import-geometry").hidden = kind !== "import";
     const isVolume = currentMode() === "volume";
-    $("mesh-recombine").disabled = isVolume;
-    if (isVolume) $("mesh-recombine").checked = false;
-    $("mesh-recombine").closest("label").style.opacity = isVolume ? "0.45" : "1";
-    $("mesh-recombine").closest("label").title = isVolume ? "La recombinaison quadrangulaire est disponible pour les surfaces uniquement." : "";
+    $("mesh-element-policy").textContent = `${isVolume ? "Hexaèdres" : "Quadrilatères"} uniquement. Un résultat d’une autre forme est refusé.`;
     $("import-empty").hidden = kind !== "import" || Boolean(state.preview);
     if (kind === "import") {
       $("import-empty").querySelector("h2").textContent = state.uploadId ? "Géométrie importée" : "Une pièce à explorer";
@@ -255,7 +252,6 @@
       "mesh-threads": m.threads ?? 1, "mesh-max-elements": m.max_elements ?? 200000,
       "repair-tolerance": r.tolerance ?? 1e-7 };
     for (const [id, val] of Object.entries(map)) $(id).value = val;
-    $("mesh-recombine").checked = Boolean(m.recombine);
     $("repair-enabled").checked = Boolean(r.enabled);
     $("repair-sew").checked = r.sew !== false;
     $("repair-small-edges").checked = r.small_edges !== false;

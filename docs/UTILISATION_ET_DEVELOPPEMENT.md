@@ -1,5 +1,11 @@
 # Mailleur : utiliser les imports étendus et contribuer au projet
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 Ce guide décrit les interfaces et l'intégration de la révision rc7 du **7 novembre 2026**. Il complète le [guide général](GUIDE_COMPLET_MAILLEUR.md), la [liste des formats](FORMATS.md), le [guide de publication](PUBLICATION.md) et les [vérifications étendues](VALIDATION_RC7.md). Les mesures Apple M3 du 4 novembre dans [MESURES_M3.md](MESURES_M3.md) concernent la révision mesurée à cette date : elles ne mesurent pas automatiquement les nouveaux lecteurs et exports.
 
 Mailleur est une application locale de préparation géométrique et de maillage. Python fournit l'interface, les commandes, l'API HTTP et la lecture/écriture des formats. Rust assure les traitements numériques et pilote Gmsh/OpenCASCADE pour construire la géométrie et les maillages. Un petit réseau peut conseiller des recettes lorsque sa validation le permet ; le moteur classique reste responsable des nœuds, éléments et contrôles.

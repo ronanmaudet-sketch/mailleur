@@ -225,7 +225,11 @@ class ImportNativeIntegration(unittest.TestCase):
         first = self.session.generate(project)
         source = self.root / "volume.unv"
         self.session.export(Path(first["directory"]), source, "unv", units="mm")
-        result = self.session.generate(imported_project(), source)
+        reconstructed = imported_project()
+        # The exported hexahedral skin contains more facets than the former
+        # tetrahedral fixture; allow its measured final subdivision count.
+        reconstructed["mesh"]["max_elements"] = 30000
+        result = self.session.generate(reconstructed, source)
         self.assertTrue(result["report"]["quality"]["accepted"])
         report = result["report"]["import_preparation"]
         self.assertEqual(report["kind"], "native_mesh")

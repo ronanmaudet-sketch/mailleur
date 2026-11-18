@@ -1,5 +1,11 @@
 # Corpus à grande échelle et répartition Python / Rust
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 La rc4 ajoute un pipeline distinct de la mémoire interactive d'une pièce.
 Son objectif par défaut est **250 000 configurations structurées et 750 000
 configurations aléatoires**, soit un million de cas prévus. Une planification
@@ -22,7 +28,7 @@ Le [rapport du corpus rc4 (archive complète)](provenance/PREUVES_EXTERNES.md) e
 | Stratégies évaluées ou explicitement refusées | 96 : 88 acceptées et 8 refusées |
 | Appels du moteur | 140, dont 48 inspections de référence indépendantes des stratégies |
 | Reprise | Premier lot de 24, puis 24 cas restants dans une nouvelle session Python |
-| Caractéristiques | 128 entrées, schéma `atelier.geometry_action_features.v2` |
+| Caractéristiques | 128 entrées, schéma `atelier.geometry_action_features.v3` |
 | Entraînement | 2 passages, mini-lots de 16 ; 32 cas d'entraînement, 8 de validation, 8 de test |
 | Exemples de stratégies par partition | 64 d'entraînement, 16 de validation, 16 de test |
 | Conseiller de corpus | 128→32→1, 4 161 paramètres, sauvegardé et installé dans l'atelier |

@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const INPUTS: usize = 128;
-pub const SCHEMA: &str = "atelier.geometry_action_features.v2";
+pub const SCHEMA: &str = "atelier.geometry_action_features.v3";
 const DESCRIPTOR_SCHEMA: &str = "atelier.geometry_descriptor.v2";
 
 #[derive(Clone)]
@@ -464,7 +464,7 @@ pub fn features(
             original["correspondences"].as_array().map_or(0, Vec::len),
             4.,
         ),
-        if mesh["recombine"] == true { 1. } else { 0. },
+        if mesh["element_policy"] == crate::dataset_model::ELEMENT_POLICY { 1. } else { 0. },
         if mesh["order"] == 2 { 1. } else { 0. },
         if original["repair"]["enabled"] == true {
             1.

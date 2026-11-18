@@ -170,7 +170,7 @@ fn scale_geometry(g:&mut Value,factor:f64)->Result<()> {
 fn signature(project:&Value)->Result<Value> {
     let mesh=&project["mesh"];
     Ok(json!({"order":integer(mesh,"order",1,1,2)?,"threads":integer(mesh,"threads",1,1,64)?,
-        "recombine":flag(mesh,"recombine",false)?,"min_size":positive(num(mesh,"min_size",0.1)?,"min_size")?,"repair_enabled":false}))
+        "recombine":flag(mesh,"recombine",false)?,"element_policy":crate::dataset_model::ELEMENT_POLICY,"min_size":positive(num(mesh,"min_size",0.1)?,"min_size")?,"repair_enabled":false}))
 }
 
 pub fn default_cases()->Vec<Value> {
@@ -188,7 +188,7 @@ pub fn default_cases()->Vec<Value> {
     for (family,mode,geometry) in templates {
         for variant in 0..2 {
             result.push(json!({"family":family,"project":{"schema_version":1,"name":format!("{family}_{variant}"),"mode":mode,"units":{"input":"mm","internal":"m"},"geometry":geometry,
-                "mesh":{"size":0.8+0.2*variant as f64,"min_size":0.1,"order":1,"algorithm":"automatic","recombine":false,"threads":1,"max_elements":5000},"repair":{"enabled":false}}}));
+                "mesh":{"size":0.8+0.2*variant as f64,"min_size":0.1,"order":1,"algorithm":"automatic","recombine":false,"element_policy":crate::dataset_model::ELEMENT_POLICY,"threads":1,"max_elements":5000},"repair":{"enabled":false}}}));
         }
     }
     result
@@ -214,7 +214,6 @@ fn has_controls(project:&Value)->bool {
 }
 
 fn normalize_cases(request:&Value)->Result<Vec<Row>> {
-    let generated=request.get("cases").is_none();
     let cases=if let Some(cases)=request.get("cases") {cases.as_array().filter(|v|(2..=64).contains(&v.len())).ok_or("Entre 2 et 64 cas d'apprentissage sont requis")?.clone()}else{default_cases()};
     let target_unit=request.get("training_units").and_then(Value::as_str).unwrap_or("mm");
     let target_factor=unit(target_unit)?;
@@ -242,7 +241,7 @@ fn normalize_cases(request:&Value)->Result<Vec<Row>> {
         let size=positive(num(&mesh,"size",0.5)?,"size")?*conversion;
         let min_size=positive(num(&mesh,"min_size",(0.1_f64).min(size/conversion))?,"min_size")?*conversion;
         mesh["size"]=json!(size);mesh["min_size"]=json!(min_size);
-        for key in ["order","threads","recombine","min_size","max_elements"] {
+        for key in ["order","threads","recombine","element_policy","min_size","max_elements"] {
             if let Some(value)=overrides.get(key) {mesh[key]=value.clone();}
         }
         let min_size=positive(num(&mesh,"min_size",0.1)?,"min_size")?;
@@ -252,9 +251,10 @@ fn normalize_cases(request:&Value)->Result<Vec<Row>> {
         mesh["recombine"]=json!(flag(&mesh,"recombine",false)?);
         mesh["max_elements"]=json!(integer(&mesh,"max_elements",5000,10,2_000_000)?.min(5000));
         mesh["algorithm"]=json!("automatic");
-        // A surface-only quadrangular request has no compatible tetrahedral
-        // default volume family. Custom cases remain visible as failure labels.
-        if generated&&mode=="volume"&&mesh["recombine"]==true {continue;}
+        if mesh.get("element_policy").is_some_and(|v| v != crate::dataset_model::ELEMENT_POLICY) {
+            return Err("L'apprentissage exige exclusivement quadrilatères et hexaèdres".into());
+        }
+        mesh["element_policy"]=json!(crate::dataset_model::ELEMENT_POLICY);
         let name=original.get("name").and_then(Value::as_str).unwrap_or("Cas d'apprentissage");
         if name.trim().is_empty()||name.len()>200 {return Err("Nom de cas invalide".to_string());}
         let family=item.get("family").or_else(||original.get("family")).map(|v|v.as_str().filter(|s|!s.trim().is_empty()&&s.len()<=200).map(str::to_string).ok_or("Nom de famille invalide".to_string())).transpose()?;
@@ -324,10 +324,13 @@ fn collect(rows:&mut[Row],directory:&Path,library:&str)->Result<usize> {
                 let output=directory.join(format!("case_{index:03}")).join(algorithm);
                 let started=Instant::now();
                 let request=json!({"operation":"mesh","gmsh_library":library,"project":project,"output_dir":output});
-                let evaluated=crate::backend::run(&request).and_then(|report|reward(&report).map(|score|(report,score)));
+                let evaluated=crate::backend::run(&request).and_then(|report| {
+                    crate::dataset_model::validate_element_evidence(&report["element_policy"])?;
+                    reward(&report).map(|score|(report,score))
+                });
                 let record=match evaluated {
-                    Ok((report,score))=>json!({"algorithm":algorithm,"reward":score,"success":true,"seconds":started.elapsed().as_secs_f64(),"quality":report["quality"],"algorithms":report["algorithms"],"mesh_settings":report["mesh_settings"],"backend":report["backend"],"units":report["units"]}),
-                    Err(error)=>json!({"algorithm":algorithm,"reward":0.0,"success":false,"seconds":started.elapsed().as_secs_f64(),"error":error}),
+                    Ok((report,score))=>json!({"algorithm":algorithm,"reward":score,"success":true,"element_policy":report["element_policy"],"seconds":started.elapsed().as_secs_f64(),"quality":report["quality"],"algorithms":report["algorithms"],"mesh_settings":report["mesh_settings"],"backend":report["backend"],"units":report["units"]}),
+                    Err(error)=>json!({"algorithm":algorithm,"reward":0.0,"success":false,"element_policy":{"requested":crate::dataset_model::ELEMENT_POLICY,"verified":false},"seconds":started.elapsed().as_secs_f64(),"error":error}),
                 };
                 evaluations.push(record);
             }
@@ -424,7 +427,7 @@ pub fn train(request:&Value)->Result<Value> {
     let ranges:Vec<[f64;2]>=(0..8).map(|j|[training.iter().map(|i|rows[*i].features[j]).fold(f64::INFINITY,f64::min),training.iter().map(|i|rows[*i].features[j]).fold(f64::NEG_INFINITY,f64::max)]).collect();
     let mut model=network.value();
     let fields=json!({"schema":"atelier.advisor.v1","schema_version":1,"algorithms":ALGORITHMS,"features":FEATURES,
-        "gmsh_version":ENGINE,"epochs":epochs,"seed":seed,"input_unit":rows[0].project["units"]["input"],"mesh_signature":signature(&rows[0].project)?,
+        "gmsh_version":ENGINE,"element_policy":crate::dataset_model::ELEMENT_POLICY,"epochs":epochs,"seed":seed,"input_unit":rows[0].project["units"]["input"],"mesh_signature":signature(&rows[0].project)?,
         "baseline_algorithm":ALGORITHMS[baseline],"baseline_successful":baseline_successful,"deploy_enabled":enabled,
         "validated_modes":strings(&rows,&validation,"mode"),"trained_kinds":strings(&rows,&training,"kind"),"feature_ranges":ranges,
         "training_geometry_ids":strings(&rows,&training,"geometry"),"validation_geometry_ids":strings(&rows,&validation,"geometry"),
@@ -450,7 +453,7 @@ pub fn train(request:&Value)->Result<Value> {
         "Des noms d'algorithmes peuvent utiliser le même moteur effectif ; les identifiants réels sont conservés."];
     if !enabled {notes.push("Le guide n'est pas activé : aucun avantage réservé suffisant et valide n'a été démontré.");}
     let report=json!({"schema":"atelier.advisor.report.v1","method":"native_supervised_mlp_portfolio","computation_backend":"rust",
-        "training_cases":training.len(),"validation_cases":validation.len(),"algorithms":ALGORITHMS,"features":FEATURES,
+        "element_policy":crate::dataset_model::ELEMENT_POLICY,"training_cases":training.len(),"validation_cases":validation.len(),"algorithms":ALGORITHMS,"features":FEATURES,
         "families":{"training":model["training_families"],"validation":model["validation_families"]},
         "training_geometry_ids":model["training_geometry_ids"],"validation_geometry_ids":model["validation_geometry_ids"],
         "validation_guide_reward":guide_reward,"validation_fixed_reward":fixed_reward,"validation_best_reward":ideal_reward,
@@ -485,6 +488,14 @@ mod tests {
         }
         assert_eq!(strings(&rows,&validation,"mode"),vec!["planar","surface","volume"]);
         for row in rows {assert!(row.features.iter().all(|x|x.is_finite()&&(0.0..=1.0).contains(x)));assert!(row.project["mesh"]["max_elements"].as_u64().unwrap()<=5000);}
+    }
+    #[test]
+    fn all_default_training_cases_are_explicitly_strict_including_recombined_volumes() {
+        let rows=normalize_cases(&json!({"training_mesh":{"recombine":true}})).unwrap();
+        assert_eq!(rows.len(),16);
+        assert!(rows.iter().any(|r|r.mode=="volume"));
+        assert!(rows.iter().all(|r|r.project["mesh"]["element_policy"]==crate::dataset_model::ELEMENT_POLICY));
+        assert!(normalize_cases(&json!({"training_mesh":{"element_policy":"tetra"}})).is_err());
     }
     #[test]
     fn same_geometry_under_two_family_labels_unites_components() {

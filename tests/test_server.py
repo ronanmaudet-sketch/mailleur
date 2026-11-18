@@ -232,7 +232,9 @@ class LocalServer(unittest.TestCase):
         self.assertIn("native_preparation", job["report"]["import_preparation"])
         status, bdf = self.request(f"/api/jobs/{created['id']}/download?format=nastran")
         self.assertEqual(status, 200)
-        self.assertIn(b"CTETRA", bdf)
+        self.assertIn(b"CHEXA", bdf)
+        self.assertNotIn(b"CTETRA", bdf)
+        self.assertIs(job["report"]["element_policy"]["verified"], True)
 
     def test_bad_geometry_is_visible_as_rejected_or_failed_job(self):
         if not self.info["backend"]["available"]:

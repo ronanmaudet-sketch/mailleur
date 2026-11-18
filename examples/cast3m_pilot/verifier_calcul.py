@@ -69,9 +69,13 @@ def main():
     parser.add_argument("directory", type=Path, help="dossier produit par generer_maillage.py")
     parser.add_argument("--castem", default="castem26", help="lanceur installé, chemin ou nom dans PATH")
     parser.add_argument("--timeout", type=float, default=60.)
+    parser.add_argument("--memory-mib", type=int, default=1024,
+                        help="budget mémoire Cast3M en Mio, défaut 1024")
     args = parser.parse_args()
     if not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error("Le délai doit être positif et fini")
+    if args.memory_mib < 1:
+        parser.error("--memory-mib doit être un entier positif")
     launcher = executable(args.castem)
     directory = args.directory.expanduser().resolve()
     metadata = json.loads((directory / "maillage.json").read_text(encoding="utf-8"))
@@ -94,7 +98,7 @@ def main():
         env["SCRATCHDIR"] = str(scratch)
         # Le calcul s'exécute avec les fichiers relatifs dans un dossier
         # temporaire ; les traces du lanceur ne contaminent pas l'exemple.
-        command = [str(launcher), "-MEM", "512Mo", "-NCPU", "1", "-NOSWAP", "traction.dgibi"]
+        command = [str(launcher), "-MEM", f"{args.memory_mib}Mo", "-NCPU", "1", "-NOSWAP", "traction.dgibi"]
         process = subprocess.Popen(command, cwd=scratch, env=env, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=os.name != "nt")
         try:
@@ -118,7 +122,7 @@ def main():
     expected = metadata["expected"]
     compare("MAILLEUR_NODES", expected["nodes"])
     compare("MAILLEUR_ELEMENTS", expected["elements"])
-    for kind in ("SEG3", "TRI6", "TE10"):
+    for kind in expected["cell_counts"]:
         compare("MAILLEUR_TYPE_" + kind, expected["cell_counts"][kind])
     for index, name in enumerate(GROUPS):
         compare(f"MAILLEUR_G_{index:03d}", expected["groups"][name]["elements"])
@@ -165,6 +169,7 @@ def main():
         "passed": success, "checks": checks, "check_count": len(checks), "input_files_unchanged": unchanged,
         "cast3m": {"version": version, "launcher_name": launcher.name, "launcher_sha256": sha256(launcher),
                    "binary": binary, "returncode": process.returncode, "error_levels": levels,
+                   "memory_mib": args.memory_mib,
                    "fortran_flags": ieee, "elapsed_seconds": elapsed},
         "machine": {"os": platform.system(), "os_version": platform.mac_ver()[0] if platform.system() == "Darwin" else platform.release(),
                     "architecture": platform.machine()},

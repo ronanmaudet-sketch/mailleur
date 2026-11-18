@@ -7,6 +7,8 @@ Exemple (Rust/Cargo requis) :
 Les enregistrements sont synthétiques : aucun calcul CAO ou maillage n'est
 effectué. Deux exécutables Rust sont construits avec les mêmes dépendances et
 le même profil release. Le rapport compare les poids et les métriques exacts.
+Les modèles de ce benchmark sont hors production et ne doivent pas être
+déployés ; aucun gain de génération de maillage n'est mesuré ici.
 Par défaut, données et exécutables temporaires sont supprimés à la fin.
 """
 from __future__ import annotations
@@ -142,7 +144,7 @@ def build_harness(work, baseline, current, cargo, offline):
     return crate, profile, {name: after[name] for name in ("serde", "serde_json", "sha2")}
 
 
-def fixture(path, cases):
+def fixture(path, cases, features_count=FEATURES):
     """Write one synthetic record at a time; these are not generated CAD meshes."""
     with path.open("w", encoding="utf-8", newline="\n") as stream:
         for i in range(cases):
@@ -150,12 +152,13 @@ def fixture(path, cases):
             x = i % 2
             actions = []
             for action in range(2):
-                features = [float(x), float(action)] + [((i * 7 + j * 13) % 97) / 96 for j in range(126)]
+                features = [float(x), float(action)] + [((i * 7 + j * 13) % 97) / 96 for j in range(features_count - 2)]
                 actions.append({"strategy_id": "a" + str(action), "features": features,
                                 "target": .9 if action == x else .1, "accepted": True, "success": True})
             value = {"index": i, "case_id": str(i), "family": partition,
                      "geometry_id": str(i), "split": partition, "actions": actions,
-                     "feature_schema": "atelier.geometry_action_features.v2",
+                     "feature_schema": "atelier.synthetic_training_benchmark.v1",
+                     "dataset_kind": "synthetic_network_benchmark", "element_policy": "not_applicable_no_mesh",
                      "project": {"geometry": {"kind": "polygon",
                                  "outer": [[j * .1, (j % 3) * .2] for j in range(24)]}},
                      "geometry_descriptor": {"nodes": [
@@ -169,7 +172,7 @@ def run_benchmark(args, work, cargo):
     current = source_files(ROOT)
     crate, profile, dependencies = build_harness(work, baseline, current, cargo, args.offline)
     data = work / "fixture.jsonl"
-    fixture(data, args.cases)
+    fixture(data, args.cases, args.features)
     suffix = ".exe" if os.name == "nt" else ""
     reference = None
     runs = []
@@ -198,8 +201,13 @@ def run_benchmark(args, work, cargo):
             if report["epochs_completed"] != args.epochs or report.get("stopped_by_budget"):
                 raise RuntimeError("Un entraînement a été interrompu ; ses temps ne sont pas comparables")
             model = json.loads((directory / "models/current.json").read_text(encoding="utf-8"))
+            if variant == "optimized" and not (
+                    model.get("element_policy") == "not_applicable_no_mesh"
+                    and model.get("dataset_kind") == "synthetic_network_benchmark"
+                    and model.get("deploy_enabled") is False):
+                raise RuntimeError("Le modèle synthétique actuel doit être explicitement hors production")
             signature = {key: model[key] for key in
-                         ("network", "dataset_fingerprint", "baseline_strategy", "deploy_enabled", "validation")}
+                         ("network", "dataset_fingerprint", "baseline_strategy", "validation")}
             metrics = {key: report[key] for key in
                        ("training", "validation", "test", "epochs_completed", "batches_completed",
                         "training_examples", "validation_examples", "test_examples", "max_batch_observed")}
@@ -207,9 +215,11 @@ def run_benchmark(args, work, cargo):
             if reference is None:
                 reference = value
             if value != reference:
-                raise RuntimeError("Poids, métriques ou décisions différents : aucun gain de performance n'est publié")
+                raise RuntimeError("Poids ou métriques différents : aucun gain de performance n'est publié")
             runs.append({"variant": variant, "repetition": repeat + 1,
                          "wall_seconds": elapsed, "phase_seconds": report.get("phase_seconds"),
+                         "internal_model_deploy_enabled": model.get("deploy_enabled"),
+                         "internal_model_element_policy": model.get("element_policy", "legacy_unscoped"),
                          "identical_weights_and_metrics": True})
             # The shared fixture remains available in an explicit work folder;
             # independent per-run copies are unnecessary after the measurement.
@@ -220,8 +230,14 @@ def run_benchmark(args, work, cargo):
     rustc = shutil.which("rustc") or str(Path(cargo).with_name("rustc" + suffix))
     return {"schema": "atelier.training_benchmark.v1", "generator": GENERATOR,
             "scope": "end-to-end Rust JSONL training; synthetic records only; no CAD or meshing",
-            "quality_improvement_claimed": False, "cases": args.cases, "actions_per_case": 2,
-            "features": FEATURES, "hidden_count": args.hidden_count, "epochs": args.epochs,
+            "dataset_kind": "synthetic_network_benchmark", "element_policy": "not_applicable_no_mesh",
+            "deploy_enabled": False, "model_exported": False, "real_meshes_generated": 0,
+            "quality_improvement_claimed": False, "meshing_speedup_claimed": False,
+            "deployment_gate_compared_as_numeric_optimization": False,
+            "identical_internal_deployment_decisions": len({r["internal_model_deploy_enabled"] for r in runs}) == 1,
+            "deployment_note": "The current synthetic model is always disabled; a historical baseline may have used a different deployment gate. Only weights and partition metrics are compared numerically.",
+            "cases": args.cases, "actions_per_case": 2,
+            "features": args.features, "hidden_count": args.hidden_count, "epochs": args.epochs,
             "batch_size": args.batch_size, "repetitions_per_variant": args.repetitions,
             "fixture_bytes": data.stat().st_size, "fixture_sha256": digest(data),
             "source_sha256": {"baseline": hashlib.sha256(baseline["source"]).hexdigest(),
@@ -248,6 +264,8 @@ def main(argv=None):
                         help="projet/crate de référence ou archive ZIP contenant rust_core")
     parser.add_argument("--output", type=Path, required=True, help="rapport JSON à écrire")
     parser.add_argument("--cases", type=positive, default=33010)
+    parser.add_argument("--features", type=int, choices=(2, 128), default=FEATURES,
+                        help="dimension du réseau synthétique ; aucun maillage n'est généré")
     parser.add_argument("--repetitions", type=positive, default=3)
     parser.add_argument("--epochs", type=positive, default=3)
     parser.add_argument("--batch-size", type=positive, default=128)
@@ -264,6 +282,9 @@ def main(argv=None):
     cargo = args.cargo or shutil.which("cargo")
     if cargo is None:
         parser.error("Cargo est nécessaire ; installer Rust ou préciser --cargo")
+    if "/" in cargo or "\\" in cargo:
+        # Rustup chooses Cargo by the executable basename; retain its symlink.
+        cargo = str(Path(cargo).expanduser().absolute())
     try:
         if args.work_dir is None:
             with tempfile.TemporaryDirectory(prefix="atelier-training-benchmark-") as folder:

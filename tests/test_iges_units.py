@@ -57,7 +57,8 @@ class IgesUnitIntegration(unittest.TestCase):
                                                        rtol=0., atol=1e-11)
                             self.assertTrue(result['report']['quality']['accepted'])
                             self.assertGreater(sum(len(c.data) for c in mesh.cells
-                                if c.type == ('triangle' if order == 1 else 'triangle6')), 0)
+                                if c.type == ('quad' if order == 1 else 'quad8')), 0)
+                            self.assertFalse(any(c.type.startswith(('triangle', 'tetra')) for c in mesh.cells))
                             self.assertEqual(hashlib.sha256(source.read_bytes()).hexdigest(), before)
 
 

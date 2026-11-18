@@ -1,5 +1,11 @@
 # Apprendre sur une géométrie nouvelle
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 La recherche de recettes porte sur la **pièce réellement ouverte**.
 Elle accepte les primitives natives et les sources importées que le backend
 peut interpréter. Une pièce n'a pas besoin de figurer dans le corpus synthétique
@@ -54,7 +60,8 @@ compte dans les recettes.
 Une recherche de 12 essais ne signifie donc ni 12 algorithmes indépendants,
 ni 12 géométries différentes. Elle n'explore pas toutes les topologies ou toutes
 les partitions possibles d'une pièce. Il n'y a pas de décomposition générale en
-blocs structurés et pas de garantie de volume tout-hexa.
+blocs structurés. Depuis la rc9, la subdivision produit les quadrilatères ou
+hexaèdres finaux ; leur type et leur qualité sont contrôlés avant acceptation.
 
 ## Qualité globale et régions protégées
 

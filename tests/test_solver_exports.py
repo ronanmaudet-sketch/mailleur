@@ -31,11 +31,8 @@ class SolverExportContracts(unittest.TestCase):
         return path
 
     def test_bdf_linear_and_quadratic_connectivity_and_real_cards(self):
-        fixtures = {"triangle": (3, 2, "CTRIA3"), "triangle6": (6, 2, "CTRIA6"),
-                    "quad": (4, 2, "CQUAD4"), "quad8": (8, 2, "CQUAD8"),
-                    "tetra": (4, 3, "CTETRA"), "tetra10": (10, 3, "CTETRA"),
-                    "hexahedron": (8, 3, "CHEXA"), "hexahedron20": (20, 3, "CHEXA"),
-                    "wedge": (6, 3, "CPENTA")}
+        fixtures = {"quad": (4, 2, "CQUAD4"), "quad8": (8, 2, "CQUAD8"),
+                    "hexahedron": (8, 3, "CHEXA"), "hexahedron20": (20, 3, "CHEXA")}
         for kind, (nodes, dimension, card) in fixtures.items():
             with self.subTest(kind=kind):
                 source = self.source(kind, nodes, dimension)
@@ -63,8 +60,9 @@ class SolverExportContracts(unittest.TestCase):
 
     def test_bdf_coordinate_precision_handles_negative_and_extreme_scales(self):
         points = [[-3.141592653589793, 1.2345678901234567e12, 1.2345678901234567e-120],
-                  [0, -1/3, 2/7], [1.2345678901234567e120, -1.2345678901234567e-120, 3], [1,2,3]]
-        source = self.source("tetra", 4, 3, points)
+                  [0, -1/3, 2/7], [1.2345678901234567e120, -1.2345678901234567e-120, 3], [1,2,3],
+                  [0,0,1], [1,0,1], [1,1,1], [0,1,1]]
+        source = self.source("hexahedron", 8, 3, points)
         target = self.root / "precise.bdf"
         result = convert_mesh(source, target, "nastran")
         restored = self.meshio.read(target, file_format="nastran")
@@ -77,8 +75,8 @@ class SolverExportContracts(unittest.TestCase):
         # with more permissive free-format parsing.
         points = [[-1.2345678901234567e-120, 1.0000000000000001e-5, -1/3],
                   [1.2345678901234567e120, -1.2345678901234567e120, 2/7],
-                  [0, 1, 0], [1, 2, 3]]
-        source = self.source("tetra", 4, 3, points)
+                  [0, 1, 0], [1, 2, 3], [0,0,1], [1,0,1], [1,1,1], [0,1,1]]
+        source = self.source("hexahedron", 8, 3, points)
         target = self.root / "bounded.inp"
         result = convert_mesh(source, target, "inp")
         rows = target.read_text().split("*NODE\n", 1)[1].split("*ELEMENT", 1)[0].splitlines()
@@ -88,14 +86,12 @@ class SolverExportContracts(unittest.TestCase):
                                         points, rtol=5e-13, atol=1e-300)
         self.assertEqual(result["verification"]["numeric_field_max_characters"], 20)
 
-    def test_keyword_linear_shapes_have_documented_node_repetitions(self):
-        expected = {"triangle": [1,2,3,3], "quad": [1,2,3,4],
-                    "tetra": [1,2,3,4,4,4,4,4], "wedge": [1,2,3,4,5,5,6,6],
-                    "hexahedron": [1,2,3,4,5,6,7,8]}
+    def test_keyword_quad_and_hex_keep_all_distinct_nodes(self):
+        expected = {"quad": [1,2,3,4], "hexahedron": [1,2,3,4,5,6,7,8]}
         for kind, ids in expected.items():
             with self.subTest(kind=kind):
                 nodes = len(set(ids))
-                source = self.source(kind, nodes, 2 if kind in ("triangle", "quad") else 3)
+                source = self.source(kind, nodes, 2 if kind == "quad" else 3)
                 target = self.root / f"{kind}.key"
                 result = convert_mesh(source, target, "lsdyna")
                 lines = target.read_text().splitlines()
@@ -107,36 +103,35 @@ class SolverExportContracts(unittest.TestCase):
                 self.assertTrue(result["verification"]["readback"])
 
     def test_keyword_does_not_reduce_quadratic_elements_or_replace_target(self):
-        source = self.source("tetra10", 10, 3)
+        source = self.source("hexahedron20", 20, 3)
         target = self.root / "existing.key"
         target.write_text("original")
-        with self.assertRaisesRegex(ValueError, "tetra10"):
+        with self.assertRaisesRegex(ValueError, "hexahedron20"):
             convert_mesh(source, target, "lsdyna")
         self.assertEqual(target.read_text(), "original")
 
     def test_structural_apdl_solid_types_and_no_silent_quadratic_loss(self):
-        for kind, count, element in (("tetra", 4, 285), ("tetra10", 10, 187), ("hexahedron", 8, 185)):
+        for kind, count, element in (("hexahedron", 8, 185),):
             with self.subTest(kind=kind):
                 target = self.root / f"{kind}.apdl"
                 result = convert_mesh(self.source(kind, count, 3), target, "ansys_structural")
                 text = target.read_text()
                 self.assertIn(f"ET,1,{element}\n", text)
                 self.assertNotIn("ET,1,200", text)
-                if kind == "tetra10":
-                    self.assertIn("EN,1,1,2,3,4,5,6,7,8\nEMORE,9,10", text)
                 self.assertFalse(result["verification"]["solver_executed"])
         with self.assertRaisesRegex(ValueError, "hexahedron20"):
             convert_mesh(self.source("hexahedron20", 20, 3), self.root / "unsupported.apdl", "ansys_structural")
 
-    def test_structural_apdl_planar_triangle_and_quad_shell(self):
-        source = self.source("triangle", 3, 2, [[0,0,0],[1,0,0],[0,1,0]])
+    def test_structural_apdl_planar_quad_and_quad_shell(self):
+        source = self.source("quad", 4, 2, [[0,0,0],[1,0,0],[1,1,0],[0,1,0]])
         target = self.root / "plane.apdl"
         convert_mesh(source, target, "ansys_structural", planar=True)
         text = target.read_text()
         self.assertIn("ET,1,182\nKEYOPT,1,3,0", text)
-        self.assertIn("EN,1,1,2,3,3", text)
+        self.assertIn("EN,1,1,2,3,4", text)
+        triangle = self.source("triangle", 3, 2, [[0,0,0],[1,0,0],[0,1,0]])
         with self.assertRaisesRegex(ValueError, "triangle"):
-            convert_mesh(source, self.root / "tri_shell.apdl", "ansys_structural", planar=False)
+            convert_mesh(triangle, self.root / "tri_shell.apdl", "ansys_structural", planar=False)
         quad = self.source("quad", 4, 2, [[0,0,0],[1,0,0],[1,1,.1],[0,1,0]])
         convert_mesh(quad, self.root / "quad_shell.apdl", "ansys_structural", planar=False)
         self.assertIn("ET,1,181", (self.root / "quad_shell.apdl").read_text())
@@ -144,12 +139,49 @@ class SolverExportContracts(unittest.TestCase):
             convert_mesh(quad, self.root / "not_planar.apdl", "ansys_structural", planar=True)
 
     def test_structural_components_share_a_unique_namespace(self):
-        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[0,1,0]], [("triangle", [[0,1,2]])],
+        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[1,1,0],[0,1,0]], [("quad", [[0,1,2,3]])],
                                 cell_sets={"N_EDGE": [self.np.array([0])]}, point_sets={"EDGE": self.np.array([0,1])})
         _, verification, _ = _write_apdl_structural(self.root / "components.apdl", mesh, planar=True)
         names = [item["component"] for item in verification["component_name_map"]]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(names, ["N_EDGE", "N_EDGE_2"])
+
+    def test_all_exports_reject_non_quad_hex_cells_without_replacing_target(self):
+        from atelier.formats import FORMATS
+        fixtures = {"triangle": (3, 2), "triangle6": (6, 2), "tetra": (4, 3),
+                    "tetra10": (10, 3), "wedge": (6, 3), "pyramid": (5, 3)}
+        for kind, (nodes, dimension) in fixtures.items():
+            source = self.source(kind, nodes, dimension)
+            for format_name, definition in FORMATS.items():
+                with self.subTest(kind=kind, format=format_name):
+                    target = self.root / ("forbidden" + definition["extension"])
+                    target.write_bytes(b"previous valid export")
+                    with self.assertRaisesRegex(ValueError, "quad_hex_only.*" + kind):
+                        convert_mesh(source, target, format_name)
+                    self.assertEqual(target.read_bytes(), b"previous valid export")
+
+    def test_hex_volume_with_triangle_boundary_cannot_bypass_policy(self):
+        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[1,1,0],[0,1,0],
+                                [0,0,1],[1,0,1],[1,1,1],[0,1,1]],
+                               [("hexahedron", [[0,1,2,3,4,5,6,7]]), ("triangle", [[0,1,2]])],
+                               cell_data={"gmsh:physical": [self.np.array([1]), self.np.array([2])],
+                                          "gmsh:geometrical": [self.np.array([1]), self.np.array([2])]},
+                               field_data={"DOMAIN": self.np.array([1,3]), "BOUNDARY": self.np.array([2,2])})
+        source = self.root / "mixed_boundary.msh"
+        self.meshio.write(source, mesh, file_format="gmsh22", binary=False)
+        with self.assertRaisesRegex(ValueError, "quad_hex_only.*triangle"):
+            convert_mesh(source, self.root / "mixed.inp", "inp")
+
+    def test_repeated_nodes_cannot_disguise_a_tetrahedron_as_a_hexahedron(self):
+        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[0,1,0],[0,0,1]],
+                               [("hexahedron", [[0,1,2,3,3,3,3,3]])],
+                               cell_data={"gmsh:physical": [self.np.array([1])],
+                                          "gmsh:geometrical": [self.np.array([1])]},
+                               field_data={"DOMAIN": self.np.array([1,3])})
+        source = self.root / "disguised_tetra.msh"
+        self.meshio.write(source, mesh, file_format="gmsh22", binary=False)
+        with self.assertRaisesRegex(ValueError, "nœuds répétés"):
+            convert_mesh(source, self.root / "disguised.key", "lsdyna")
 
 
 if __name__ == "__main__":

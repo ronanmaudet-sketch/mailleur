@@ -14,16 +14,23 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("share_model", ROOT / "scripts/share_model.py")
 sharing = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(sharing)
-MODELS = {
+LEGACY_MODELS = {
     "historique": ROOT / "verification/native_release/runs/native/07bab630e29344ddbfb69ea30c947b7d/guide.json",
     "experience": ROOT / "verification/continuous_learning/continuous_runs/20261104T091837738488/experience/model.json",
     "corpus": ROOT / "verification/corpus/pilot/20261104T091842739497/models/current.json",
 }
+MODELS = {kind: ROOT / "verification/quad_hex_20261118/models" / (kind + ".json")
+          for kind in LEGACY_MODELS}
 
 
 class ShareModelTests(unittest.TestCase):
     def model(self, kind):
         return json.loads(MODELS[kind].read_text(encoding="utf-8"))
+
+    def test_legacy_models_cannot_be_shared_as_new_quad_hex_guides(self):
+        for kind, path in LEGACY_MODELS.items():
+            with self.subTest(kind=kind), self.assertRaisesRegex(ValueError, "(?i)(ancien|politique)"):
+                sharing.validate_model(kind, json.loads(path.read_text(encoding="utf-8")))
 
     def test_three_shipped_models_export_with_checksums_and_without_sibling_files(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -33,7 +40,7 @@ class ShareModelTests(unittest.TestCase):
             for kind, model in MODELS.items():
                 output = root / (kind + ".zip")
                 result = sharing.share_model(kind, model, output)
-                self.assertFalse(result["deploy_enabled"])
+                self.assertEqual(result["deploy_enabled"], self.model(kind)["deploy_enabled"])
                 with zipfile.ZipFile(output) as archive:
                     self.assertEqual(set(archive.namelist()), {"model.json", "manifest.json", "README.md"})
                     manifest = json.loads(archive.read("manifest.json"))

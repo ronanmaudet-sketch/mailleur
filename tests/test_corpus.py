@@ -116,6 +116,7 @@ class CorpusNativeIntegration(unittest.TestCase):
         for start in range(0, 96, 24):
             for row in self.preview(start=start, limit=24):
                 family, split = row["family"], row["split"]
+                self.assertEqual(row["project"]["mesh"]["element_policy"], "quad_hex_only")
                 self.assertIn(split, ("train", "validation", "test"))
                 self.assertEqual(families.setdefault(family, split), split)
                 observed_splits.add(split)
@@ -181,7 +182,7 @@ class CorpusNativeIntegration(unittest.TestCase):
             self.assertEqual(action["target"], 0)
             self.assertEqual(action["failure_kind"], "invalid_geometry")
 
-    def test_legacy_observations_are_reencoded_when_geometry_information_is_available(self):
+    def test_legacy_observations_are_preserved_but_excluded_from_strict_training(self):
         from tests.test_continuous import plate
         project = plate()
         first = self.session.learn(project, max_trials=1, epochs=3)
@@ -191,6 +192,9 @@ class CorpusNativeIntegration(unittest.TestCase):
                            if row["context_id"] == first["report"]["experience"]["context_id"])
         observation = old_context["observations"][0]
         observation["features"] = observation["features"][:16]
+        observation.pop("element_policy", None)
+        observation["recipe"]["mesh"].pop("element_policy", None)
+        observation["feature_schema"] = "atelier.geometry_action_features.v2"
         observation.pop("legacy_features", None)
         for entity in old_context.get("last_geometry_report", {}).get("entity_catalog", []):
             entity.pop("boundaries", None)
@@ -200,12 +204,13 @@ class CorpusNativeIntegration(unittest.TestCase):
         changed["geometry"]["height"] = 12
         second = self.session.learn(changed, max_trials=1, epochs=3)
         migrated = second["report"]["experience"]["representation_migration"]
-        self.assertGreaterEqual(migrated["legacy_examples_reencoded"], 1)
+        self.assertEqual(migrated["legacy_examples_reencoded"], 0)
+        self.assertGreaterEqual(migrated["legacy_examples_excluded_from_new_training"], 1)
         updated = json.loads(memory_path.read_text(encoding="utf-8"))
         previous = next(row for row in updated["contexts"] if row["context_id"] == old_context["context_id"])
         row = previous["observations"][0]
-        self.assertEqual(len(row["features"]), 128)
-        self.assertEqual(len(row["legacy_features"]), 16)
+        self.assertEqual(len(row["features"]), 16)
+        self.assertNotIn("element_policy", row)
 
 
 class CorpusStreamingIntegration(unittest.TestCase):
@@ -226,7 +231,9 @@ class CorpusStreamingIntegration(unittest.TestCase):
                 record = {"schema": "atelier.corpus.case.v1", "index": index,
                           "case_id": f"fixture-{index}", "geometry_id": f"geometry-{index}",
                           "family": "fixture-" + split, "split": split,
-                          "feature_schema": "test.corpus.two_inputs.v1",
+                          "feature_schema": "atelier.synthetic_training_benchmark.v1",
+                          "dataset_kind": "synthetic_network_benchmark",
+                          "element_policy": "not_applicable_no_mesh",
                           "actions": [{"strategy_id": name, "features": features, "target": target,
                                        "success": True, "accepted": True}
                                       for name, features, target in zip(

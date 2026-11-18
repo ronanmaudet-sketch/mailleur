@@ -10,18 +10,19 @@ import unittest
 from atelier.formats import convert_mesh, export_bundle
 
 
-TRIANGLE = """$MeshFormat
+QUAD = """$MeshFormat
 2.2 0 8
 $EndMeshFormat
 $Nodes
-3
+4
 1 0 0 0
 2 1 0 0
-3 0 1 0
+3 1 1 0
+4 0 1 0
 $EndNodes
 $Elements
 1
-1 2 2 1 1 1 2 3
+1 3 2 1 1 1 2 3 4
 $EndElements
 """
 
@@ -33,7 +34,7 @@ class QualityExportGuards(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.source = self.root / "source" / "mesh.msh"
         self.source.parent.mkdir()
-        self.source.write_text(TRIANGLE, encoding="ascii")
+        self.source.write_text(QUAD, encoding="ascii")
         self.report = self.source.parent / "report.json"
         self.target = self.root / "output" / "converted.msh"
 
@@ -88,6 +89,25 @@ class QualityExportGuards(unittest.TestCase):
         self.target.parent.mkdir()
         (self.target.parent / "report.json").write_text("malformed destination report")
         self.assertEqual(convert_mesh(self.source, self.target, "msh")["status"], "ok")
+
+    @unittest.skipUnless(importlib.util.find_spec("meshio"), "meshio absent")
+    def test_legacy_triangle_is_readable_but_cannot_be_exported_even_with_strict_report(self):
+        from atelier.formats import _read
+        triangle = QUAD.replace("1 3 2 1 1 1 2 3 4", "1 2 2 1 1 1 2 3")
+        self.source.write_text(triangle, encoding="ascii")
+        self.report.write_text(json.dumps({"quality": {"accepted": True},
+                                           "element_policy": "quad_hex_only"}), encoding="utf-8")
+        mesh, _ = _read(self.source)
+        self.assertEqual(mesh.cells[0].type, "triangle")
+        self.target.parent.mkdir()
+        self.target.write_bytes(b"previous quad export")
+        with self.assertRaisesRegex(ValueError, "quad_hex_only.*triangle"):
+            convert_mesh(self.source, self.target, "msh")
+        self.assertEqual(self.target.read_bytes(), b"previous quad export")
+        destination = self.root / "forbidden_bundle"
+        with self.assertRaisesRegex(ValueError, "quad_hex_only.*triangle"):
+            export_bundle(self.source, destination, formats=["msh", "inp"])
+        self.assertFalse(destination.exists())
 
 
 if __name__ == "__main__":

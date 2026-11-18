@@ -242,6 +242,8 @@ class AtelierWindow(QMainWindow):
         self.generate_button = self._ribbon_button("▶  Générer le maillage", self.generate_mesh, primary=True)
         row.addWidget(self.generate_button)
         self.remesh_button = self._ribbon_button("Remailler la sélection", self.remesh_selected)
+        self.remesh_button.setToolTip("Le maillage strict quadrilatères/hexaèdres exige actuellement de régénérer toute la pièce pour préserver la conformité.")
+        self.remesh_button.setEnabled(False)
         row.addWidget(self.remesh_button)
         self.learn_ribbon_button = self._ribbon_button("Apprendre cette pièce", self.learn_current_piece)
         row.addWidget(self.learn_ribbon_button)
@@ -399,8 +401,9 @@ class AtelierWindow(QMainWindow):
         for label, value in (("Automatique", "automatic"), ("Delaunay", "delaunay"), ("Frontal", "frontal")):
             self.algorithm.addItem(label, value)
         form.addRow("Algorithme", self.algorithm)
-        self.recombine = QCheckBox("Recombiner en quadrilatères")
-        form.addRow(self.recombine)
+        self.element_family = QLabel("Quadrilatères uniquement")
+        self.element_family.setObjectName("elementFamily")
+        form.addRow("Forme des éléments", self.element_family)
         self.calculation_threads = QSpinBox()
         self.calculation_threads.setRange(1, 32)
         self.calculation_threads.setValue(1)
@@ -772,8 +775,7 @@ class AtelierWindow(QMainWindow):
 
     def mode_changed(self):
         volume = self.mode.currentData() == "volume"
-        self.recombine.setEnabled(not volume)
-        if volume: self.recombine.setChecked(False)
+        self.element_family.setText("Hexaèdres uniquement" if volume else "Quadrilatères uniquement")
         if volume and self.repair_enabled.isChecked(): self.make_solids.setChecked(True)
         self.update_geometry_visibility()
 
@@ -821,7 +823,6 @@ class AtelierWindow(QMainWindow):
         self.min_size.setValue(float(mesh.get("min_size", .1)))
         self.order.setCurrentIndex(max(0, self.order.findData(mesh.get("order", 1))))
         self.algorithm.setCurrentIndex(max(0, self.algorithm.findData(mesh.get("algorithm", "automatic"))))
-        self.recombine.setChecked(bool(mesh.get("recombine", False)))
         self.calculation_threads.setValue(mesh.get("threads", 1))
         self.max_elements.setValue(mesh.get("max_elements", 200000))
         self.repair_enabled.setChecked(bool(repair.get("enabled", False)))
@@ -886,7 +887,8 @@ class AtelierWindow(QMainWindow):
         project["units"] = {"input": self.input_units.currentData(), "internal": "m"}
         project["mesh"] = {"size": self.mesh_size.value(), "min_size": self.min_size.value(), "order": self.order.currentData(),
                            "algorithm": self.algorithm.currentData(), "threads": self.calculation_threads.value(),
-                           "max_elements": self.max_elements.value(), "recombine": self.recombine.isChecked()}
+                           "max_elements": self.max_elements.value(), "recombine": False,
+                           "element_policy": "quad_hex_only"}
         project["repair"] = {"enabled": self.repair_enabled.isChecked(), "tolerance": self.repair_tolerance.value(),
                              "sew": True, "small_edges": True, "small_faces": False, "make_solids": self.make_solids.isChecked()}
         dimension = 3 if project["mode"] == "volume" else 2
@@ -1364,7 +1366,7 @@ class AtelierWindow(QMainWindow):
         self.properties.setEnabled(True)
         self.pages.setEnabled(True)
         self.generate_button.setEnabled(True)
-        self.remesh_button.setEnabled(True)
+        self.remesh_button.setEnabled(False)
         self.train_button.setEnabled(True)
         self.learn_button.setEnabled(True)
         self.learn_ribbon_button.setEnabled(True)

@@ -26,12 +26,12 @@ if str(ROOT) not in sys.path:
 
 from atelier import __version__
 from atelier.native import NativeSession, core_path
-from atelier.formats import _read
+from atelier.formats import _check_element_policy, _read
 from mailleur.io import write_json
 
 FLOAT = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[EeDd][-+]?\d+)?"
-CAST_TYPES = {"line": "SEG2", "line3": "SEG3", "triangle": "TRI3",
-              "triangle6": "TRI6", "tetra": "TET4", "tetra10": "TE10"}
+CAST_TYPES = {"line": "SEG2", "line3": "SEG3", "quad": "QUA4", "quad8": "QUA8",
+              "hexahedron": "CUB8", "hexahedron20": "CU20"}
 REFERENCE_URLS = {
     "import_unv": "https://www-cast3m.cea.fr/index.php?notice=LIRE&page=notices_classees",
     "node_count": "https://www-cast3m.cea.fr/index.php?notice=NBNO&page=notices_classees",
@@ -60,13 +60,13 @@ def gibi_real(value):
     return result if any(character in result for character in ".eE") else result + "."
 
 
-def execute_castem(executable, directory, script, timeout):
+def execute_castem(executable, directory, script, timeout, memory_mib=1024):
     script_path = directory / "validation.dgibi"
     script_path.write_text(script, encoding="ascii")
     log_path = directory / "cast3m.log"
     environment = os.environ.copy()
     environment.update(SCRATCHDIR=str(directory))
-    command = [str(executable), "-MEM", "512Mo", "-NCPU", "1", "-NOSWAP", script_path.name]
+    command = [str(executable), "-MEM", f"{memory_mib}Mo", "-NCPU", "1", "-NOSWAP", script_path.name]
     started = time.perf_counter()
     process = None
     try:
@@ -86,6 +86,7 @@ def execute_castem(executable, directory, script, timeout):
     levels = [int(value) for value in re.findall(r"Niveau d.erreur:\s*(\d+)", text)]
     success = code == 0 and levels and levels[-1] == 0 and "MAILLEUR_VALIDATION_OK" in text
     return {"returncode": code, "error_levels": levels, "elapsed_seconds": time.perf_counter() - started,
+            "memory_mib": memory_mib,
             "success": bool(success), "log": log_path.name, "markers": numeric_markers(text),
             "cast3m_version": next(iter(re.findall(r"VERSION ANNUELLE\s+([\d.]+)", text)), None),
             "warnings": [line.strip() for line in text.splitlines() if "IEEE_" in line or "WARNING" in line.upper()]}
@@ -94,6 +95,7 @@ def execute_castem(executable, directory, script, timeout):
 def expected_mesh(mesh_path):
     import numpy as np
     mesh, _ = _read(mesh_path)
+    _check_element_policy(mesh)
     groups = {}
     for name, per_block in mesh.cell_sets.items():
         nodes = [cell.data[indices].ravel() for cell, indices in zip(mesh.cells, per_block) if len(indices)]
@@ -216,7 +218,7 @@ def check_result(run, expected, *, dimension, scale, young, traction, poisson):
                            "plane_case": "contraintes planes, profondeur unitaire" if dimension == 2 else None}}
 
 
-def run_case(output, executable, dimension, order, unit, timeout):
+def run_case(output, executable, dimension, order, unit, timeout, memory_mib=1024):
     name = f"{'plan' if dimension == 2 else 'volume'}_p{order}_{unit}"
     directory = output / name
     directory.mkdir(parents=True, exist_ok=True)
@@ -228,7 +230,8 @@ def run_case(output, executable, dimension, order, unit, timeout):
                "geometry": {"kind": "plate", "width": 2., "height": 1.} if dimension == 2 else
                            {"kind": "box", "width": 2., "height": 1., "depth": 1.},
                "units": {"input": "mm", "internal": "m"},
-               "mesh": {"size": .4, "min_size": .1, "order": order, "threads": 1, "max_elements": 20000}}
+               "mesh": {"size": .4, "min_size": .1, "order": order, "threads": 1,
+                        "max_elements": 20000, "element_policy": "quad_hex_only"}}
     write_json(directory / "project.json", project)
     session = NativeSession(directory / "atelier", timeout=timeout)
     native = session.generate(project)
@@ -241,11 +244,12 @@ def run_case(output, executable, dimension, order, unit, timeout):
     identities = {name: digest(exports / name) for name in export["files"]}
     script = validation_script(bridge, expected, dimension=dimension, young=young,
                                traction=traction, poisson=poisson)
-    castem = execute_castem(executable, exports, script, timeout)
+    castem = execute_castem(executable, exports, script, timeout, memory_mib)
     validation = check_result(castem, expected, dimension=dimension, scale=scale, young=young,
                               traction=traction, poisson=poisson)
     unchanged = all(digest(exports / name) == value for name, value in identities.items())
     result = {"case": name, "dimension": dimension, "order": order, "export_unit": unit,
+              "element_policy": "quad_hex_only",
               "export_files_unchanged_by_solver": unchanged, "source_directory": str(source_directory.relative_to(directory)),
               "expected": expected, "cast3m": castem, "validation": validation,
               "native_quality": native["report"]["quality"],
@@ -257,12 +261,16 @@ def run_case(output, executable, dimension, order, unit, timeout):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--castem", type=Path, default=Path("/Applications/Cast3M/bin/castem26"))
-    parser.add_argument("--output", type=Path, default=ROOT / "verification" / "extended_20261107" / "cast3m")
+    parser.add_argument("--output", type=Path, default=ROOT / "verification" / "quad_hex_20261118" / "cast3m")
     parser.add_argument("--timeout", type=float, default=60.)
+    parser.add_argument("--memory-mib", type=int, default=1024,
+                        help="budget mémoire Cast3M en Mio, défaut 1024 pour les hexaèdres quadratiques")
     args = parser.parse_args(argv)
     executable, output = args.castem.expanduser().resolve(), args.output.expanduser().resolve()
     if not executable.is_file():
         parser.error("Cast3M doit être installé ; utiliser --castem pour son lanceur")
+    if args.memory_mib < 1:
+        parser.error("--memory-mib doit être un entier positif")
     output.mkdir(parents=True, exist_ok=True)
     kernel = executable.parent / "bin_Cast3M_Darwin_EDURE_26"
     summary = {"schema": "atelier.validation.cast3m.v1", "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -274,18 +282,19 @@ def main(argv=None):
                "cast3m_binary_format": subprocess.run(["file", str(kernel)], capture_output=True, text=True).stdout.strip() if kernel.exists() else None,
                "native_kernel_sha256": digest(core_path()),
                "native_kernel_version": subprocess.run([str(core_path()), "--version"], check=True, capture_output=True, text=True).stdout.strip(),
+               "cast3m_memory_mib": args.memory_mib,
                "references": REFERENCE_URLS, "cases": []}
     for dimension, order, unit in [(2, 1, "mm"), (2, 2, "mm"), (3, 1, "mm"), (3, 2, "mm"), (3, 2, "m")]:
         name = f"{'plan' if dimension == 2 else 'volume'}_p{order}_{unit}"
         try:
-            result = run_case(output, executable, dimension, order, unit, args.timeout)
+            result = run_case(output, executable, dimension, order, unit, args.timeout, args.memory_mib)
         except Exception as error:
             result = {"case": name, "passed": False, "error": str(error), "error_type": type(error).__name__}
         summary["cases"].append(result)
         write_json(output / "summary.json", summary)
         print(json.dumps({"case": name, "passed": result["passed"], "error": result.get("error")}, ensure_ascii=False), flush=True)
     summary["passed"] = all(case["passed"] for case in summary["cases"])
-    summary["scope"] = "Exécution réelle de Cast3M installé, imports UNV générés et cinq résolutions élastiques analytiques ; pas de certification de toutes versions ni de modèles industriels."
+    summary["scope"] = "Exécution réelle de Cast3M installé, imports UNV quadrilatères/hexaèdres d'ordre 1/2 et cinq résolutions élastiques analytiques ; pas de certification de toutes versions ni de modèles industriels."
     write_json(output / "summary.json", summary)
     return 0 if summary["passed"] else 1
 

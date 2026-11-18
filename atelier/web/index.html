@@ -80,7 +80,7 @@
           <div class="section-title separated">Construction</div>
           <label class="field"><span>Algorithme</span><select id="mesh-algorithm"><option value="automatic">Automatique</option><option value="delaunay">Delaunay</option><option value="frontal">Frontal</option></select></label>
           <label class="field"><span>Ordre des éléments</span><select id="mesh-order"><option value="1">Linéaire · ordre 1</option><option value="2">Quadratique · ordre 2</option></select></label>
-          <label class="checkbox-field"><input id="mesh-recombine" type="checkbox"><span>Recombiner les triangles en quadrilatères<small>Selon la géométrie ; le résultat peut être mixte.</small></span></label>
+          <p class="field-hint" id="mesh-element-policy">Quadrilatères uniquement. Un résultat d’une autre forme est refusé.</p>
           <div class="section-title separated">Ressources</div><div class="field-grid"><label class="field"><span>Fils de calcul</span><input id="mesh-threads" type="number" min="1" max="32" step="1" value="1"></label><label class="field"><span>Limite d’éléments</span><input id="mesh-max-elements" type="number" min="10" max="2000000" step="1000" value="200000"></label></div>
           <label class="checkbox-field advisor-use"><input id="use-advisor" type="checkbox"><span>Utiliser le guide appris<small>Propose un algorithme à partir d’essais comparés.</small></span></label>
         </section>

@@ -1,5 +1,11 @@
 # Utiliser l’API d’Atelier Mailleur
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 Ce guide décrit le code présent dans ce dépôt, version rc6, avec les contrats de base issus de la rc5. Trois moyens d’intégration existent : le serveur HTTP local, la classe Python `NativeSession`, et le programme Rust `mailleur-core --request`. Ils utilisent le même moteur. L’interface Qt utilise surtout `NativeSession` ; le serveur HTTP fournit aussi une petite interface web.
 
 La rc6 ajoute **`GET /api/formats`**, qui renvoie `imports` et `exports`.

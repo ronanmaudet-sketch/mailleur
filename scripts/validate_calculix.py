@@ -29,7 +29,7 @@ def digest(path):
 def parse_dat(path):
     sections = {"displacements": [], "stresses": [], "forces": []}
     current = None
-    for line in path.read_text(errors="replace").splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         text = line.strip().lower()
         if text.startswith("displacements ("):
             current = "displacements"
@@ -51,7 +51,7 @@ def project(planar, order):
         "geometry": {"kind": "plate", "width": 10, "height": 5, "holes": []} if planar else
                     {"kind": "box", "width": 10, "height": 5, "depth": 3},
         "mesh": {"size": 1.5, "min_size": .3, "order": order, "algorithm": "automatic",
-                 "threads": 1, "max_elements": 20000, "recombine": False},
+                 "threads": 1, "max_elements": 20000, "element_policy": "quad_hex_only"},
         "repair": {"enabled": False},
         "quality_policy": {"minimum_quality": .01, "poor_threshold": .2, "strict": True},
     }
@@ -73,13 +73,15 @@ def run_case(solver, output, planar, order, units):
     finally:
         session.cancel()
     mesh_path = Path(exported["file"])
-    # Inspect the actual exported records: meshio 5.3.5 cannot read CPS6 even
-    # though CalculiX supports it. The real solver remains the external reader.
-    nodes, cell_counts, section = [], {}, None
-    for line in mesh_path.read_text().splitlines():
+    # Inspect the actual exported records, including C3D20 continuation lines.
+    # The actual solver, rather than a permissive parser, reads the final deck.
+    nodes, cell_counts, section, continuation = [], {}, None, False
+    for line in mesh_path.read_text(encoding="ascii").splitlines():
         if line.startswith("**"):
             continue
         if line.startswith("*"):
+            if continuation:
+                raise AssertionError("Truncated element connectivity in INP export")
             section = "nodes" if line.upper() == "*NODE" else None
             if line.upper().startswith("*ELEMENT"):
                 section = re.search(r"TYPE\s*=\s*(\w+)", line, re.I).group(1)
@@ -91,7 +93,12 @@ def run_case(solver, output, planar, order, units):
                 raise AssertionError("Invalid exported INP node numbering or numeric field width")
             nodes.append([float(x) for x in fields[1:4]])
         elif section:
-            cell_counts[section] += 1
+            if not continuation:
+                cell_counts[section] += 1
+            continuation = line.rstrip().endswith(",")
+    expected_type = ("CPS4" if order == 1 else "CPS8") if planar else ("C3D8" if order == 1 else "C3D20")
+    if continuation or set(cell_counts) != {expected_type}:
+        raise AssertionError(f"Non-conforming quad/hexa export: {cell_counts}")
     points = np.asarray(nodes)
     lengths = points.max(axis=0) - points.min(axis=0)
     factor = 1.0 if units == "mm" else .001
@@ -102,7 +109,7 @@ def run_case(solver, output, planar, order, units):
     thickness = factor
     ne = sum(cell_counts.values())
     nn = len(points)
-    lines = [mesh_path.read_text(), "*NSET,NSET=VERIFY_ALL_NODES,GENERATE", f"1,{nn},1",
+    lines = [mesh_path.read_text(encoding="ascii"), "*NSET,NSET=VERIFY_ALL_NODES,GENERATE", f"1,{nn},1",
              "*ELSET,ELSET=VERIFY_ALL_ELEMENTS,GENERATE", f"1,{ne},1",
              "*MATERIAL,NAME=VERIFY_STEEL", "*ELASTIC", f"{_inp_real(E)},{nu}",
              "*SOLID SECTION,ELSET=VERIFY_ALL_ELEMENTS,MATERIAL=VERIFY_STEEL", _inp_real(thickness) if planar else "",
@@ -130,7 +137,7 @@ def run_case(solver, output, planar, order, units):
     run = subprocess.run([str(solver), "-i", "elastic"], cwd=case, env=environment,
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=90)
     solver_seconds = time.monotonic() - t0
-    (case / "solver.log").write_text(run.stdout)
+    (case / "solver.log").write_text(run.stdout, encoding="utf-8")
     if run.returncode or "Job finished" not in run.stdout or "*ERROR" in run.stdout:
         raise AssertionError(f"Solver failed; inspect {case / 'solver.log'}")
     data = parse_dat(case / "elastic.dat")
@@ -159,6 +166,7 @@ def run_case(solver, output, planar, order, units):
     if max(checks.values()) > tolerance:
         raise AssertionError(f"Elastic solution differs from analytical uniaxial tension: {checks}")
     return {"case": case.name, "status": "passed", "units": units, "order": order,
+            "element_policy": "quad_hex_only",
             "nodes": nn, "elements": ne, "cell_counts": cell_counts,
             "lengths": lengths.tolist(), "material_E": E, "poisson": nu, "strain_x": strain,
             "expected_stress_x": expected_sx, "expected_right_reaction_N": reaction_expected,
@@ -172,7 +180,7 @@ def run_case(solver, output, planar, order, units):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--solver", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=ROOT / "verification/extended_20261107/calculix")
+    parser.add_argument("--output", type=Path, default=ROOT / "verification/quad_hex_20261118/calculix")
     args = parser.parse_args()
     solver = args.solver.resolve()
     output = args.output.resolve()

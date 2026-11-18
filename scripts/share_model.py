@@ -16,7 +16,7 @@ import zipfile
 
 
 MAX_BYTES = 8 * 1024 * 1024
-FEATURE_SCHEMA = "atelier.geometry_action_features.v2"
+FEATURE_SCHEMA = "atelier.geometry_action_features.v3"
 FEATURES = ["mode", "thin_extent", "middle_extent", "relative_size", "hole_fraction",
             "curved", "relative_corner_size", "boundary_complexity"]
 ALGORITHMS = ["automatic", "delaunay", "frontal"]
@@ -86,6 +86,7 @@ def validate_model(kind, model):
     require(type(model) is dict, "Le modèle doit être un objet JSON")
     finite_tree(model)
     require(type(model.get("deploy_enabled")) is bool, "Décision d'activation absente")
+    require(model.get("element_policy") == "quad_hex_only", "Modèle ancien ou sans preuve de politique quadrilatères/hexaèdres : réentraîner sur les nouveaux maillages")
     enabled = model["deploy_enabled"]
     if kind == "historique":
         require(model.get("schema") == "atelier.advisor.v1" and type(model.get("schema_version")) is int
@@ -101,8 +102,9 @@ def validate_model(kind, model):
         require(model.get("baseline_algorithm") in ALGORITHMS, "Algorithme de référence absent")
         require(type(model.get("baseline_successful")) is bool, "État de référence absent")
         signature = model.get("mesh_signature")
-        require(type(signature) is dict and set(signature) == {"order", "threads", "min_size", "recombine", "repair_enabled"},
+        require(type(signature) is dict and set(signature) == {"order", "threads", "min_size", "recombine", "repair_enabled", "element_policy"},
                 "Signature de maillage incompatible")
+        require(signature["element_policy"] == "quad_hex_only", "Politique de la signature incompatible")
         integer(signature["order"], 1, 2)
         integer(signature["threads"], 1, 64)
         require(number(signature["min_size"]) > 0, "Taille minimale du guide invalide")
@@ -132,7 +134,7 @@ def validate_model(kind, model):
         return {"inputs": 8, "hidden": width, "outputs": 3, "parameters": 12 * width + 3}
 
     require(model.get("feature_schema") == FEATURE_SCHEMA and type(model.get("input_count")) is int
-            and model["input_count"] == 128, "Le guide demande les 128 caractéristiques de production v2")
+            and model["input_count"] == 128, "Le guide demande les 128 caractéristiques de production v3")
     width = integer(model.get("hidden_count"), 1, 128)
     network = model.get("network")
     require(type(network) is dict, "Poids du réseau absents")

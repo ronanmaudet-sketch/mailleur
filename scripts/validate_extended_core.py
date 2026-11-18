@@ -459,7 +459,7 @@ class Campaign:
         directory=self.output/"synthetic_streaming";directory.mkdir()
         fixture=directory/"synthetic.jsonl"
         started=time.monotonic()
-        with fixture.open("w") as out:
+        with fixture.open("w",encoding="utf-8") as out:
             for i in range(count):
                 split="validation" if i%5==1 else "test" if i%5==2 else "train"
                 actions=[]
@@ -468,12 +468,14 @@ class Campaign:
                     actions.append({"strategy_id":"a"+str(action),"features":features,
                                     "target":0.9 if action==i%2 else 0.1,"accepted":True,"success":True})
                 out.write(json.dumps({"index":i,"case_id":str(i),"geometry_id":str(i),"family":split,"split":split,
-                                      "feature_schema":"atelier.geometry_action_features.v2","actions":actions},separators=(",",":"))+"\n")
+                                      "feature_schema":"atelier.synthetic_training_benchmark.v1","dataset_kind":"synthetic_network_benchmark","element_policy":"not_applicable_no_mesh","actions":actions},separators=(",",":"))+"\n")
         result={"synthetic":True,"real_meshes_generated":0,"records":count,"strategies_per_record":2,
+                "dataset_kind":"synthetic_network_benchmark","element_policy":"not_applicable_no_mesh",
+                "deploy_enabled":False,"model_exported":False,"meshing_speedup_claimed":False,
                 "features":128,"fixture_bytes":fixture.stat().st_size,"fixture_sha256":digest(fixture),
                 "fixture_write_seconds":time.monotonic()-started,"fixture_retained":False}
         self.result["sections"]["streaming"]=result
-        settings={"epochs":2,"batch_size":128,"hidden_count":32,"max_records":0,"max_seconds":120,
+        settings={"epochs":2,"batch_size":min(128,max(1,count//4)),"hidden_count":32,"max_records":0,"max_seconds":120,
                   "seed":42,"warm_start":False,"resume":True,"checkpoint_batches":16}
         corpora=[]
         try:
@@ -481,7 +483,7 @@ class Campaign:
                 corpus=directory/name;(corpus/"shards").mkdir(parents=True)
                 shard=corpus/"shards/cases-000000.jsonl";os.link(fixture,shard);corpora.append(corpus)
             paused,measure=self.operation("stream-paused",{"operation":"corpus_train","corpus_dir":str(corpora[0]),
-                                         "training":dict(settings,max_batches=7)},timeout=180,rss=True)
+                                         "training":dict(settings,max_batches=1)},timeout=180,rss=True)
             result["paused"]={**measure,"report":paused}
             resumed,measure=self.operation("stream-resume",{"operation":"corpus_train","corpus_dir":str(corpora[0]),
                                           "training":settings},timeout=180,rss=True)
@@ -489,7 +491,11 @@ class Campaign:
             continuous,measure=self.operation("stream-continuous",{"operation":"corpus_train","corpus_dir":str(corpora[1]),
                                              "training":settings},timeout=180,rss=True)
             result["continuous"]={**measure,"report":continuous}
-            models=[json.loads((p/"models/current.json").read_text()) for p in corpora]
+            models=[json.loads((p/"models/current.json").read_text(encoding="utf-8")) for p in corpora]
+            if not all(model.get("deploy_enabled") is False
+                       and model.get("element_policy")=="not_applicable_no_mesh"
+                       and model.get("dataset_kind")=="synthetic_network_benchmark" for model in models):
+                raise AssertionError("Un benchmark synthétique ne doit jamais produire un guide déployable")
             keys=("network","dataset_fingerprint","baseline_strategy","deploy_enabled","validation")
             result["exact_resumed_weights_validation_and_decision"]=all(models[0][key]==models[1][key] for key in keys)
             result["exact_final_partition_metrics"]=all(resumed[key]==continuous[key] for key in ("training","validation","test"))

@@ -1,4 +1,4 @@
-# Atelier Mailleur — 1.0.0rc8
+# Atelier Mailleur — 1.0.0rc9
 
 Mailleur est un outil libre qui transforme une géométrie CAO en maillage pour
 le calcul par éléments finis. Il permet de contrôler la qualité du maillage et
@@ -16,10 +16,25 @@ facilité ou ralenti l’essai.
 
 [![Tests multiplateformes](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain)
 
-La rc8 corrige les erreurs relevées sous Windows. Les contrôles automatiques
+La rc9 impose des **quadrilatères en surface et des hexaèdres en volume**, y compris
+pour les nouveaux maillages d’apprentissage et les exports. Un résultat mixte ou
+non admissible est refusé. Le [guide quadrilatères/hexaèdres](docs/QUADRILATERES_HEXAEDRES.md)
+explique la construction, les contrôles, les données anciennes et les limites.
+
+La rc8 a corrigé les erreurs relevées sous Windows. Les contrôles automatiques
 couvrent macOS, Ubuntu et Windows avec Python 3.11 et 3.12. Les résultats de
 chaque version sont consultables dans [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain).
 Le [détail des corrections rc8](docs/CORRECTIONS_RC8.md) décrit les changements et les vérifications.
+
+## Vérifications rc9 — 18 novembre 2026
+
+Sur le Mac Apple Silicon de préparation : **143 tests Rust et 207 tests Python
+réussis, aucun échec ni test ignoré**, quatre vérifications de fichiers finaux
+(2D/3D, ordres 1/2), cinq calculs Cast3M et huit calculs CalculiX réussis.
+Les [preuves rc9](verification/quad_hex_20261118/README.md) donnent les tailles,
+comptages, temps de démonstration et nouveaux modèles. Les trois petits guides
+réentraînés restent désactivés, faute de gain de validation démontré. Le nouveau
+[pilote Cast3M](examples/cast3m_pilot/README.md) utilise des hexaèdres à 20 nœuds.
 
 ## Présentation à l'équipe Cast3M — 10 novembre 2026
 
@@ -34,7 +49,7 @@ Le démonstrateur a été réellement exécuté dans Cast3M 2026.0 : 43 comparai
 réussies sur une éprouvette élastique quadratique. Voir aussi les
 [preuves des cinq cas rc7](docs/cast3m/preuves/RAPPORT_CAST3M_RC7.md).
 
-La copie de publication conserve le code de calcul rc7. Le binaire Mac a été
+La préparation initiale du 10 novembre conservait le code de calcul rc7. Le binaire Mac a été
 reconstruit avec remappage des chemins de compilation ; les rapports publics
 ont été expurgés des chemins personnels. Les archives vérifiées du 7 novembre
 restent inchangées. [Provenance de cette préparation](docs/provenance/README.md).
@@ -279,9 +294,11 @@ près. Ce coût de reconstruction est indiqué dans le rapport ; il ne s'agit
 pas encore d'un noyau persistant gardant toute la session CAO en mémoire.
 L'historique est borné à 32 reprises successives.
 
-Le mode volume produit des tétraèdres. La recombinaison d'une surface peut
-produire des quadrilatères ou un mélange triangles/quadrilatères ; elle ne
-garantit pas un maillage tout-hexa de volumes arbitraires. Les contrôles de
+Les résultats de calcul acceptés sont exclusivement quadrilatéraux en surface
+et hexaédriques en volume, après subdivision native et contrôles stricts. Les
+hexaèdres ne sont pas nécessairement des cubes réguliers. Une géométrie ou une
+qualité non admissible provoque un refus ; le remaillage local est actuellement
+refusé pour préserver les cellules hors sélection. Les contrôles de
 qualité portent sur le fichier réellement calculé et pas seulement sur son
 aperçu.
 

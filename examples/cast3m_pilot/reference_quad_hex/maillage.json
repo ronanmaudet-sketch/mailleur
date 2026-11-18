@@ -1,0 +1,173 @@
+{
+  "schema": "mailleur.cast3m.example.mesh.v1",
+  "generated_at_utc": "2026-11-18T20:30:44.921237+00:00",
+  "versions": {
+    "mailleur": "1.0.0rc9",
+    "python": "3.12.16",
+    "gmsh": "4.15.2",
+    "native_kernel": "mailleur-core 1.0.0-rc.9",
+    "native_kernel_sha256": "537eb405731ed53efc43ff07a52a20004ba5e19d7aa9d8c176937fafca3ddfd2"
+  },
+  "units": {
+    "input": "mm",
+    "internal": "m",
+    "export": "mm"
+  },
+  "element_policy": "quad_hex_only",
+  "expected": {
+    "nodes": 24148,
+    "elements": 7150,
+    "cell_counts": {
+      "SEG3": 152,
+      "QUA8": 1902,
+      "CU20": 5096
+    },
+    "groups": {
+      "BOUNDARY": {
+        "elements": 1902,
+        "nodes": 5708
+      },
+      "DOMAIN": {
+        "elements": 5096,
+        "nodes": 24148
+      },
+      "FACE_001": {
+        "elements": 204,
+        "nodes": 653
+      },
+      "FACE_002": {
+        "elements": 210,
+        "nodes": 671
+      },
+      "FACE_003": {
+        "elements": 372,
+        "nodes": 1173
+      },
+      "FACE_004": {
+        "elements": 372,
+        "nodes": 1173
+      },
+      "FACE_005": {
+        "elements": 372,
+        "nodes": 1173
+      },
+      "FACE_006": {
+        "elements": 372,
+        "nodes": 1173
+      },
+      "GEOMETRY_1D": {
+        "elements": 152,
+        "nodes": 300
+      },
+      "GEOMETRY_2D": {
+        "elements": 1902,
+        "nodes": 5708
+      },
+      "PART_001": {
+        "elements": 5096,
+        "nodes": 24148
+      }
+    }
+  },
+  "quality": {
+    "accepted": true,
+    "below_0_1": 0,
+    "critical_bad_boundary_count": 0,
+    "critical_bad_count": 0,
+    "critical_bad_top_count": 0,
+    "critical_severity": 0.0,
+    "critical_zones": [],
+    "diagnostic_only": false,
+    "entities": [
+      {
+        "critical_bad_count": 0,
+        "dimension": 3,
+        "elements": 5096,
+        "mean": 0.547098162225308,
+        "minimum": 0.19514902994247793,
+        "poor_count": 3,
+        "tag": 1
+      }
+    ],
+    "evaluated_elements": 5096,
+    "invalid_elements": 0,
+    "mean": 0.547098162225308,
+    "metric": "minSICN",
+    "min_jacobian_determinant": 3.2161157874206077e-15,
+    "minimum": 0.19514902994247793,
+    "note": "Tous les éléments du domaine sont contrôlés ; métrique native minSICN échantillonnée, sans certification de précision mécanique",
+    "policy": {
+      "configured": false,
+      "max_poor_elements": null,
+      "max_poor_fraction": null,
+      "minimum_quality": 0.0,
+      "poor_threshold": 0.2,
+      "strict": true
+    },
+    "poor_count": 3,
+    "poor_element_tags": [
+      4581,
+      4579,
+      4580
+    ],
+    "poor_element_tags_truncated": false,
+    "poor_fraction": 0.0005886970172684458,
+    "poor_samples": [
+      {
+        "center": [
+          0.000742870000227137,
+          0.0008253830841448286,
+          0.00047093680557598583
+        ],
+        "critical": false,
+        "element_tag": 4581,
+        "entity_tag": 1,
+        "quality": 0.19514902994247793,
+        "source_dimension": 3,
+        "source_entity_tag": 1
+      },
+      {
+        "center": [
+          0.0007703220533501621,
+          0.0009154218626842006,
+          0.00047412973224488804
+        ],
+        "critical": false,
+        "element_tag": 4579,
+        "entity_tag": 1,
+        "quality": 0.1951490299424831,
+        "source_dimension": 3,
+        "source_entity_tag": 1
+      },
+      {
+        "center": [
+          0.0007301347654160852,
+          0.0009154218626842005,
+          0.0004954648261991377
+        ],
+        "critical": false,
+        "element_tag": 4580,
+        "entity_tag": 1,
+        "quality": 0.19715290088702647,
+        "source_dimension": 3,
+        "source_entity_tag": 1
+      }
+    ],
+    "poor_severity": 0.012549039228012537,
+    "poor_threshold": 0.2,
+    "protected_elements": 0,
+    "violations": []
+  },
+  "timing_seconds": {
+    "generation": 0.5137373329998809,
+    "export": 0.6029801249969751
+  },
+  "files_sha256": {
+    "project.json": "97401e0979142b2f6a1e7df070142e3bd516bbd09fdb33b8ded74fb3dd09b2bd",
+    "import_cast3m.dgibi": "8d4012fc93d43627ce24d91383a9ae86c0f1af23bf76926d8cccd58acb83f465",
+    "import_cast3m.unv": "339f91c5723be1d310c7b0d0d256bc85eff5706be9d95d942da103cd101ab050",
+    "import_cast3m.dgibi.units.json": "9c1e638e55d06686df49220f50a0ea0160e0baeadc02dc99fd14f1dff3a859ff",
+    "traction.dgibi": "da59dcbeba7196cc55dcec1556bdd513ee454b768d779a6c9ffbd4845e3334d4"
+  },
+  "cast3m_executed": false
+}

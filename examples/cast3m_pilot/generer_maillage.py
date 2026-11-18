@@ -21,7 +21,7 @@ import time
 HERE = Path(__file__).resolve().parent
 GROUPS = ["BOUNDARY", "DOMAIN", "FACE_001", "FACE_002", "FACE_003", "FACE_004",
           "FACE_005", "FACE_006", "GEOMETRY_1D", "GEOMETRY_2D", "PART_001"]
-CAST_TYPES = {"line3": "SEG3", "triangle6": "TRI6", "tetra10": "TE10"}
+CAST_TYPES = {"line3": "SEG3", "quad8": "QUA8", "hexahedron20": "CU20"}
 
 
 def sha256(path):
@@ -64,6 +64,7 @@ def main():
         parser.error("Choisir un dossier neuf ou vide pour conserver les résultats précédents")
     from atelier import __version__
     from atelier.native import NativeSession, core_path
+    from atelier.formats import _check_element_policy, _read
     project = json.loads((HERE / "project.json").read_text(encoding="utf-8"))
     target.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="mailleur-cast3m-") as scratch:
@@ -74,6 +75,7 @@ def main():
         if native["report"]["quality"]["accepted"] is not True:
             raise RuntimeError("Le maillage n'a pas été accepté")
         source = Path(native["directory"]) / "mesh.msh"
+        _check_element_policy(_read(source)[0])
         expected = expected_mesh(source)
         started = time.perf_counter()
         session.export(source.parent, target / "import_cast3m.dgibi", "cast3m", units="mm")
@@ -93,6 +95,7 @@ def main():
                                capture_output=True, text=True).stdout.strip(),
                            "native_kernel_sha256": sha256(core_path())},
               "units": {"input": "mm", "internal": "m", "export": "mm"},
+              "element_policy": "quad_hex_only",
               "expected": expected, "quality": native["report"]["quality"],
               "timing_seconds": {"generation": generation_seconds, "export": export_seconds},
               "files_sha256": {name: sha256(target / name) for name in names},

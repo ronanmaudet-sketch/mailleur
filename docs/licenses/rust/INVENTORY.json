@@ -4,7 +4,7 @@
   "target": "aarch64-apple-darwin",
   "rustc": "1.99.1",
   "source": "Existing Cargo.lock, local registry Cargo.toml and local toolchain notices; no download",
-  "cargo_lock_sha256": "2104b583820169b21ea69490279c07d843b78f577f68ad2844fd66dde71bd02b",
+  "cargo_lock_sha256": "b8cab710487d02f6baf41de920bca0fabcd83bf699b85807ef0542fe078b6664",
   "packages": [
     {
       "name": "block-buffer",
@@ -636,11 +636,12 @@
       "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0"
     }
   ],
-  "project_version": "1.0.0-rc.8",
+  "project_version": "1.0.0-rc.9",
   "serde_json_features": [
     "float_roundtrip"
   ],
   "cargo_lock_sha256_before_rc8": "bc3e7ba7275a4b7c0789e49dc78dfcb5a937afa1e9ad68dc027b23b86ef29dec",
-  "project_version_update": "2026-11-17 : mailleur-core 1.0.0-rc.8 ; versions et notices des dépendances identiques.",
-  "previous_project_version": "1.0.0-rc.7"
+  "project_version_update": "rc9 : politique quadrilatères/hexaèdres, dépendances inchangées",
+  "previous_project_version": "1.0.0-rc.8",
+  "cargo_lock_sha256_before_rc9": "2104b583820169b21ea69490279c07d843b78f577f68ad2844fd66dde71bd02b"
 }

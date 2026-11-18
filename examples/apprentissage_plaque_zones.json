@@ -29,7 +29,8 @@
     "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
-    "max_elements": 200000
+    "max_elements": 200000,
+    "element_policy": "quad_hex_only"
   },
   "repair": {
     "enabled": false,

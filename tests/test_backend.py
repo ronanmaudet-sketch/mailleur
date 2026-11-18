@@ -23,18 +23,20 @@ class ProjectValidation(unittest.TestCase):
         value = normalize_project(source)
         self.assertEqual(value["mode"], "planar")
         self.assertEqual(value["mesh"]["threads"], 1)
+        self.assertEqual(value["mesh"]["element_policy"], "quad_hex_only")
         self.assertNotIn("mesh", source)
 
     def test_invalid_controls(self):
         for mesh in ({"size": float("nan")}, {"size": 0}, {"size": True},
                      {"threads": 0}, {"threads": 65}, {"order": 3},
-                     {"size": .1, "min_size": .5}, {"algorithm": "script"}):
+                     {"size": .1, "min_size": .5}, {"algorithm": "script"},
+                     {"element_policy": "tetra"}, {"element_policy": None}):
             with self.subTest(mesh=mesh), self.assertRaises(ValueError):
                 normalize_project({"geometry": {"kind": "plate"}, "mesh": mesh})
         with self.assertRaises(ValueError):
             normalize_project({"geometry": {"kind": "box"}, "mode": "planar"})
-        with self.assertRaises(ValueError):
-            normalize_project({"geometry": {"kind": "box"}, "mode": "volume", "mesh": {"recombine": True}})
+        volume = normalize_project({"geometry": {"kind": "box"}, "mode": "volume", "mesh": {"recombine": True}})
+        self.assertEqual(volume["mesh"]["element_policy"], "quad_hex_only")
         for bad in ({"mode": []}, {"geometry": {"kind": []}}, {"mesh": {"algorithm": {}}}):
             with self.assertRaises(ValueError):
                 normalize_project(bad)
@@ -82,14 +84,16 @@ class GmshIntegration(unittest.TestCase):
                 p = plate(**geometry)
                 p["mesh"]["order"] = 2
                 report, preview = self.run_case(p)
-                self.assertIn("Triangle 6", report["cell_counts"])
+                self.assertIn("Quadrilateral 8", report["cell_counts"])
+                self.assertFalse(any("Triangle" in kind for kind in report["cell_counts"]))
                 self.assertEqual(report["mesh_settings"]["order"], 2)
                 self.assertTrue(any(c["order"] == 2 for c in preview["cells"]))
 
     def test_extruded_holes_make_positive_volume(self):
         report, preview = self.run_case(plate("volume", corner_radius=.4, thickness=1.2))
         self.assertEqual(report["dimension"], 3)
-        self.assertTrue(any(c["type"] == "tetra" for c in preview["cells"]))
+        self.assertTrue(any(c["type"] == "hexa" for c in preview["cells"]))
+        self.assertFalse(any(c["type"] == "tetra" for c in preview["cells"]))
         self.assertTrue(preview["surface_triangles"])
         self.assertGreaterEqual(report["geometry_diagnostics"]["volumes"], 1)
 

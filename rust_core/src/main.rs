@@ -71,6 +71,11 @@ fn process(request: &Value) -> Result<Value, String> {
         let output = PathBuf::from(request["output_mesh"].as_str().ok_or("Destination UNV absente")?);
         let api = gmsh::Gmsh::new(library)?;
         api.open(&source)?;
+        let dimension = if api.elements(3,-1)?.iter().any(|b| !b.tags.is_empty()) { 3 } else { 2 };
+        backend::validate_native_element_policy(&api, dimension)?;
+        let before_nodes = api.nodes()?.0.len();
+        let before_types: std::collections::BTreeMap<_,_> = api.elements(-1,-1)?.iter()
+            .filter(|b| !b.tags.is_empty()).map(|b| (b.element_type,b.tags.len())).collect();
         if api.elements(0,-1)?.iter().any(|b| !b.tags.is_empty()) {
             return Err("L'export UNV de mailles ponctuelles 0D n'est pas pris en charge ; utiliser MED ou régénérer le maillage public sans cellules 0D".into());
         }
@@ -81,6 +86,13 @@ fn process(request: &Value) -> Result<Value, String> {
         drop(api);
         let api = gmsh::Gmsh::new(library)?;
         api.open(&output)?;
+        backend::validate_native_element_policy(&api, dimension)?;
+        let after_nodes = api.nodes()?.0.len();
+        let after_types: std::collections::BTreeMap<_,_> = api.elements(-1,-1)?.iter()
+            .filter(|b| !b.tags.is_empty()).map(|b| (b.element_type,b.tags.len())).collect();
+        if before_nodes != after_nodes || before_types != after_types {
+            return Err("La relecture UNV a changé les nœuds, les types ou l'ordre des éléments".into());
+        }
         let after: usize = api.elements(-1,-1)?.iter().map(|b| b.tags.len()).sum();
         if before != after { return Err(format!("La relecture UNV a changé le nombre d'éléments : {before} → {after}")); }
         return Ok(json!({"readback":true,"groups_readback":false,"reader":"Rust / Gmsh UNV","elements_read":after,"physical_names_read":[],"native_kernel":"rust"}));
@@ -96,6 +108,8 @@ fn process(request: &Value) -> Result<Value, String> {
         if !factor.is_finite() || factor <= 0.0 { return Err("Facteur d'unité invalide".into()); }
         let api = gmsh::Gmsh::new(library)?;
         api.open(&source)?;
+        let dimension = if api.elements(3,-1)?.iter().any(|b| !b.tags.is_empty()) { 3 } else { 2 };
+        backend::validate_native_element_policy(&api, dimension)?;
         let mut periodic = Vec::new();
         for dimension in 1..=2 {
             for (_, tag) in api.entities(dimension)? {

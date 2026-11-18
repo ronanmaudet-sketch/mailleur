@@ -26,9 +26,9 @@ FORMATS = {
     "vtu": {"extension": ".vtu", "label": "VTK XML", "solver": "ParaView", "notes": "Groupes conservés comme masques group:nom ; format de visualisation."},
     "unv": {"extension": ".unv", "label": "I-DEAS Universal", "solver": "Salome, Cast3M et lecteurs UNV", "notes": "Écriture Gmsh ; groupes permanents. Vérifier les éléments autorisés par le lecteur cible."},
     "ansys": {"extension": ".dat", "label": "ANSYS APDL — maillage", "solver": "ANSYS Mechanical APDL", "notes": "Script MESH200 sans degrés de liberté : attribuer des éléments de calcul dans ANSYS avant résolution."},
-    "ansys_structural": {"extension": ".apdl", "label": "ANSYS APDL — éléments structuraux", "solver": "ANSYS Mechanical APDL", "notes": "SOLID285/187/185, PLANE182 ou SHELL181 selon les cellules et le mode ; matériaux et sections à compléter. Sous-ensemble explicite, sans exécution ANSYS."},
+    "ansys_structural": {"extension": ".apdl", "label": "ANSYS APDL — éléments structuraux", "solver": "ANSYS Mechanical APDL", "notes": "SOLID185, PLANE182 ou SHELL181 pour hexaèdres/quadrilatères linéaires ; ordre 2 refusé sans conversion. Matériaux et sections à compléter, sans exécution ANSYS."},
     "nastran": {"extension": ".bdf", "label": "Nastran Bulk Data", "solver": "Nastran et lecteurs BDF compatibles", "notes": "Éléments 2D/3D linéaires et quadratiques pris en charge, SET1 pour les groupes ; propriétés et matériaux à définir. Coordonnées GRID* en champs de 16 caractères."},
-    "lsdyna": {"extension": ".key", "label": "LS-DYNA Keyword — maillage", "solver": "LS-DYNA et lecteurs Keyword compatibles", "notes": "Triangles/quadrilatères et tétraèdres/prismes/hexaèdres linéaires ; groupes nommés. Les éléments quadratiques sont refusés sans conversion silencieuse."},
+    "lsdyna": {"extension": ".key", "label": "LS-DYNA Keyword — maillage", "solver": "LS-DYNA et lecteurs Keyword compatibles", "notes": "Quadrilatères et hexaèdres linéaires ; groupes nommés. Les éléments quadratiques sont refusés sans conversion silencieuse."},
     "cast3m": {"extension": ".dgibi", "label": "Cast3M — import UNV", "solver": "Cast3M", "notes": "Script Gibiane d'import accompagné de son fichier UNV ; aucune hypothèse de matériau."},
 }
 
@@ -36,6 +36,10 @@ _DIMS = {"vertex": 0, "line": 1, "line3": 1, "triangle": 2, "triangle6": 2,
          "quad": 2, "quad8": 2, "quad9": 2, "tetra": 3, "tetra10": 3,
          "hexahedron": 3, "hexahedron20": 3, "hexahedron27": 3,
          "wedge": 3, "wedge15": 3, "wedge18": 3, "pyramid": 3, "pyramid13": 3, "pyramid14": 3}
+
+ELEMENT_POLICY = "quad_hex_only"
+_QUAD_HEX_TYPES = {"vertex", "line", "line3", "quad", "quad8", "quad9",
+                   "hexahedron", "hexahedron20", "hexahedron27"}
 
 
 def _libraries():
@@ -165,6 +169,28 @@ def _read(source: Path):
 def _summary(mesh):
     return {"nodes": len(mesh.points), "elements": sum(len(c.data) for c in mesh.cells),
             "cell_counts": {c.type: len(c.data) for c in mesh.cells}}
+
+
+def _check_element_policy(mesh):
+    """Check the actual file; a project flag or an adjacent report is not proof.
+
+    Reading old triangle/tetrahedron meshes remains available for remeshing.
+    Exporting an analysis result is restricted to quadrangles and hexahedra,
+    including surface cells bounding a volume. Points and boundary segments
+    are retained as lower-dimensional geometric entities.
+    """
+    forbidden = sorted({cell.type for cell in mesh.cells if cell.type not in _QUAD_HEX_TYPES})
+    dimension = max(_DIMS[cell.type] for cell in mesh.cells)
+    if forbidden or dimension < 2:
+        detail = ", ".join(forbidden) if forbidden else "dimension inférieure à 2"
+        raise ValueError("La politique quad_hex_only exige des quadrilatères en surface et des "
+                         "hexaèdres en volume ; export refusé pour : " + detail +
+                         ". Remailler la géométrie avant de l'exporter.")
+    if any(len(set(row)) != len(row) for cell in mesh.cells for row in cell.data):
+        raise ValueError("La politique quad_hex_only refuse les connectivités avec nœuds répétés ; "
+                         "un triangle ou un tétraèdre dégénéré ne peut pas être déguisé en quadrilatère/hexaèdre.")
+    return {"policy": ELEMENT_POLICY, "verified_from_actual_cells": True,
+            "dimension": dimension, "cell_counts": _summary(mesh)["cell_counts"]}
 
 
 def _groups(mesh):
@@ -704,20 +730,24 @@ def _write_unv(source, path):
     try:
         gmsh.option.setNumber("General.Terminal", 0)
         gmsh.open(str(source))
-        _, before_tags, _ = gmsh.model.mesh.getElements()
-        before = sum(len(v) for v in before_tags)
+        before_types, before_tags, _ = gmsh.model.mesh.getElements()
+        before_counts = {int(kind): len(tags) for kind, tags in zip(before_types, before_tags)}
+        before_nodes = len(gmsh.model.mesh.getNodes()[0])
         gmsh.option.setNumber("Mesh.SaveGroupsOfNodes", 1)
         gmsh.option.setNumber("Mesh.SaveGroupsOfElements", 1)
         gmsh.write(str(path))
         gmsh.clear()
         gmsh.open(str(path))
-        _, after_tags, _ = gmsh.model.mesh.getElements()
+        after_types, after_tags, _ = gmsh.model.mesh.getElements()
         after = sum(len(v) for v in after_tags)
-        if before != after:
-            raise ValueError(f"La relecture UNV a changé le nombre d'éléments ({before} → {after}).")
+        after_counts = {int(kind): len(tags) for kind, tags in zip(after_types, after_tags)}
+        after_nodes = len(gmsh.model.mesh.getNodes()[0])
+        if before_counts != after_counts or before_nodes != after_nodes:
+            raise ValueError("La relecture UNV a changé les types, l'ordre ou le nombre de nœuds/éléments.")
         names = [gmsh.model.getPhysicalName(dim, tag) for dim, tag in gmsh.model.getPhysicalGroups()]
         return {"readback": True, "groups_readback": False, "reader": "Gmsh UNV", "physical_names_read": names,
-                "elements_read": after}
+                "elements_read": after, "nodes_read": after_nodes, "element_types_read": after_counts,
+                "element_families_and_order_preserved": True}
     finally:
         gmsh.finalize()
 
@@ -739,6 +769,7 @@ def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool =
         raise ValueError(f"Extension attendue pour {format_name} : {FORMATS[format_name]['extension']}.")
     _check_source_quality(source)
     mesh, names = _read(source)
+    element_policy = _check_element_policy(mesh)
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".export_", suffix=target.suffix, dir=target.parent)
     os.close(descriptor)
@@ -787,13 +818,15 @@ def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool =
         temp.unlink(missing_ok=True)
     return {"format": format_name, "status": "ok", "file": target.name, "files": files,
             **_summary(result_mesh), "groups": _groups(result_mesh), "group_name_map": names,
-            "warnings": warnings, "verification": verification}
+            "element_policy": element_policy, "warnings": warnings, "verification": verification}
 
 
 def export_bundle(source: Path, output_dir: Path, formats: list[str] | None = None, *, planar: bool = False) -> dict:
     """Export independent formats and a ZIP; report each failure explicitly."""
     source = Path(source)
     _check_source_quality(source)
+    mesh, names = _read(source)
+    element_policy = _check_element_policy(mesh)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     requested = list(FORMATS) if formats is None else list(dict.fromkeys(formats))
@@ -808,7 +841,6 @@ def export_bundle(source: Path, output_dir: Path, formats: list[str] | None = No
         except (ValueError, OSError) as error:
             result = {"format": name, "status": "error", "error": str(error)}
         results.append(result)
-    mesh, names = _read(Path(source))
     groups = {"schema": "atelier.groups.v1", "group_name_map": names, "groups": _groups(mesh),
               "cell_types": [c.type for c in mesh.cells],
               "element_indices": {name: [list(map(int, values)) for values in parts] for name, parts in mesh.cell_sets.items()},
@@ -817,6 +849,7 @@ def export_bundle(source: Path, output_dir: Path, formats: list[str] | None = No
     (output_dir / "groups.json").write_text(json.dumps(groups, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     files.add("groups.json")
     report = {"schema": "atelier.exports.v1", "complete": all(r["status"] == "ok" for r in results),
+              "element_policy": element_policy,
               "archive": "exports.zip", "results": results, "files": sorted(files | {"export_manifest.json"}),
               "warnings": ["Compatibilité de format vérifiée ; aucun calcul n'a été exécuté dans les solveurs destinataires."]}
     (output_dir / "export_manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

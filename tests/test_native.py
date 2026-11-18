@@ -82,6 +82,13 @@ class NativeKernelIntegration(unittest.TestCase):
                         "Le rapport doit identifier le noyau Rust réellement utilisé")
         self.assertTrue((self.directory(result) / "mesh.msh").is_file())
         self.assertGreater(len(result["preview"]["points"]), 0)
+        self.assertEqual(report["element_policy"]["requested"], "quad_hex_only")
+        self.assertIs(report["element_policy"]["verified"], True)
+        restored = self.meshio.read(self.directory(result) / "mesh.msh")
+        allowed = {"vertex", "line", "line3", "quad", "quad8", "quad9"}
+        if report["dimension"] == 3:
+            allowed |= {"hexahedron", "hexahedron20", "hexahedron27"}
+        self.assertTrue(all(not len(block.data) or block.type in allowed for block in restored.cells))
 
     def test_generation_calls_rust_and_keeps_input_immutable(self):
         project = plate()
@@ -130,41 +137,23 @@ class NativeKernelIntegration(unittest.TestCase):
         self.assertEqual(set(tags), {selected})
         self.assertEqual(len(tags), len(result["preview"]["surface_triangles"]))
 
-    def test_local_surface_remesh_preserves_the_other_surfaces(self):
+    def test_local_remesh_refuses_to_change_the_existing_quad_mesh(self):
         project = plate()
         project["mode"] = "surface"
         project["geometry"] = {"kind": "box", "width": 20, "height": 12, "depth": 8}
         first = self.session.generate(project)
         faces = [entity for entity in first["report"]["entity_catalog"]
                  if entity.get("dimension", entity.get("dim")) == 2]
-        tag = faces[0]["tag"]
-        original = self.meshio.read(self.directory(first) / "mesh.msh")
-        project["selection"] = {"scope": "entities", "dimension": 2, "tags": [tag]}
+        original_file = self.directory(first) / "mesh.msh"
+        original_bytes = original_file.read_bytes()
+        project["selection"] = {"scope": "entities", "dimension": 2, "tags": [faces[0]["tag"]]}
         project["mesh"]["size"] = 1
         project["mesh"]["min_size"] = .25
-        changed = self.session.remesh(project, previous_directory=self.directory(first))
-        remesh = changed["report"]["remesh"]
-        self.assertIs(remesh["unselected_elements_unchanged"], True)
-        updated = self.meshio.read(self.directory(changed) / "mesh.msh")
-
-        def signatures(mesh, excluded):
-            result = {}
-            tags = mesh.cell_data["gmsh:geometrical"]
-            for block, entity_tags in zip(mesh.cells, tags):
-                if not block.type.startswith(("triangle", "quad")):
-                    continue
-                for connectivity, entity in zip(block.data, entity_tags):
-                    entity = int(entity)
-                    if entity == excluded:
-                        continue
-                    vertices = tuple(sorted(tuple(round(float(x), 12) for x in mesh.points[index])
-                                            for index in connectivity))
-                    result.setdefault(entity, []).append((block.type, vertices))
-            return {key: sorted(value) for key, value in result.items()}
-
-        before = signatures(original, tag)
-        self.assertGreater(len(before), 0)
-        self.assertEqual(before, signatures(updated, tag))
+        with self.assertRaisesRegex(RuntimeError, "(?i)(local|préserv|conserv|régénér)"):
+            self.session.remesh(project, previous_directory=self.directory(first))
+        self.assertEqual(original_file.read_bytes(), original_bytes)
+        self.assertEqual(self.session.last_directory, self.directory(first))
+        self.assertFalse((self.session.last_attempt_directory / "mesh.msh").exists())
 
     def test_invalid_entity_and_unit_are_rejected(self):
         project = plate()

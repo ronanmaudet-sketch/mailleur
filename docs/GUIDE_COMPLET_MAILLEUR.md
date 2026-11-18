@@ -1,5 +1,11 @@
 # Comprendre, utiliser et partager Mailleur
 
+> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
+> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
+> apprentissage exclut les anciennes données sans preuve de cette politique.
+> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
+> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+
 ## 1. Version étudiée et réponse pratique
 
 Ce guide décrit **Atelier Mailleur 1.0.0rc5, révision locale du 4 novembre 2026**. Les sources ont été récupérées depuis le chat « Optimiser le mailleur », dans le projet « Créations de mailleur ». L'archive initiale a été vérifiée contre son manifeste SHA-256 : 1 326 fichiers vérifiés, ZIP de 20 319 571 octets. Les résultats Linux déjà livrés sont conservés ; les nouvelles mesures sur Apple M3 sont rangées dans `verification/local_m3/`.

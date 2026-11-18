@@ -461,5 +461,12 @@
     "previous_source_sha256": "477a99ef7da141a2cce362cba012fc866569a491053a229723f992715a90be7f",
     "corrected_source_sha256": "3138701213d89d119da6dca0f42871323d1cd79698a76f496046a7bff4f69230",
     "report": "docs/CORRECTIONS_RC8.md"
+  },
+  "rc9_quad_hex": {
+    "date": "2026-11-18",
+    "historical_proof_files_modified": false,
+    "current_proof": "verification/quad_hex_20261118/README.md",
+    "readme_sha256": "9902f75abd766663b3ed1b405eac98a436a263837d0939cede9583e08d105bda",
+    "scope": "Nouvelles sources, modèles et référence Cast3M stricts ; les rapports historiques restent associés à leurs versions."
   }
 }

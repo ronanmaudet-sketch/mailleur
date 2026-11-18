@@ -14,7 +14,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 type R<T> = Result<T, String>;
 const SCHEMA: &str = "atelier.corpus.v1";
-const NUMERICS_VERSION: &str = "atelier.corpus.numerics.rc7_float_roundtrip";
+const NUMERICS_VERSION: &str = "atelier.corpus.numerics.rc9_quad_hex_only";
 const MAX_LINE: usize = 8 * 1024 * 1024;
 
 fn now() -> u64 {
@@ -145,6 +145,7 @@ fn load_manifest(root: &Path) -> R<(Value, Plan)> {
     if value["schema"] != SCHEMA
         || value["generator_version"] != GENERATOR_VERSION
         || value["feature_schema"] != crate::representation::SCHEMA
+        || value["element_policy"] != crate::dataset_model::ELEMENT_POLICY
     {
         return Err(
             "Version de corpus incompatible ; les données existantes sont conservées".into(),
@@ -736,6 +737,7 @@ fn report(root: &Path, manifest: &Value, plan: &Plan, cp: &Value, operation: &st
     value["computation_backend"] = json!("rust");
     value["generator_version"] = json!(GENERATOR_VERSION);
     value["feature_schema"] = json!(crate::representation::SCHEMA);
+    value["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
     value["planned_split_counts"] = manifest["planned_split_counts"].clone();
     value["planned_mesh_evaluations"] = json!(plan.total() * plan.strategies);
     value["source_core_version"] = manifest["core_version"].clone();
@@ -808,6 +810,7 @@ fn create_plan(root: &Path, request: &Value) -> R<Value> {
     let manifest = json!({"schema":SCHEMA,"generator_version":GENERATOR_VERSION,"feature_schema":crate::representation::SCHEMA,"core_version":env!("CARGO_PKG_VERSION"),"gmsh_version":"4.15.2","plan":plan,"planned_total":plan.total(),"families":families,"planned_split_counts":planned_splits,"plan_id":hash_json(&json!({"generator":GENERATOR_VERSION,"plan":plan})),"created_at":now(),"sampling":{"structured":"mixed-radix deterministic parameter grid with unique resolution coordinate","random":"family-stratified reproducible Latin hypercube with coprime affine permutations","split":"whole geometry families assigned before all parameter and meshing variations"},"notes":["Créer ce plan ne génère ni un million de fichiers ni un million de maillages","Les défauts synthétiques contrôlés ne couvrent pas toute la diversité des CAO industrielles","Les configurations de test sont séparées des familles d'apprentissage"]});
     let mut manifest=manifest;
     manifest["numerics_version"]=json!(NUMERICS_VERSION);
+    manifest["element_policy"]=json!(crate::dataset_model::ELEMENT_POLICY);
     atomic_json(&root.join("manifest.json"), &manifest)?;
     let cp = fresh_checkpoint();
     atomic_json(&root.join("checkpoint.json"), &cp)?;
@@ -962,7 +965,7 @@ fn evaluate_case(
         if features.iter().any(|v| !v.is_finite()) {
             return Err("La représentation du corpus contient une valeur non finie".into());
         }
-        let mut action = json!({"strategy_id":strategy_id,"mesh_settings":project["mesh"],"features":features.to_vec(),"target":0.,"success":false,"accepted":false});
+        let mut action = json!({"strategy_id":strategy_id,"mesh_settings":project["mesh"],"element_policy":{"requested":crate::dataset_model::ELEMENT_POLICY,"verified":false},"features":features.to_vec(),"target":0.,"success":false,"accepted":false});
         let action_started = Instant::now();
         let evaluated = if let Some(error) = &geometry_error {
             Err(error.clone())
@@ -974,7 +977,9 @@ fn evaluate_case(
         };
         match evaluated {
             Ok(report) => {
+                crate::dataset_model::validate_element_evidence(&report["element_policy"])?;
                 let accepted = report["quality"]["accepted"] == true;
+                action["element_policy"] = report["element_policy"].clone();
                 action["success"] = json!(true);
                 action["accepted"] = json!(accepted);
                 action["target"] = json!(crate::quality::score(&report)?);
@@ -1005,6 +1010,7 @@ fn evaluate_case(
     case["numerics_version"] = json!(NUMERICS_VERSION);
     case["actions"] = json!(actions);
     case["feature_schema"] = json!(crate::representation::SCHEMA);
+    case["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
     case["feature_count"] = json!(crate::representation::INPUTS);
     case["geometry_descriptor"] = descriptor;
     case["reference_inspection_success"] = json!(reference.is_some());

@@ -19,7 +19,7 @@ import uuid
 import zipfile
 
 from mailleur.io import atomic_write, write_json
-from .projects import normalize_project, safe_filename, strict_json
+from .projects import ELEMENT_POLICY, normalize_project, safe_filename, strict_json
 from .import_registry import CAD_EXTENSIONS, NATIVE_GMSH_EXTENSIONS, source_extension
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -285,6 +285,12 @@ class NativeSession:
         self.last_attempt_directory = directory
         self._call(request, directory)
         report = strict_json((directory / "report.json").read_bytes())
+        if operation in {"mesh", "remesh", "learn"}:
+            evidence = report.get("element_policy", {})
+            if (not isinstance(evidence, dict) or evidence.get("requested") != ELEMENT_POLICY
+                    or evidence.get("verified") is not True):
+                (directory / "mesh.msh").unlink(missing_ok=True)
+                raise RuntimeError("Le noyau ne certifie pas les quadrilatères/hexaèdres requis. Mettre à jour ou recompiler le noyau Rust.")
         preview = strict_json((directory / "preview.json").read_bytes())
         if import_report is not None:
             report["import_preparation"] = import_report

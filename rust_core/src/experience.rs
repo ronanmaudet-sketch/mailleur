@@ -17,10 +17,9 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 type R<T> = Result<T, String>;
 const MEMORY_SCHEMA: &str = "atelier.experience.v1";
 const ENGINE: &str = "4.15.2";
-// rc7 enables correctly rounded JSON f64 parsing and OCC tessellated bounds.
-// Both can change CAD decisions and meshing; do not reuse rc4/rc5/rc6 exact-context
-// aliases. The old contexts and their observations remain archived separately.
-const CONTEXT_NUMERICS_VERSION: &str = "1.0.0-rc.7";
+// rc9 changes final element families. Preserve earlier observations as archives;
+// neither old context aliases nor unverified numerical labels enter strict replay.
+const CONTEXT_NUMERICS_VERSION: &str = "1.0.0-rc.9-quad-hex";
 const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_EVENT_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_CONTEXTS: usize = 1000;
@@ -434,12 +433,18 @@ pub fn memory_info(request: &Value) -> R<Value> {
         }
     }
     let model_path = path.join("model.json");
-    let learned = if model_path.is_file() {
+    let mut learned = if model_path.is_file() {
         serde_json::from_slice::<Value>(&fs::read(model_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?
     } else {
         Value::Null
     };
+    if learned.is_object() && (learned["element_policy"] != crate::dataset_model::ELEMENT_POLICY
+        || learned["feature_schema"] != crate::representation::SCHEMA) {
+        learned["historical_deploy_enabled"] = learned["deploy_enabled"].clone();
+        learned["deploy_enabled"] = json!(false);
+        learned["deployment_reason"] = json!("historical_model_without_current_quad_hex_provenance");
+    }
     let versions = if path.join("models").is_dir() {
         fs::read_dir(path.join("models"))
             .map_err(|e| e.to_string())?
@@ -487,7 +492,7 @@ fn recipe(project: &Value, action: &str) -> Value {
 
 fn candidate(original: &Value, recipe: Value, from_memory: bool) -> R<Candidate> {
     let mut project = original.clone();
-    if !recipe["mesh"].is_object() {
+    if !recipe["mesh"].is_object() || recipe["mesh"]["element_policy"] != crate::dataset_model::ELEMENT_POLICY {
         return Err("Recette mémorisée invalide".into());
     }
     project["mesh"] = recipe["mesh"].clone();
@@ -727,7 +732,7 @@ fn model_examples(memory: &Value) -> Vec<model::Example> {
             continue;
         };
         for row in context["observations"].as_array().into_iter().flatten() {
-            if row["feature_schema"] != crate::representation::SCHEMA {
+            if row["feature_schema"] != crate::representation::SCHEMA || !strict_observation(row) {
                 continue;
             }
             let Some(values) = row["features"]
@@ -766,75 +771,39 @@ fn model_examples(memory: &Value) -> Vec<model::Example> {
     result
 }
 
-/// Re-encode archived labels using saved CAD context, never using their quality.
-/// Raw rc3 inputs remain in the index and the append-only original journal.
+/// Classify archived labels without rewriting their data or topology provenance.
+/// Historical inputs remain in the index and the append-only original journal.
 fn migrate_feature_history(memory: &mut Value) -> Value {
-    let mut preserved = 0usize;
-    let mut reencoded = 0usize;
+    // Reading legacy history must never manufacture a new strict topology proof.
+    // Keep recipes, vectors, labels and the append-only journal byte-for-byte.
     let mut excluded = 0usize;
-    let mut previously_reencoded = 0usize;
-    let mut missing_graph = 0usize;
-    let mut reasons = BTreeSet::new();
-    for context in memory["contexts"].as_array_mut().into_iter().flatten() {
-        let original = context["project"].clone();
-        let reference = context
-            .get("last_geometry_report")
-            .cloned()
-            .filter(|r| r["entity_catalog"].is_array());
-        let enriched = reference.as_ref().map(|r| reference_report(r, &original));
-        if let Some(r) = &enriched {
-            context["last_geometry_report"] = r.clone();
-        }
-        for row in context["observations"].as_array_mut().into_iter().flatten() {
-            if row["legacy_features"]
-                .as_array()
-                .is_some_and(|a| a.len() == 16)
-            {
-                preserved += 1;
-                previously_reencoded += 1;
-            }
-            let old_len = row["features"].as_array().map_or(0, Vec::len);
-            if old_len == model::INPUTS && row["feature_schema"] == crate::representation::SCHEMA {
-                continue;
-            }
-            preserved += 1;
-            if old_len != 16 || !original.is_object() || !row["recipe"]["mesh"].is_object() {
+    let mut current = 0usize;
+    for context in memory["contexts"].as_array().into_iter().flatten() {
+        for row in context["observations"].as_array().into_iter().flatten() {
+            if row["feature_schema"] == crate::representation::SCHEMA && strict_observation(row) {
+                current += 1;
+            } else {
                 excluded += 1;
-                reasons.insert(
-                    "Contexte ou recette absents, ou ancien vecteur de schéma inconnu".to_string(),
-                );
-                continue;
-            }
-            if original["geometry"]["kind"] == "import" && enriched.is_none() {
-                excluded += 1;
-                reasons.insert("Géométrie importée sans catalogue CAD sauvegardé : positions non reconstructibles".to_string());
-                continue;
-            }
-            match candidate(&original, row["recipe"].clone(), false) {
-                Ok(action) => {
-                    let input = features(&original, &action, enriched.as_ref());
-                    let old = row["features"].clone();
-                    row["legacy_features"] = old;
-                    row["features"] = json!(input.to_vec());
-                    row["feature_schema"] = json!(crate::representation::SCHEMA);
-                    let graph_available = enriched.as_ref().is_some_and(|r| {
-                        r["geometry_descriptor"]["entity_graph"]["relation_source"]
-                            == "native_cad_boundary"
-                    });
-                    if !graph_available {
-                        missing_graph += 1;
-                    }
-                    row["feature_migration"] = json!({"from_inputs":16,"to_inputs":model::INPUTS,"method":"saved_project_recipe_and_geometry_catalogue","target_quality_or_connectivity_used":false,"cad_boundary_graph_available":graph_available,"note":if graph_available{"Relations CAD sauvegardées utilisées"}else{"Ancien catalogue sans relations CAD : le canal de topologie inconnue reste explicite"}});
-                    reencoded += 1;
-                }
-                Err(error) => {
-                    excluded += 1;
-                    reasons.insert(format!("Recette ancienne non reconstructible : {error}"));
-                }
             }
         }
     }
-    json!({"legacy_examples_preserved":preserved,"legacy_examples_reencoded":reencoded,"legacy_examples_reencoded_total":previously_reencoded+reencoded,"legacy_examples_excluded_from_new_training":excluded,"reencoded_without_cad_boundary_graph":missing_graph,"exclusion_reasons":reasons.into_iter().collect::<Vec<_>>(),"message":if preserved>0{"Les anciennes observations, recettes et entrées brutes sont conservées. Les caractéristiques spatiales sont reconstruites depuis les contextes CAD disponibles ; seules les observations non reconstructibles sont exclues. Les poids incompatibles à 16 entrées sont réinitialisés explicitement."}else{"Représentation spatiale courante ; aucune ancienne observation incompatible."}})
+    json!({"legacy_examples_preserved":excluded,"legacy_examples_reencoded":0,
+        "legacy_examples_reencoded_total":0,"legacy_examples_excluded_from_new_training":excluded,
+        "current_strict_examples":current,"reencoded_without_cad_boundary_graph":0,
+        "exclusion_reasons":if excluded>0{vec!["Absence de provenance et de contrôle quadrilatères/hexaèdres compatibles : recalcul requis"]}else{vec![]},
+        "message":"Les anciennes observations sont conservées sans conversion de leurs étiquettes ni de leurs caractéristiques. Seuls les essais explicites quadrilatères/hexaèdres, avec résultats contrôlés ou échec à score nul, alimentent le nouvel apprentissage."})
+}
+
+fn strict_observation(row: &Value) -> bool {
+    if row["recipe"]["mesh"]["element_policy"] != crate::dataset_model::ELEMENT_POLICY
+        || row["element_policy"]["requested"] != crate::dataset_model::ELEMENT_POLICY {
+        return false;
+    }
+    if row["success"] == true {
+        crate::dataset_model::validate_element_evidence(&row["element_policy"]).is_ok()
+    } else {
+        row["success"] == false && row["accepted"] == false && row["score"].as_f64() == Some(0.)
+    }
 }
 
 fn save_observation(memory: &mut Value, context_index: usize, observation: Value) -> R<()> {
@@ -885,7 +854,7 @@ fn remembered_recipe(memory: &Value, index: usize) -> Option<Value> {
     if let Some(recipe) = context["observations"]
         .as_array()?
         .iter()
-        .find(|r| r["recipe_id"] == context["best_recipe_id"] && r["accepted"] == true)
+        .find(|r| r["recipe_id"] == context["best_recipe_id"] && r["accepted"] == true && strict_observation(r))
         .map(|r| r["recipe"].clone())
     {
         return Some(recipe);
@@ -896,7 +865,7 @@ fn remembered_recipe(memory: &Value, index: usize) -> Option<Value> {
         .as_array()?
         .iter()
         .flat_map(|c| c["observations"].as_array().into_iter().flatten())
-        .filter(|r| r["accepted"] == true && r["resulting_context_id"] == context["context_id"])
+        .filter(|r| r["accepted"] == true && r["resulting_context_id"] == context["context_id"] && strict_observation(r))
         .max_by(|a, b| crate::quality::compare_reports(a, b))
         .map(|r| r["recipe"].clone())
 }
@@ -1013,6 +982,16 @@ pub fn learn(request: &Value) -> R<Value> {
             .as_str()
             .ok_or("Dossier de sortie absent")?,
     );
+    let mut strict_request = request.clone();
+    if !strict_request["project"].is_object() || !strict_request["project"]["mesh"].is_object() {
+        return Err("Projet et paramètres de maillage absents".into());
+    }
+    let requested_policy = &strict_request["project"]["mesh"]["element_policy"];
+    if !requested_policy.is_null() && requested_policy != crate::dataset_model::ELEMENT_POLICY {
+        return Err("L’apprentissage exige la politique quad_hex_only".into());
+    }
+    strict_request["project"]["mesh"]["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
+    let request = &strict_request;
     let original = request
         .get("project")
         .filter(|p| p.is_object())
@@ -1111,6 +1090,15 @@ pub fn learn(request: &Value) -> R<Value> {
     } else {
         None
     };
+    if existing_model.as_ref().is_some_and(|model| model["element_policy"] != crate::dataset_model::ELEMENT_POLICY) {
+        let bytes = fs::read(&model_path).map_err(|e| e.to_string())?;
+        let archive = memory_path.join("models").join(format!("legacy-model-{:x}.json", Sha256::digest(&bytes)));
+        fs::create_dir_all(archive.parent().unwrap()).map_err(|e| e.to_string())?;
+        if !archive.exists() { fs::write(&archive, &bytes).map_err(|e| e.to_string())?; }
+        if fs::read(&archive).map_err(|e| e.to_string())? != bytes {
+            return Err("L'archive du modèle historique est incohérente ; poids conservés sans remplacement".into());
+        }
+    }
     // Extract CAD information once before predictions; target mesh quality and
     // target connectivity must never influence the candidate's input features.
     let mut historic_report = memory["contexts"][context_index]
@@ -1260,7 +1248,10 @@ pub fn learn(request: &Value) -> R<Value> {
             native["source"] = json!(source);
         }
         let trial_started = Instant::now();
-        let evaluated = crate::backend::run(&native);
+        let evaluated = crate::backend::run(&native).and_then(|report| {
+            crate::dataset_model::validate_element_evidence(&report["element_policy"])?;
+            Ok(report)
+        });
         let seconds = trial_started.elapsed().as_secs_f64();
         memory_reused |= current.from_memory;
         let mut trial = json!({"index":index,"recipe_id":recipe_id,"action_id":current.recipe["action_id"],"algorithm":current.project["mesh"]["algorithm"],"size":current.project["mesh"]["size"],"local_refinement":current.project["local_sizes"].as_array().map_or(0,Vec::len)+current.project["refinement_regions"].as_array().map_or(0,Vec::len),"from_memory":current.from_memory,"seconds":seconds});
@@ -1272,6 +1263,7 @@ pub fn learn(request: &Value) -> R<Value> {
                 trial["success"] = json!(true);
                 trial["accepted"] = json!(accepted);
                 trial["quality"] = report["quality"].clone();
+                trial["element_policy"] = report["element_policy"].clone();
                 trial["score"] = json!(score);
                 trial["elements"] = report["elements"].clone();
                 input = features(original, &current, historic_report.as_ref());
@@ -1296,6 +1288,7 @@ pub fn learn(request: &Value) -> R<Value> {
                 trial["accepted"] = json!(false);
                 trial["score"] = json!(0.);
                 trial["error"] = json!(error);
+                trial["element_policy"] = json!({"requested":crate::dataset_model::ELEMENT_POLICY,"verified":false});
             }
         }
         let mut observation = trial.clone();
@@ -1373,7 +1366,7 @@ pub fn learn(request: &Value) -> R<Value> {
 mod tests {
     use super::*;
     fn project() -> Value {
-        json!({"schema_version":1,"name":"A","mode":"planar","units":{"input":"mm","internal":"m"},"geometry":{"kind":"plate","width":4.,"height":3.},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic","order":1,"max_elements":5000},"critical_zones":[]})
+        json!({"schema_version":1,"name":"A","mode":"planar","units":{"input":"mm","internal":"m"},"geometry":{"kind":"plate","width":4.,"height":3.},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic","order":1,"element_policy":crate::dataset_model::ELEMENT_POLICY,"max_elements":5000},"critical_zones":[]})
     }
 
     #[test]
@@ -1404,31 +1397,49 @@ mod tests {
     }
 
     #[test]
-    fn legacy_inputs_are_reconstructed_without_erasing_the_raw_history() {
+    fn legacy_inputs_are_preserved_without_inventing_strict_training_labels() {
         let p = project();
-        let old = vec![0.25; 16];
-        let mut memory = json!({"contexts":[{"project":p,"geometry_id":"one","observations":[{"features":old,"recipe":{"mesh":p["mesh"]},"score":0.8}]}]});
+        let old = json!({"features":vec![0.25;16],"recipe":{"mesh":p["mesh"]},"score":0.8});
+        let mut memory = json!({"contexts":[{"project":p,"geometry_id":"one","observations":[old]}]});
+        let before = memory.clone();
         let migration = migrate_feature_history(&mut memory);
-        assert_eq!(migration["legacy_examples_reencoded"], 1);
-        assert_eq!(migration["legacy_examples_excluded_from_new_training"], 0);
-        assert_eq!(
-            memory["contexts"][0]["observations"][0]["legacy_features"]
-                .as_array()
-                .unwrap()
-                .len(),
-            16
-        );
-        assert_eq!(
-            memory["contexts"][0]["observations"][0]["features"]
-                .as_array()
-                .unwrap()
-                .len(),
-            128
-        );
-        assert_eq!(model_examples(&memory).len(), 1);
+        assert_eq!(migration["legacy_examples_reencoded"], 0);
+        assert_eq!(migration["legacy_examples_excluded_from_new_training"], 1);
+        assert_eq!(memory, before);
+        assert!(model_examples(&memory).is_empty());
         let second = migrate_feature_history(&mut memory);
-        assert_eq!(second["legacy_examples_reencoded"], 0);
-        assert_eq!(second["legacy_examples_reencoded_total"], 1);
+        assert_eq!(second["legacy_examples_reencoded_total"], 0);
+        assert_eq!(memory, before);
+    }
+    #[test]
+    fn current_features_alone_do_not_turn_unverified_history_into_strict_labels() {
+        let p=project();
+        let mut row=json!({"recipe":{"mesh":p["mesh"]},"features":vec![0.;model::INPUTS],
+            "feature_schema":crate::representation::SCHEMA,"success":true,"accepted":true,"score":0.8});
+        let mut memory=json!({"contexts":[{"project":p,"geometry_id":"quad","observations":[row]}]});
+        assert!(model_examples(&memory).is_empty());
+        row["element_policy"]=json!({"requested":crate::dataset_model::ELEMENT_POLICY,"verified":true,
+            "dimension":2,"final_cell_counts":{"quadrilateral":4,"hexahedron":0,"segment":8}});
+        memory["contexts"][0]["observations"][0]=row.clone();
+        assert_eq!(model_examples(&memory).len(),1);
+        row["element_policy"]["final_cell_counts"]["triangle"]=json!(1);
+        memory["contexts"][0]["observations"][0]=row;
+        assert!(model_examples(&memory).is_empty());
+        let before=memory.clone();
+        assert_eq!(migrate_feature_history(&mut memory)["legacy_examples_excluded_from_new_training"],1);
+        assert_eq!(memory,before);
+    }
+    #[test]
+    fn memory_information_disables_historical_guidance_without_changing_saved_weights() {
+        let root=std::env::temp_dir().join(format!("mailleur-policy-info-{}",std::process::id()));
+        let _=fs::remove_dir_all(&root);fs::create_dir_all(&root).unwrap();
+        let bytes=b"{\"deploy_enabled\":true,\"feature_schema\":\"atelier.geometry_action_features.v2\",\"network\":{\"weights\":[0.1]}}";
+        fs::write(root.join("model.json"),bytes).unwrap();
+        let info=memory_info(&json!({"memory_dir":root})).unwrap();
+        assert_eq!(info["model"]["deploy_enabled"],false);
+        assert_eq!(info["model"]["historical_deploy_enabled"],true);
+        assert_eq!(fs::read(root.join("model.json")).unwrap(),bytes);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -1642,7 +1653,7 @@ mod tests {
         let current = candidate(&original, recipe(&changed, "frontal:size:1"), false).unwrap();
         let chosen = chosen_project(&original, &current);
         let id = context_identity(&chosen, &Value::Null).unwrap().0;
-        let mut memory = json!({"contexts":[{"context_id":"original","observations":[{"recipe_id":"recipe","recipe":current.recipe,"accepted":true,"resulting_context_id":id,"quality":{"accepted":true,"minimum":0.8,"mean":0.9},"elements":12}]},{"context_id":id,"observations":[]}]});
+        let mut memory = json!({"contexts":[{"context_id":"original","observations":[{"recipe_id":"recipe","recipe":current.recipe,"accepted":true,"success":true,"element_policy":{"requested":crate::dataset_model::ELEMENT_POLICY,"verified":true,"dimension":2,"final_cell_counts":{"quadrilateral":12,"hexahedron":0,"segment":8}},"resulting_context_id":id,"quality":{"accepted":true,"minimum":0.8,"mean":0.9},"elements":12}]},{"context_id":id,"observations":[]}]});
         assert!(remembered_recipe(&memory, 1).is_some());
         let mut different = chosen;
         different["critical_zones"] =
