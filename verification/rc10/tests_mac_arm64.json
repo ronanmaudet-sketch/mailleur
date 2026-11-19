@@ -18,24 +18,24 @@
   },
   "kernel": {
     "version": "mailleur-core 1.0.0-rc.10",
-    "bytes": 2387008,
-    "sha256": "5ee9ccd64cc25ffb331605f54b6d4d8c6c949252d4455b678e54c39970b31754",
+    "bytes": 2390992,
+    "sha256": "6b8412c1f06edd36ca8646f3d5323dc0790075e9ae7f4134a386984b115ca42a",
     "codesign_verify": true
   },
   "checks": {
     "python": {
       "command": "python -m unittest discover -s tests -v",
-      "passed": 211,
+      "passed": 213,
       "failed": 0,
       "skipped": 0,
-      "seconds": 24.673
+      "seconds": 26.708
     },
     "rust": {
       "command": "cargo test --locked --manifest-path rust_core/Cargo.toml",
       "passed": 140,
       "failed": 0,
       "skipped": 0,
-      "seconds": 6.54
+      "seconds": 6.52
     },
     "qt": {
       "platform": "offscreen",

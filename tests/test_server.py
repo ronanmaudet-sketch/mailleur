@@ -83,6 +83,9 @@ class LocalServer(unittest.TestCase):
         self.assertIn("available", self.info["backend"])
         self.assertGreaterEqual(len(self.info["examples"]), 3)
         self.assertIn("msh", self.info["formats"])
+        for name in ("nastran", "lsdyna", "ansys_structural"):
+            self.assertIn(name, self.info["formats"])
+            self.assertNotIn(name, self.info["default_export_formats"])
         status, contents = self.request("/")
         self.assertEqual(status, 200)
         self.assertIn(b"Atelier", contents)
@@ -159,6 +162,12 @@ class LocalServer(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(bundle)) as archive:
             self.assertTrue(any(name.endswith(".msh") for name in archive.namelist()))
             self.assertTrue(any(name.endswith(".json") for name in archive.namelist()))
+        status, bdf = self.request(f"/api/jobs/{created['id']}/export", {"format": "nastran"})
+        self.assertEqual(status, 200, bdf)
+        self.assertIn(b"CQUAD8", bdf)
+        status, refused = self.request(f"/api/jobs/{created['id']}/export", {"format": "lsdyna"})
+        self.assertEqual(status, 400, refused)
+        self.assertIn("quad8", refused["error"])
         status, data = self.request(f"/api/jobs/{created['id']}/download?format=msh")
         self.assertEqual(status, 200)
         self.assertIn(b"$MeshFormat", data)

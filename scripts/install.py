@@ -9,6 +9,7 @@ Aucun paquet système ni interpréteur global n'est modifié.
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -36,10 +37,18 @@ def ensure_core() -> Path:
         print(f"Noyau Rust disponible : {existing}", flush=True)
         return existing
     cargo = shutil.which("cargo")
+    build_env = os.environ.copy()
     if not cargo:
         home_cargo = Path.home() / ".cargo" / "bin" / ("cargo.exe" if sys.platform == "win32" else "cargo")
         if home_cargo.is_file():
             cargo = str(home_cargo)
+    if not cargo:
+        tools = ROOT / ".toolchain"
+        private_cargo = tools / "cargo" / "bin" / ("cargo.exe" if sys.platform == "win32" else "cargo")
+        if private_cargo.is_file() and (tools / "rustup").is_dir():
+            cargo = str(private_cargo)
+            build_env.update(CARGO_HOME=str(tools / "cargo"), RUSTUP_HOME=str(tools / "rustup"),
+                             PATH=str(private_cargo.parent) + os.pathsep + build_env.get("PATH", ""))
     if not cargo:
         raise ValueError("Aucun noyau Rust compilé pour cet ordinateur et Cargo est absent. "
                          "Installer la chaîne Rust depuis https://rustup.rs, ouvrir un nouveau "
@@ -50,16 +59,16 @@ def ensure_core() -> Path:
                          "Extraire l'archive source complète avant l'installation.")
     print("Compilation du noyau Rust. Cargo peut télécharger ses dépendances lors de ce premier calcul.", flush=True)
     run([cargo, "build", "--locked", "--release", "--manifest-path", str(manifest),
-         "--target-dir", str(ROOT / "rust_core" / "target")])
+         "--target-dir", str(ROOT / "rust_core" / "target")], env=build_env)
     compiled = find_core(ROOT)
     if compiled is None:
         raise ValueError("La compilation s'est terminée sans produire rust_core/target/release/mailleur-core.")
     return compiled
 
 
-def run(command: list[str]) -> None:
+def run(command: list[str], *, env=None) -> None:
     print("\n> " + " ".join(str(part) for part in command), flush=True)
-    subprocess.run(command, cwd=ROOT, check=True)
+    subprocess.run(command, cwd=ROOT, check=True, env=env)
 
 
 def main(argv: list[str] | None = None) -> int:

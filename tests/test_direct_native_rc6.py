@@ -53,6 +53,29 @@ class DirectCadAndCurvatureIntegration(unittest.TestCase):
             self.session.learn(p, max_trials=1)
         self.assertEqual(self.session.memory_info()["observations"], 0)
 
+    def test_complete_quadratic_exports_keep_order_and_offer_a_usable_bundle(self):
+        from atelier.formats import convert_mesh
+        import zipfile
+
+        for shape, expected in (("quadrilateral", {"msh", "vtu"}), ("hexahedron", {"msh", "vtu"}),
+                                ("pyramid", {"msh"})):
+            with self.subTest(shape=shape):
+                result = self.session.generate(project(shape, complete=True))
+                source = Path(result["directory"])
+                bundle = self.session.export(source, self.root / f"{shape}.zip", "bundle")
+                self.assertTrue(bundle["complete"], bundle["results"])
+                self.assertEqual({r["format"] for r in bundle["results"]}, expected)
+                with zipfile.ZipFile(bundle["file"]) as archive:
+                    self.assertIn("mesh.msh", archive.namelist())
+                for name in ("unv", "cast3m"):
+                    with self.assertRaisesRegex((RuntimeError, ValueError), "UNV"):
+                        self.session.export(source, self.root / "refused", name)
+                target = self.root / "refused.unv"
+                target.write_bytes(b"ancienne sortie")
+                with self.assertRaisesRegex(ValueError, "UNV"):
+                    convert_mesh(source / "mesh.msh", target, "unv")
+                self.assertEqual(target.read_bytes(), b"ancienne sortie")
+
     def test_learning_keeps_an_unqualified_memory_untouched(self):
         directory = self.root / "ancienne_memoire"
         directory.mkdir()

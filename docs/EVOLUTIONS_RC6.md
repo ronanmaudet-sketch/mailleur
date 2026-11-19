@@ -1,5 +1,7 @@
 # rc6 : éléments directs et échanges avec les solveurs
 
+Les chemins de rapports rc3 à rc6 ci-dessous désignent les fichiers de l’archive d’origine. Pour les contrôles de la version actuelle, consulter [le bilan rc10](../verification/rc10/README.md).
+
 Cette note décrit l’archive amont rc6. La version active et ses réglages figurent dans le [README](../README.md).
 
 La rc6 donne la priorité aux quadrilatères et aux hexaèdres structurés,
@@ -235,7 +237,7 @@ exécutés doivent être lus dans les rapports de livraison.
 
 ## Pilote historique de l’archive rc6
 
-Le [rapport du corpus structuré](../verification/rc6/structured_corpus/summary.json)
+Le rapport du corpus structuré (`verification/rc6/structured_corpus/summary.json`)
 consigne 32 configurations réellement évaluées : 16 structurées et 16
 aléatoires, sur huit familles. Les 32 cas ont produit un maillage et les
 96 stratégies ont respecté les critères définis pour ce pilote. Les formes
@@ -271,7 +273,7 @@ choisies tout en adaptant la discrétisation au calcul réel.
 
 ## Validation et plateformes
 
-Le [rapport global du 19 novembre 2026](../verification/native_release/summary.json)
+Le rapport global du 19 novembre 2026 (`verification/native_release/summary.json`)
 consigne **195 tests Python et 139 tests Rust réussis**, sans test ignoré,
 sous Linux. Les huit exemples de livraison ont été maillés à l'ordre 2 et
 leurs paquets d'export ont été produits. Les tests incluent les variantes
@@ -292,7 +294,7 @@ classiques. Il n'est pas attribué aux nouveaux maillages structurés et ne
 prouve pas une généralisation industrielle. La recherche et la mémoire
 exacte revalidée restent utilisables lorsque le classement neuronal est inactif.
 
-Le [contrôle de protocole API](../verification/api/rc6_protocol_demo.json)
+Le contrôle de protocole API (`verification/api/rc6_protocol_demo.json`)
 consigne la CLI des capacités, la génération de 24 hexaèdres quadratiques,
 une boucle à deux évaluations de solveur fictif et la planification native
 d'une adaptation. Il ne comporte aucun calcul physique externe.
@@ -313,4 +315,4 @@ minimal sur tous les ordinateurs. La subdivision automatique en blocs de
 toute CAO défectueuse, l'adaptation anisotrope et la reprise d'état physique
 universelle restent hors du périmètre livré.
 
-Le [contrôle après extraction de l’archive](../verification/rc6/archive_smoke.json) vérifie aussi le noyau embarqué, la génération HEX20 avec export INP depuis un script, la boucle de protocole solveur et le plan de corpus. Ce contrôle utilise les dépendances installées sous Linux ; il ne constitue pas un essai sur Mac ni dans un solveur physique.
+Le contrôle après extraction de l’archive (`verification/rc6/archive_smoke.json`) vérifie aussi le noyau embarqué, la génération HEX20 avec export INP depuis un script, la boucle de protocole solveur et le plan de corpus. Ce contrôle utilise les dépendances installées sous Linux ; il ne constitue pas un essai sur Mac ni dans un solveur physique.

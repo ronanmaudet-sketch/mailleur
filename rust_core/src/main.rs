@@ -110,19 +110,25 @@ fn process(request: &Value) -> Result<Value, String> {
         if api.elements(0, -1)?.iter().any(|b| !b.tags.is_empty()) {
             return Err("L'export UNV de mailles ponctuelles 0D n'est pas pris en charge ; utiliser MED ou régénérer le maillage public sans cellules 0D".into());
         }
-        let before: usize = api.elements(-1, -1)?.iter().map(|b| b.tags.len()).sum();
+        let inventory = |api: &gmsh::Gmsh| -> Result<std::collections::BTreeMap<i32, usize>, String> {
+            Ok(api.elements(-1, -1)?.into_iter().filter(|b| !b.tags.is_empty())
+                .map(|b| (b.element_type, b.tags.len())).collect())
+        };
+        let before = inventory(&api)?;
+        if let Some(kind) = before.keys().find(|kind| !matches!(kind, 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 11 | 16 | 17 | 18)) {
+            return Err(format!("Type Gmsh {kind} non pris en charge en UNV sans perte de forme ou d’ordre. Utiliser MSH."));
+        }
         api.set_number("Mesh.SaveGroupsOfNodes", 1.0)?;
         api.set_number("Mesh.SaveGroupsOfElements", 1.0)?;
         api.write(&output)?;
         drop(api);
         let api = gmsh::Gmsh::new(library)?;
         api.open(&output)?;
-        let after: usize = api.elements(-1, -1)?.iter().map(|b| b.tags.len()).sum();
+        let after = inventory(&api)?;
         if before != after {
-            return Err(format!(
-                "La relecture UNV a changé le nombre d'éléments : {before} → {after}"
-            ));
+            return Err(format!("La relecture UNV a changé les types ou effectifs d’éléments : {before:?} → {after:?}"));
         }
+        let after: usize = after.values().sum();
         return Ok(
             json!({"readback":true,"groups_readback":false,"reader":"Rust / Gmsh UNV","elements_read":after,"physical_names_read":[],"native_kernel":"rust"}),
         );

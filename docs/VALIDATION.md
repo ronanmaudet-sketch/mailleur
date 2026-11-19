@@ -1,5 +1,7 @@
 # Protocole de validation
 
+Les chemins de rapports rc3 à rc6 ci-dessous désignent les fichiers de l’archive d’origine. Pour les contrôles de la version actuelle, consulter [le bilan rc10](../verification/rc10/README.md).
+
 Cette page définit les contrôles à exécuter pour une livraison. Elle ne remplace
 pas les sorties de test : le nombre de tests, leurs durées, versions et résultats
 doivent provenir du rapport réellement produit dans `verification/`.
@@ -81,10 +83,10 @@ Les résultats rc5 ci-dessous proviennent de leur exécution réelle. Voir aussi
 ## Résultats exécutés pour la rc6
 
 La livraison **1.0.0rc6 du 19 novembre 2026** a été vérifiée sous Linux.
-Le [rapport global](../verification/native_release/summary.json), le
-[rapport de mémoire](../verification/continuous_learning/summary.json), le
-[pilote général](../verification/corpus/summary.json) et le
-[pilote direct](../verification/rc6/structured_corpus/summary.json) distinguent
+Le rapport global (`verification/native_release/summary.json`), le
+rapport de mémoire (`verification/continuous_learning/summary.json`), le
+pilote général (`verification/corpus/summary.json`) et le
+pilote direct (`verification/rc6/structured_corpus/summary.json`) distinguent
 les suites, les configurations et les résultats des réseaux.
 
 | Vérification | Résultat observé |
@@ -119,9 +121,9 @@ pas ajoutés aux totaux rc6.
 
 La livraison **1.0.0rc5 du 4 novembre 2026** a été vérifiée sous Linux x86_64,
 avec Python 3.12.14. Les données ci-dessous proviennent du
-[rapport natif](../verification/native_release/summary_rc5.json), du
-[rapport d'apprentissage continu](../verification/continuous_learning/summary_rc5.json)
-et du [rapport du corpus](../verification/corpus/summary_rc5.json).
+rapport natif (`verification/native_release/summary_rc5.json`), du
+rapport d'apprentissage continu (`verification/continuous_learning/summary_rc5.json`)
+et du rapport du corpus (`verification/corpus/summary_rc5.json`).
 
 | Vérification | Résultat observé |
 | --- | --- |
@@ -172,10 +174,10 @@ et dans `test_scope` du rapport natif.
 
 Les commandes de la CLI release avaient également été vérifiées dans une
 campagne distincte de la rc4, conservée à titre historique :
-[plan](../verification/cli_rc4/plan.json),
-[lot](../verification/cli_rc4/run.json),
-[état](../verification/cli_rc4/status.json) et
-[entraînement](../verification/cli_rc4/train.json). Ces sorties ne sont pas
+plan (`verification/cli_rc4/plan.json`),
+lot (`verification/cli_rc4/run.json`),
+état (`verification/cli_rc4/status.json`) et
+entraînement (`verification/cli_rc4/train.json`). Ces sorties ne sont pas
 additionnées aux 48 cas du pilote rc5 ci-dessus et ne sont pas présentées comme
 de nouvelles exécutions de la CLI rc5.
 
@@ -259,8 +261,8 @@ données lorsque celle-ci empêche une conclusion.
 
 Ces contrôles définissent les invariants du parcours continu. Leur exécution
 rc4 du 3 novembre 2026 est consignée dans le
-[rapport d'apprentissage continu](../verification/continuous_learning/summary_rc5.json)
-et le [rapport natif](../verification/native_release/summary_rc5.json). Les sorties
+rapport d'apprentissage continu (`verification/continuous_learning/summary_rc5.json`)
+et le rapport natif (`verification/native_release/summary_rc5.json`). Les sorties
 conservées d'une version antérieure ne prouvent pas les fonctions ajoutées à
 la version courante.
 

@@ -15,8 +15,8 @@
   "generated_cases": 32,
   "journal_cursor": {
     "last_case_id": "137e58d998fa8f700729886433d9fb264d08caf3f62477e6f6db4610d934431f",
-    "offset": 138277,
-    "prefix_sha256": "e8b23e18d79455114e45f9e7202ae5eeb87dc44a75e6a349acca7eed78d02704",
+    "offset": 138281,
+    "prefix_sha256": "cafff2f949dcfd87415d19f4c61a46dc6304729874541a8299b48c16141d14ca",
     "records": 8,
     "schema": "atelier.corpus.cursor.v1",
     "shard": 3
@@ -34,5 +34,5 @@
     "train": 20,
     "validation": 6
   },
-  "updated_at": 1795114084
+  "updated_at": 1795114526
 }

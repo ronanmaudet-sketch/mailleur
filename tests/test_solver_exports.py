@@ -146,5 +146,17 @@ class SolverExportContracts(unittest.TestCase):
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(names, ["N_EDGE", "N_EDGE_2"])
 
+    def test_repeated_nodes_cannot_disguise_a_tetrahedron_as_a_hexahedron(self):
+        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[0,1,0],[0,0,1]],
+                               [("hexahedron", [[0,1,2,3,3,3,3,3]])],
+                               cell_data={"gmsh:physical": [self.np.array([1])],
+                                          "gmsh:geometrical": [self.np.array([1])]},
+                               field_data={"DOMAIN": self.np.array([1,3])})
+        source = self.root / "disguised_tetra.msh"
+        self.meshio.write(source, mesh, file_format="gmsh22", binary=False)
+        with self.assertRaisesRegex(ValueError, "nœuds répétés"):
+            convert_mesh(source, self.root / "disguised.key", "lsdyna")
+
+
 if __name__ == "__main__":
     unittest.main()

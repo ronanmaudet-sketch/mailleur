@@ -1,5 +1,7 @@
 # Corpus à grande échelle et répartition Python / Rust
 
+Les chemins de rapports rc3 à rc6 ci-dessous désignent les fichiers de l’archive d’origine. Pour les contrôles de la version actuelle, consulter [le bilan rc10](../verification/rc10/README.md).
+
 Le profil actif `direct_quad_hex` construit des éléments d’ordre 2 directement en Rust.
 Ses six familles répartissent les configurations entre trois jeux indépendants.
 
@@ -16,7 +18,7 @@ produit, le journal enregistre le générateur réellement utilisé. L’entraî
 ces informations avant d’utiliser les observations. Les anciens profils
 `structured_direct` (huit familles) et `general` (24 familles) se consultent
 avec `status` et `preview`. Leurs données et leurs poids restent rattachés aux
-essais historiques. [Rapport du pilote général historique](../verification/corpus/summary.json).
+essais historiques. Rapport du pilote général historique (`verification/corpus/summary.json`).
 
 Le tableau ci-dessous décrit le pilote **rc5 du 4 novembre 2026**, conservé
 séparément ; il ne constitue pas le bilan des nouveaux essais rc6.
@@ -30,7 +32,7 @@ de maillages déjà calculés.
 
 ## Résultats historiques du pilote rc5
 
-Le [rapport du corpus rc5 conservé](../verification/corpus/summary_rc5.json)
+Le rapport du corpus rc5 conservé (`verification/corpus/summary_rc5.json`)
 consigne les résultats suivants. Les totaux de suite de cette version sont
 conservés dans les notes de livraison historiques, sans être réutilisés
 comme résultats rc6 :

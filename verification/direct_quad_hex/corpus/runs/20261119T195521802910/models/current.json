@@ -1,6 +1,6 @@
 {
   "baseline_strategy": "direct_structured_1",
-  "dataset_fingerprint": "2208a36fac4cbb20fae6f2475094426adab66cdd5f546103e866865816fa8a7c",
+  "dataset_fingerprint": "4536598306672e18c2a89462d2b12f4a95398395a4c747a75a0f30684bc92042",
   "deploy_enabled": true,
   "deployment_reason": "validation_selection_reward_improved",
   "element_policy": "direct_quad_hex",

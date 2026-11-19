@@ -4,7 +4,7 @@
   "engine": {
     "id": "mailleur.structured-direct.quad-hex.v1",
     "version": "mailleur-core 1.0.0-rc.10",
-    "sha256": "5ee9ccd64cc25ffb331605f54b6d4d8c6c949252d4455b678e54c39970b31754",
+    "sha256": "6b8412c1f06edd36ca8646f3d5323dc0790075e9ae7f4134a386984b115ca42a",
     "system": "Darwin",
     "architecture": "arm64"
   },
@@ -56,9 +56,9 @@
     "budget_scope": "soft gradient budget checked between mini-batches; mandatory preparation, validation and integrity passes may exceed it; caller process timeout is the hard limit",
     "checkpoint_batches": 16,
     "checkpoint_complete": true,
-    "checkpoint_path": "verification/direct_quad_hex/corpus/runs/20261119T194759949532/models/training.checkpoint.json",
+    "checkpoint_path": "verification/direct_quad_hex/corpus/runs/20261119T195521802910/models/training.checkpoint.json",
     "computation_backend": "rust",
-    "dataset_fingerprint": "2208a36fac4cbb20fae6f2475094426adab66cdd5f546103e866865816fa8a7c",
+    "dataset_fingerprint": "4536598306672e18c2a89462d2b12f4a95398395a4c747a75a0f30684bc92042",
     "deploy_enabled": true,
     "element_policy": "direct_quad_hex",
     "epochs_completed": 3,
@@ -88,7 +88,7 @@
     "input_count": 128,
     "max_batch_observed": 16,
     "max_records_requested": 0,
-    "model_path": "verification/direct_quad_hex/corpus/runs/20261119T194759949532/models/current.json",
+    "model_path": "verification/direct_quad_hex/corpus/runs/20261119T195521802910/models/current.json",
     "model_version": 1,
     "notes": [
       "Un seul cas JSONL et un mini-lot de caractéristiques sont chargés à la fois ; les maillages ne sont pas chargés en mémoire pour entraîner le réseau",
@@ -100,14 +100,14 @@
     "parameter_count": 4161,
     "phase": "completed",
     "phase_seconds": {
-      "initial_validation": 0.000724917,
-      "integrity_and_final_evaluation": 0.096976083,
-      "preparation": 0.013557791,
-      "training_and_epoch_validation": 0.518869834
+      "initial_validation": 0.000781917,
+      "integrity_and_final_evaluation": 0.119004417,
+      "preparation": 0.013461875,
+      "training_and_epoch_validation": 0.629718792
     },
     "resumed": false,
     "schema": "atelier.corpus.training_report.v1",
-    "seconds": 0.639238416,
+    "seconds": 0.771228459,
     "stopped_by_budget": false,
     "streaming": true,
     "test": {
@@ -154,8 +154,8 @@
     "validation_selection_improvement": 0.008748824238804817,
     "warm_started": false
   },
-  "directory": "verification/direct_quad_hex/corpus/runs/20261119T194759949532",
-  "seconds": 5.151879291999649,
+  "directory": "verification/direct_quad_hex/corpus/runs/20261119T195521802910",
+  "seconds": 5.566548291999425,
   "million_cases_executed": false,
   "industrial_generalization_gain_claimed": false,
   "notes": [

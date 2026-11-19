@@ -95,16 +95,18 @@ mailleur autonome plaçant directement chaque nœud.
 
 ## Vérifications exécutées sur la rc6
 
+Les rapports historiques cités ci-dessous sont conservés dans l’archive locale de la rc6 d’origine. Le [dossier rc10](verification/rc10/README.md) contient les vérifications de la version publique.
+
 La livraison du **19 novembre 2026** passe **195 tests Python et 139 tests
 Rust**, sans échec ni test ignoré, sous Linux. Les huit exemples de livraison
 ont été maillés à l'ordre 2 et leurs paquets d'export ont été produits.
-Le [rapport natif rc6](verification/native_release/summary.json) consigne les
+Le rapport natif rc6 (`verification/native_release/summary.json`) consigne les
 résultats réels, dont les contrôles de géométrie courbe des sphères et du
 STL quadratique.
 
-Le [pilote direct](verification/rc6/structured_corpus/summary.json) a calculé
+Le pilote direct (`verification/rc6/structured_corpus/summary.json`) a calculé
 32 configurations, sur huit familles, et 96 stratégies acceptées. Le
-[pilote général](verification/corpus/summary.json) a traité 48 configurations,
+pilote général (`verification/corpus/summary.json`) a traité 48 configurations,
 dont 46 ont produit un maillage et 45 une stratégie admissible. Ces petits
 pilotes sont distincts du million de cas planifiés, toujours non exécuté.
 
@@ -146,9 +148,9 @@ la mémoire exacte revalidée fonctionnent indépendamment de cette activation.
 Les tests sur macOS, Windows et dans les solveurs externes restent à effectuer.
 
 Consulter les [résultats détaillés](docs/VALIDATION.md), le
-[rapport natif rc5 conservé](verification/native_release/summary_rc5.json) et le
-[rapport d'apprentissage continu rc5](verification/continuous_learning/summary_rc5.json),
-ainsi que le [rapport du corpus rc5](verification/corpus/summary_rc5.json).
+rapport natif rc5 conservé (`verification/native_release/summary_rc5.json`) et le
+rapport d'apprentissage continu rc5 (`verification/continuous_learning/summary_rc5.json`),
+ainsi que le rapport du corpus rc5 (`verification/corpus/summary_rc5.json`).
 
 ## Installation et lancement
 

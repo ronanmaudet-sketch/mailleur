@@ -1,5 +1,21 @@
 # Échanges avec les logiciels de calcul
 
+## Exports solveurs du moteur direct
+
+Dans le bureau, sélectionner le format à l’étape **Export**. En ligne de commande, par exemple, `python -m atelier mesh examples/direct_hex.json -o resultats --formats nastran,inp` écrit un BDF et un INP. Avec le client Python, appeler `client.export(maillage, "sorties", format_name="nastran")`. Le catalogue HTTP est accessible par `GET /api/info`. Pour un maillage déjà calculé, `POST /api/jobs/{id}/export` avec `{"format":"nastran"}` et le jeton de la session renvoie le fichier complémentaire dans l’unité d’entrée du projet.
+
+| Format | Quadrilatères et hexaèdres | Contrôle et usage |
+| --- | --- | --- |
+| Nastran BDF, `nastran` | QUAD4, QUAD8, HEX8 et HEX20 | Relecture des coordonnées, connectivités et ensembles SET1. Compléter les matériaux, les propriétés et les chargements. |
+| LS-DYNA Keyword, `lsdyna` | QUAD4 et HEX8 linéaires | Relecture du sous-ensemble de cartes écrit et des groupes. Ajouter PART, SECTION, MAT et conditions aux limites. |
+| ANSYS APDL structural, `ansys_structural` | PLANE182 ou SHELL181 pour QUAD4, SOLID185 pour HEX8 | Contrôle des cartes et des composants. Compléter les définitions de calcul dans ANSYS. |
+| ANSYS APDL de maillage, `ansys` | QUAD4/8 et HEX8/20 | MESH200 transmet la topologie. Assigner les éléments physiques avant le calcul. |
+| Abaqus / CalculiX, `inp` | QUAD4/8 et HEX8/20 | Coordonnées écrites sur au plus 20 caractères, avec 13 à 17 chiffres significatifs suivant la valeur. |
+| Cast3M, `cast3m` | UNV pour QUAD4/8 et HEX8/20, avec script d’import | Contrôle des types et effectifs relus par Gmsh. L’interprétation et le calcul restent à vérifier dans le solveur choisi. |
+
+Les trois sorties complémentaires Nastran, LS-DYNA et APDL structural se demandent individuellement. Un export explicite incompatible conserve le maillage d’origine et retourne un diagnostic. Le jeu de fichiers par défaut reste adapté au maillage quadratique recommandé QUAD8/HEX20. Pour QUAD9, HEX27 et PRISM18 complets, l’archive par défaut contient le MSH et le VTU. Pour PYR14, elle fournit le MSH. Le passage par UNV/Cast3M refuse ces familles, car l’écrivain UNV peut perdre les nœuds quadratiques. Les essais de format seuls ne certifient aucune version d’un solveur propriétaire.
+
+
 Un fichier de maillage contient des coordonnées, une connectivité et des
 groupes. Il ne remplace pas un modèle de calcul : matériau, formulation des
 éléments, épaisseur des coques, unités, chargements, contacts et conditions

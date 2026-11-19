@@ -54,34 +54,38 @@ def validate_continuous_learning():
     from atelier.projects import default_examples
 
     started = time.monotonic()
-    proof_root = ROOT / "verification" / "continuous_learning"
+    proof_root = ROOT / "verification" / "direct_quad_hex" / "continuous_learning"
     proof_root.mkdir(parents=True, exist_ok=True)
     # Each validation invocation starts with an empty, isolated history. Raw
     # older reports are retained under their own session directory.
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     workspace = proof_root / "continuous_runs" / stamp
     session = NativeSession(workspace, timeout=120)
-    cases = {case["id"]: case for case in default_examples()}
-    selected = [(identifier, copy.deepcopy(cases[identifier]["project"]), None)
-                for identifier in ("plate", "chamfer", "bracket", "shell", "polygon")]
-    imported = json.loads((ROOT / "examples" / "atelier_import.json").read_text(encoding="utf-8"))
-    imported["name"] = "Apprentissage de validation — STEP deux volumes"
-    imported["mesh"].update(size=.8, min_size=.15, max_elements=20000)
-    source = ROOT / "examples" / "assemblage_deux_volumes.step"
-    if not source.is_file():
-        raise RuntimeError("La source STEP deux volumes manque ; cet essai ne peut pas être déclaré réussi")
-    selected.append(("import_step_two_volumes", imported, source))
+    # Each fixture is an independent primitive, defined in millimetres for this
+    # validation. The continuous-learning campaign uses no external CAD file.
+    geometries = [
+        ("quadrilatere_convexe", "planar", {"kind": "polygon", "outer": [[0, 0], [8, 0], [7, 5], [1, 4]], "holes": []}),
+        ("rectangle", "planar", {"kind": "plate", "width": 7, "height": 4, "holes": []}),
+        ("plaque_percee", "planar", {"kind": "plate", "width": 8, "height": 6,
+                                     "holes": [{"x": 4, "y": 3, "radius": 1}]}),
+        ("bloc", "volume", {"kind": "box", "width": 6, "height": 4, "depth": 3}),
+        ("bloc_mince", "volume", {"kind": "box", "width": 7, "height": 5, "depth": 1}),
+        ("extrusion_percee", "volume", {"kind": "plate", "width": 8, "height": 6, "thickness": 2,
+                                       "holes": [{"x": 4, "y": 3, "radius": 1}]}),
+    ]
+    templates = {row["id"]: row["project"] for row in default_examples()}
     results = []
     first_project = first_result = None
-    for identifier, project, source in selected:
+    for identifier, mode, geometry in geometries:
+        template = "direct_hex" if mode == "volume" else "direct_quad"
+        project = copy.deepcopy(templates[template])
+        project.update(name=identifier, geometry=geometry)
         project["units"] = {"input": "mm", "internal": "m"}
         project["quality_policy"] = {"minimum_quality": .05, "poor_threshold": .2, "strict": True}
         project.pop("learning", None)
-        inspection = session.inspect(project, source=source)
+        inspection = session.inspect(project)
         catalog = inspection["report"]["entity_catalog"]
         # Use the actual catalogue: boolean operations can renumber faces.
-        # On the sphere the complete surface is protected, avoiding a
-        # degenerate polar edge as the only selected region.
         dimension = 2 if project["mode"] in ("surface", "volume") else 1
         candidates = [item for item in catalog if item.get("dimension", item.get("dim")) == dimension]
         if not candidates:
@@ -92,7 +96,7 @@ def validate_continuous_learning():
                                       "dimension": dimension, "tags": [tag], "buffer": .05,
                                       "minimum_quality": .2}]
         case_started = time.monotonic()
-        result = session.learn(project, source=source, max_trials=4, epochs=30, seed=42, max_seconds=60)
+        result = session.learn(project, max_trials=4, epochs=30, seed=42, max_seconds=60)
         report, experience = result["report"], result["report"]["experience"]
         if report["quality"].get("accepted") is not True or experience.get("accepted") is not True:
             raise RuntimeError(f"La recherche {identifier} n'a pas produit de résultat accepté")
@@ -102,10 +106,8 @@ def validate_continuous_learning():
                 zone.get("accepted") is True and zone.get("elements", 0) > 0
                 for zone in report["quality"]["critical_zones"]):
             raise RuntimeError(f"Zone critique non évaluée ou refusée pour {identifier}")
-        if identifier == "import_step_two_volumes" and report["geometry_diagnostics"]["entity_counts"].get("3") != 2:
-            raise RuntimeError("Le test importé ne contient pas les deux volumes attendus")
         record = {"id": identifier, "context_id": experience["context_id"],
-                  "geometry_id": experience["geometry_id"], "source_imported": source is not None,
+                  "geometry_id": experience["geometry_id"], "source_imported": False, "geometry": geometry,
                   "accepted": experience["accepted"], "executed_trials": experience["executed_trials"],
                   "max_trials": 4, "memory_reused": experience["memory_reused"],
                   "nodes": report["nodes"], "elements": report["elements"],
@@ -339,7 +341,7 @@ def main():
     from atelier import __version__
     from atelier.native import NativeSession, core_path
     from atelier.projects import default_examples
-    directory = ROOT / "verification" / "native_release"
+    directory = ROOT / "verification" / "rc10" / "native_validation"
     directory.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -349,7 +351,7 @@ def main():
     (directory / "python_tests.txt").write_text(test_text, encoding="utf-8")
     match = re.search(r"Ran (\d+) tests in ([0-9.]+)s", test_text)
     if tests.returncode:
-        raise RuntimeError("La suite Python a échoué ; consulter verification/native_release/python_tests.txt")
+        raise RuntimeError("La suite Python a échoué ; consulter verification/rc10/native_validation/python_tests.txt")
     cargo = shutil.which("cargo")
     rust_report = {"executed": False, "reason": "Cargo absent ; utiliser les preuves fournies ou installer Rust pour les reproduire"}
     if cargo:
@@ -368,7 +370,9 @@ def main():
     for example in default_examples():
         project = example["project"]
         project["units"] = {"input": "mm", "internal": "m"}
-        (ROOT / "examples" / ("atelier_" + example["id"] + ".json")).write_text(json.dumps(project, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        evidence = directory / "examples" / example["id"]
+        evidence.mkdir(exist_ok=True, parents=True)
+        (evidence / "project.json").write_text(json.dumps(project, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         result = session.generate(project)
         export = session.export(Path(result["directory"]), directory / "examples" / example["id"], "bundle", units="mm", planar=project["mode"] == "planar")
         examples.append({"id": example["id"], "name": example["name"], "nodes": result["report"]["nodes"],
@@ -377,10 +381,7 @@ def main():
                          "export_complete": export.get("complete"),
                          "export_statuses": [{"format": v["format"], "status": v["status"]} for v in export.get("results", [])],
                          "directory": str(Path(result["directory"]).relative_to(ROOT))})
-    # The historical algorithm guide has an unstructured training domain;
-    # its fixture must not inherit the new first example's direct QUAD grid.
-    legacy_training_project = next(row["project"] for row in default_examples() if row["id"] == "plate")
-    training = session.train(project=legacy_training_project, epochs=200)
+    training = session.train(epochs=200)
     learning = {key: training["report"].get(key) for key in ("training_cases", "validation_cases", "validation_guide_reward", "validation_fixed_reward", "improvement", "deploy_enabled", "native_kernel")}
     learning["directory"] = str(Path(training["directory"]).relative_to(ROOT))
     continuous_learning = validate_continuous_learning()
@@ -390,7 +391,7 @@ def main():
     try: timestamp = datetime.now(ZoneInfo("Europe/Paris")).isoformat()
     except ZoneInfoNotFoundError: timestamp = datetime.now().astimezone().isoformat()
     report = {"version": __version__, "date": timestamp,
-              "system": platform.platform(), "python": platform.python_version(), "core_binary": str(core_path()),
+              "system": platform.platform(), "python": platform.python_version(), "core_binary": core_path().name,
               "python_tests": {"exit_code": tests.returncode, "total": int(match[1]) if match else None,
                                "skipped": len(re.findall(r"\.\.\. skipped ", test_text)),
                                "skipped_details": [line for line in test_text.splitlines() if "... skipped " in line]},
@@ -403,9 +404,9 @@ def main():
                              "retirement_counted_as_pass_or_skip": False,
                              "synthetic_streaming_fixture_is_real_meshing": False,
                              "note": "Les API numériques Python ont été retirées explicitement ; les totaux rc3 et rc4 ne portent pas sur exactement le même périmètre."},
-              "macos_windows_executed": False,
+              "tested_platform": sys.platform,
               "external_solvers_executed": False,
-              "limitations": ["Tests effectués sous Linux, pas sur macOS ni Windows.",
+              "limitations": [f"Essai local exécuté sous {platform.system()} sur {platform.machine()}.",
                               "Relecture de formats testée ; aucun solveur externe exécuté.",
                               "Reconstruction indépendante, pas restauration du noyau Rust original.",
                               "Remaillage local par entités, sans édition libre d'un sous-ensemble de cellules."]}

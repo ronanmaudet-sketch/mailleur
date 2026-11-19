@@ -4,10 +4,10 @@ La rc10 provient de `Atelier_Mailleur_Rust_Python_rc6.zip` (47 740 610 octet
 
 | Cas automatique | Éléments du domaine | Nœuds du maillage | Temps mesuré par l’API* |
 | --- | ---: | ---: | ---: |
-| Plaque, ordre 1 | 48 QUAD4 | 63 | 57 ms |
-| Plaque, ordre 2 par défaut | 48 QUAD8 | 173 | 53 ms |
-| Bloc, ordre 1 | 72 HEX8 | 140 | 64 ms |
-| Bloc, ordre 2 par défaut | 72 HEX20 | 477 | 80 ms |
+| Plaque, ordre 1 | 48 QUAD4 | 63 | 79 ms |
+| Plaque, ordre 2 par défaut | 48 QUAD8 | 173 | 90 ms |
+| Bloc, ordre 1 | 72 HEX8 | 140 | 74 ms |
+| Bloc, ordre 2 par défaut | 72 HEX20 | 477 | 111 ms |
 
 \* Un appel de génération sur ce Mac par ligne, y compris le lancement du processus natif. Le temps de génération dans le noyau et les valeurs non arrondies figurent dans le relevé. La relecture a contrôlé les types et le nombre d’éléments ; le rapport du noyau identifie la construction directe des cellules et des nœuds quadratiques. [Relevé des quatre cas](maillages_mac.json) · [Versions et suites de tests](tests_mac_arm64.json)
 

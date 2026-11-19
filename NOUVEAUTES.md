@@ -1,5 +1,7 @@
 # Évolutions de Mailleur
 
+Les chemins de rapports rc3 à rc6 ci-dessous désignent les fichiers de l’archive d’origine. Pour les contrôles de la version actuelle, consulter [le bilan rc10](verification/rc10/README.md).
+
 ## 1.0.0rc10
 
 La rc10 utilise le générateur structuré direct. Le choix automatique et l’apprentissage donnent la priorité au contrat quadrilatères/hexaèdres. Les lanceurs et l’API vérifient l’identité du noyau utilisé. [Guide et vérifications](README.md)
@@ -38,7 +40,7 @@ des états physiques par chaque solveur.
 
 ## Vérifications exécutées sur la rc6
 
-Le [rapport de livraison du 19 novembre 2026](verification/native_release/summary.json)
+Le rapport de livraison du 19 novembre 2026 (`verification/native_release/summary.json`)
 consigne **195 tests Python et 139 tests Rust réussis**, sans test ignoré,
 ainsi que huit exemples maillés à l'ordre 2 et leurs exports complets.
 Le pilote direct a réellement évalué 32 configurations et 96 stratégies
@@ -159,7 +161,7 @@ Le parcours continu 128→12→1 a conservé son historique et le réemploi reva
 sur six géométries ; aucun gain de généralisation n'est annoncé.
 
 Ces chiffres décrivent la campagne rc4. Les résultats du
-[rapport de livraison courant](verification/native_release/summary.json)
+rapport de livraison courant (`verification/native_release/summary.json`)
 doivent être lus avec sa propre version ; ils ne constituent pas la preuve
 d'une nouvelle exécution de la campagne historique. Les tests de streaming
 sur des enregistrements synthétiques ne sont pas ajoutés aux 48 cas

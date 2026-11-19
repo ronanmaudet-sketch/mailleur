@@ -14,8 +14,8 @@
         "line": 28,
         "quad": 48
       },
-      "generation_api_seconds": 0.05673037500037026,
-      "kernel_seconds": 0.002446792
+      "generation_api_seconds": 0.07869204100006755,
+      "kernel_seconds": 0.002430167
     },
     {
       "geometry": "quad",
@@ -30,8 +30,8 @@
         "line3": 28,
         "quad8": 48
       },
-      "generation_api_seconds": 0.05333495899958507,
-      "kernel_seconds": 0.002478416
+      "generation_api_seconds": 0.08980145900022762,
+      "kernel_seconds": 0.002536083
     },
     {
       "geometry": "hex",
@@ -47,8 +47,8 @@
         "quad": 108,
         "hexahedron": 72
       },
-      "generation_api_seconds": 0.06357704099991679,
-      "kernel_seconds": 0.006517833
+      "generation_api_seconds": 0.07366249999995489,
+      "kernel_seconds": 0.006625625
     },
     {
       "geometry": "hex",
@@ -64,8 +64,8 @@
         "quad8": 108,
         "hexahedron20": 72
       },
-      "generation_api_seconds": 0.0797842080000919,
-      "kernel_seconds": 0.008739333
+      "generation_api_seconds": 0.11122683299981873,
+      "kernel_seconds": 0.008352917
     }
   ],
   "passed": true

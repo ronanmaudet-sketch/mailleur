@@ -176,6 +176,8 @@ def _read_impl(source: Path):
         data = np.asarray(block.data, dtype=np.int64)
         if data.ndim != 2 or not len(data) or (data < 0).any() or (data >= len(points)).any():
             raise ValueError("Connectivité de maillage invalide.")
+        if data.shape[1] > 1 and np.any(np.diff(np.sort(data, axis=1), axis=1) == 0):
+            raise ValueError(f"Élément {block.type} à nœuds répétés : connectivité invalide.")
         if block.type not in parts:
             kinds.append(block.type)
             parts[block.type] = []
@@ -758,20 +760,24 @@ def _write_unv(source, path):
     try:
         gmsh.option.setNumber("General.Terminal", 0)
         gmsh.open(str(source))
-        _, before_tags, _ = gmsh.model.mesh.getElements()
-        before = sum(len(v) for v in before_tags)
+        def inventory():
+            types, tags, _ = gmsh.model.mesh.getElements()
+            return {int(kind): len(rows) for kind, rows in zip(types, tags) if len(rows)}
+        before = inventory()
+        unsupported = before.keys() - {1, 2, 3, 4, 5, 6, 8, 9, 11, 16, 17, 18}
+        if unsupported:
+            raise ValueError(f"Types Gmsh {sorted(unsupported)} non pris en charge en UNV sans perte de forme ou d’ordre. Utiliser MSH.")
         gmsh.option.setNumber("Mesh.SaveGroupsOfNodes", 1)
         gmsh.option.setNumber("Mesh.SaveGroupsOfElements", 1)
         gmsh.write(str(path))
         gmsh.clear()
         gmsh.open(str(path))
-        _, after_tags, _ = gmsh.model.mesh.getElements()
-        after = sum(len(v) for v in after_tags)
+        after = inventory()
         if before != after:
-            raise ValueError(f"La relecture UNV a changé le nombre d'éléments ({before} → {after}).")
+            raise ValueError(f"La relecture UNV a changé les types ou les effectifs d’éléments ({before} → {after}).")
         names = [gmsh.model.getPhysicalName(dim, tag) for dim, tag in gmsh.model.getPhysicalGroups()]
         return {"readback": True, "groups_readback": False, "reader": "Gmsh UNV", "physical_names_read": names,
-                "elements_read": after}
+                "elements_read": sum(after.values())}
     finally:
         gmsh.finalize()
 
@@ -900,7 +906,10 @@ def _convert_mesh_impl(source: Path, target: Path, format_name: str, *, planar: 
 
 def default_export_formats(cell_types):
     """Native files retain complete quadratic layouts unsupported by solver dialects."""
-    if set(cell_types) & {"quad9", "hexahedron27", "wedge18", "pyramid14"}:
+    types = set(cell_types)
+    if "pyramid14" in types:
+        return ("msh",)
+    if types & {"quad9", "hexahedron27", "wedge18"}:
         return ("msh", "vtu")
     return DEFAULT_EXPORT_FORMATS
 

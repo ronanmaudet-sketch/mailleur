@@ -1,5 +1,7 @@
 # Optimisations de la rc5
 
+Les chemins de rapports rc3 à rc6 ci-dessous désignent les fichiers de l’archive d’origine. Pour les contrôles de la version actuelle, consulter [le bilan rc10](../verification/rc10/README.md).
+
 Ce guide et ses mesures sont historiques : ils décrivent la comparaison
 **rc4 → rc5**. Pour reproduire cette comparaison, exécuter les commandes
 ci-dessous depuis le code de la rc5 conservée. Depuis le code rc6, un driver
@@ -32,7 +34,7 @@ unique. Les limites des mini-lots et des lignes JSONL restent contrôlées.
 
 ### Mesure du parcours JSONL complet
 
-La [comparaison de l'entraînement de corpus](../verification/optimization/training.json)
+La comparaison de l'entraînement de corpus (`verification/optimization/training.json`)
 parcourt 33 010 cas synthétiques, soit 66 020 exemples de stratégies et
 187,14 Mo de JSONL. Elle utilise 128 entrées, 32 neurones cachés, trois
 passages et des mini-lots de 128 exemples. Le code de référence et le code
@@ -50,13 +52,13 @@ pas 33 010 maillages et ne démontre pas un gain de qualité du réseau.
 
 ### Mesure de l'apprentissage interactif
 
-La [comparaison des évaluations du guide](../verification/optimization/live.json)
+La comparaison des évaluations du guide (`verification/optimization/live.json`)
 utilise 8 192 exemples synthétiques de 128 entrées, 12 neurones cachés et
 16 passages d'entraînement. Sur cinq répétitions, la médiane passe de
 0,782 s à 0,519 s, soit environ 1,51 fois plus rapide pour cette fixture.
 Les modèles JSON obtenus par les deux implémentations sont identiques.
 
-Une [mesure avec reprise de poids existants](../verification/optimization/live_warm.json)
+Une mesure avec reprise de poids existants (`verification/optimization/live_warm.json`)
 utilise la même taille de fixture, 16 passages et cinq répétitions. La médiane
 passe de 1,007 à 0,511 s, soit environ 1,97 fois plus rapide. L'indicateur
 `warm_started` est vrai et les modèles JSON finaux sont identiques.
@@ -64,7 +66,7 @@ passe de 1,007 à 0,511 s, soit environ 1,97 fois plus rapide. L'indicateur
 Cette mesure porte sur l'actualisation du petit guide interactif. Elle
 n'inclut pas la génération d'une nouvelle géométrie ou de son maillage.
 
-La [mesure de stockage](../verification/optimization/live_storage.json)
+La mesure de stockage (`verification/optimization/live_storage.json`)
 utilise un index de 5 000 observations. Le JSON compact conserve les mêmes
 données après décodage et réduit le fichier de 13,35 à 4,38 Mo. La médiane
 de cinq écritures avec synchronisation passe de 50,1 à 33,7 ms. Le pic
@@ -75,7 +77,7 @@ La construction des métadonnées d'un événement évite aussi de copier puis
 supprimer l'historique complet. Cette micro-mesure est distincte d'un temps
 d'apprentissage et ne doit pas être ajoutée à son accélération.
 
-La [vérification de compatibilité](../verification/optimization/live_compatibility.json)
+La vérification de compatibilité (`verification/optimization/live_compatibility.json`)
 enchaîne une recherche rc4, un réemploi rc5 et une relecture de la mémoire
 compacte par rc4. Le contexte est retrouvé dans les deux sens ; chaque
 réemploi recalcule le maillage. Cet essai conserve cinq événements et produit
@@ -97,7 +99,7 @@ lecture nécessaire au contrôle d'intégrité. Une fin de ligne partielle reste
 un cas de récupération distinct d'une altération de données déjà validées.
 Une altération du préfixe doit être signalée sans supprimer les fichiers.
 
-La [mesure de reprise](../verification/optimization/corpus_resume.json)
+La mesure de reprise (`verification/optimization/corpus_resume.json`)
 utilise un segment synthétique déjà validé de 1 000 enregistrements,
 soit 3,36 Mo, et cinq répétitions en release. La médiane passe de
 15,524 à 2,753 ms, soit environ 5,64 fois plus rapide. Les compteurs sont
@@ -117,7 +119,7 @@ des listes affichées et des échantillons destinés au raffinement ne limitent
 pas ces comptes. Les éléments appartenant à plusieurs zones ne doivent pas
 être comptés plusieurs fois dans le total des violations protégées.
 
-La [comparaison native de qualité](../verification/optimization/quality.json)
+La comparaison native de qualité (`verification/optimization/quality.json`)
 contrôle six cas, avec égalité exacte des rapports de qualité, y compris
 l'ordre et les nombres flottants. Le cas répété trois fois est une boîte
 de 45 183 tétraèdres, avec douze zones de contact, dont des zones recouvrantes.
@@ -154,7 +156,7 @@ l'apprentissage restent traités par Rust, qui pilote Gmsh/OpenCASCADE natifs.
 
 ### Mesure de la vue
 
-La [mesure Qt offscreen](../verification/optimization/viewport.json) utilise
+La mesure Qt offscreen (`verification/optimization/viewport.json`) utilise
 une fixture d'affichage synthétique de 10 201 points et 20 000 triangles,
 dans une vue de 1 000 × 760 pixels. Elle porte uniquement sur l'interface.
 
@@ -178,7 +180,7 @@ ni la précision géométrique du maillage ni la vitesse sur un autre ordinateur
 ## Échanges de fichiers et campagnes sans conservation des maillages
 
 Le pont Python demande une réponse native compacte, puis lit le rapport
-enregistré. La [mesure de transport](../verification/optimization/transport.json)
+enregistré. La mesure de transport (`verification/optimization/transport.json`)
 compare les deux clients sur le même exécutable Rust, avec trois séries de
 vingt courtes commandes de métriques. La médiane par appel passe de 82,78 à
 3,03 ms et les rapports natifs sont égaux. Le volume de journal mesuré pour
@@ -192,7 +194,7 @@ identique et le pic d'allocations Python supplémentaires passe de 16,78 à
 
 Quand les fichiers de maillage ne sont pas conservés pour un corpus, le
 moteur peut éviter de sérialiser les artefacts d'affichage et les fichiers
-temporaires lourds. La [mesure du mode rapport seul](../verification/optimization/bulk.json)
+temporaires lourds. La mesure du mode rapport seul (`verification/optimization/bulk.json`)
 compare ce mode et la production complète sur la même boîte de 45 183
 tétraèdres et douze zones, avec trois répétitions. La médiane passe de
 1,123 à 0,816 s ; les artefacts lourds passent de 10,40 Mo par évaluation à
@@ -292,9 +294,9 @@ tests Linux exécutés pendant la livraison.
 
 ## Validation de la livraison
 
-Le [rapport natif de la rc5](../verification/native_release/summary_rc5.json),
+Le rapport natif de la rc5 (`verification/native_release/summary_rc5.json`),
 daté du **4 novembre 2026**, consigne 150 tests Python et 110 tests Rust
-réussis, sans test ignoré. Le [pilote réel du corpus](../verification/corpus/summary_rc5.json)
+réussis, sans test ignoré. Le pilote réel du corpus (`verification/corpus/summary_rc5.json`)
 traite 48 configurations, dont 24 structurées et 24 aléatoires ; ses
 96 résultats de stratégies ne sont pas un calcul du million planifié.
 
@@ -305,7 +307,7 @@ la cohérence du mode rapport seul et les invalidations de la vue.
 Les 57 tests du prototype Python retirés dans la rc4 restent des références
 textuelles et ne sont pas comptés comme de nouvelles réussites de la rc5.
 
-Le [contrôle après extraction neuve](../verification/optimization/archive_smoke.json)
+Le contrôle après extraction neuve (`verification/optimization/archive_smoke.json`)
 vérifie l'intégrité de l'archive et utilise le noyau rc5 embarqué. Il couvre
 le plan d'un million sans calcul, l'aperçu aléatoire au bon indice, deux cas
 réels, l'entraînement par mini-lots et l'apprentissage avec export MSH.
