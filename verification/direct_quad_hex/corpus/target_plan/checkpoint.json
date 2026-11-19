@@ -1,0 +1,22 @@
+{
+  "accepted_actions": 0,
+  "admissible_cases": 0,
+  "backend_evaluations": 0,
+  "completed_cases": 0,
+  "failed_actions": 0,
+  "family_counts": {},
+  "generated_cases": 0,
+  "meshed_cases": 0,
+  "next_index": 0,
+  "origin_counts": {
+    "random": 0,
+    "structured": 0
+  },
+  "schema": "atelier.corpus.checkpoint.v1",
+  "split_counts": {
+    "test": 0,
+    "train": 0,
+    "validation": 0
+  },
+  "updated_at": 1795113890
+}

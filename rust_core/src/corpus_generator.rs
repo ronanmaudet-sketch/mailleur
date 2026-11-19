@@ -31,8 +31,64 @@ pub const FAMILIES: [&str; 24] = [
     "thin_plate_surface",
 ];
 
+pub const DIRECT_FAMILIES: [&str; 8] = [
+    "direct_quad_rectangle",
+    "direct_quad_one_hole",
+    "direct_hex_box",
+    "direct_hex_one_hole",
+    "direct_prism_box",
+    "direct_pyramid_box",
+    "direct_hex_thin_box",
+    "direct_quad_graded_rectangle",
+];
+
+pub use crate::dataset_model::QUAD_HEX;
+pub const QUAD_HEX_FAMILIES: [&str; 6] = [
+    "direct_quad_rectangle",
+    "direct_quad_one_hole",
+    "direct_hex_box",
+    "direct_hex_one_hole",
+    "direct_hex_thin_box",
+    "direct_quad_graded_rectangle",
+];
+
+fn default_profile() -> String {
+    "general".into()
+}
+
+pub fn families(plan: &Plan) -> &'static [&'static str] {
+    if plan.profile == QUAD_HEX {
+        &QUAD_HEX_FAMILIES
+    } else if plan.profile == "structured_direct" {
+        &DIRECT_FAMILIES
+    } else {
+        &FAMILIES
+    }
+}
+
+pub fn split_for_plan(plan: &Plan, family: usize) -> &'static str {
+    if plan.profile == QUAD_HEX {
+        return match family {
+            1 => "validation",
+            3 => "test",
+            _ => "train",
+        };
+    }
+    if plan.profile == "structured_direct" {
+        match family {
+            1 | 5 => "validation",
+            3 => "test",
+            _ => "train",
+        }
+    } else {
+        split_for_family(family)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Plan {
+    #[serde(default = "default_profile")]
+    pub profile: String,
     pub structured: u64,
     pub random: u64,
     pub seed: u64,
@@ -64,12 +120,24 @@ impl Plan {
             return Err("plan doit être un objet".into());
         }
         let p = Self {
+            profile: value
+                .get("profile")
+                .map(|v| {
+                    v.as_str()
+                        .map(str::to_owned)
+                        .ok_or("plan.profile doit être une chaîne")
+                })
+                .transpose()?
+                .unwrap_or_else(|| QUAD_HEX.into()),
             structured: n(value, "structured", 250_000, 10_000_000)?,
             random: n(value, "random", 750_000, 10_000_000)?,
             seed: n(value, "seed", 42, u64::MAX)?,
             strategies: n(value, "strategies", 4, 4)?,
             shard_size: n(value, "shard_size", 1000, 10000)?,
         };
+        if ![QUAD_HEX, "general", "structured_direct"].contains(&p.profile.as_str()) {
+            return Err("Profil de corpus inconnu".into());
+        }
         if p.total() == 0 || p.total() > 10_000_000 {
             return Err("Le plan doit contenir entre 1 et 10000000 configurations".into());
         }
@@ -150,6 +218,9 @@ pub fn split_for_family(family: usize) -> &'static str {
 pub fn case_at(index: u64, plan: &Plan) -> Result<Value, String> {
     if index >= plan.total() {
         return Err("Indice hors du plan de corpus".into());
+    }
+    if plan.profile != "general" {
+        return direct_case(index, plan);
     }
     let random = index >= plan.structured;
     let local = if random {
@@ -280,7 +351,7 @@ pub fn case_at(index: u64, plan: &Plan) -> Result<Value, String> {
     let size = w.min(h) * (0.10 + 0.11 * resolution);
     let mut project = json!({"schema_version":1,"name":format!("{}_{index:07}",FAMILIES[family]),"mode":mode,
         "units":{"input":"mm","internal":"m"},"geometry":geometry,
-        "mesh":{"size":size,"min_size":size*0.22,"order":1,"algorithm":"automatic","recombine":false,"element_policy":"quad_hex_only","threads":1,"max_elements":50000,"smoothing":1,"optimize":true,"curvature_elements":16},
+        "mesh":{"size":size,"min_size":size*0.22,"order":1,"algorithm":"automatic","recombine":false,"threads":1,"max_elements":50000,"smoothing":1,"optimize":true,"curvature_elements":16},
         "repair":{"enabled":false,"tolerance":1e-7,"sew":true,"small_edges":true,"small_faces":false,"make_solids":false},
         "quality_policy":{"poor_threshold":0.2,"minimum_quality":0.03,"strict":false}});
     // Small local spherical sizing is part of the configuration, independently
@@ -300,12 +371,99 @@ pub fn case_at(index: u64, plan: &Plan) -> Result<Value, String> {
     };
     Ok(
         json!({"schema":"atelier.corpus.generated_case.v1","case_id":case_id,"index":index,"origin":if random{"random"}else{"structured"},
-        "element_policy":"quad_hex_only","generator_version":GENERATOR_VERSION,"family":FAMILIES[family],"family_index":family,"geometry_id":geometry_id,"geometry_group":geometry_id,"split":split_for_family(family),
+        "family":FAMILIES[family],"family_index":family,"geometry_id":geometry_id,"geometry_group":geometry_id,"split":split_for_family(family),
         "expected_invalid":family==17,"defect":defect,"critical_zone_template":zone_template,"project":project}),
     )
 }
 
+/// Structured cells are actual native generation requests, never labels made
+/// by a network. Shape families remain disjoint between data partitions.
+fn direct_case(index: u64, plan: &Plan) -> Result<Value, String> {
+    let random = index >= plan.structured;
+    let local = if random {
+        index - plan.structured
+    } else {
+        index
+    };
+    let population = if random { plan.random } else { plan.structured };
+    let family_names = families(plan);
+    let family = local as usize % family_names.len();
+    let name = family_names[family];
+    let ordinal = local / family_names.len() as u64;
+    let count = population
+        .saturating_sub(family as u64)
+        .div_ceil(family_names.len() as u64)
+        .max(1);
+    let u = |d| parameter(plan.seed, family, ordinal, count, d, random);
+    let w = 5. + 10. * u(0);
+    let h = 4. + 8. * u(1);
+    let depth = if name == "direct_hex_thin_box" {
+        0.3 + 0.4 * u(2)
+    } else {
+        2. + 4. * u(2)
+    };
+    let shape = match name {
+        "direct_quad_rectangle" | "direct_quad_one_hole" | "direct_quad_graded_rectangle" => "quadrilateral",
+        "direct_prism_box" => "prism",
+        "direct_pyramid_box" => "pyramid",
+        _ => "hexahedron",
+    };
+    let mode = if shape == "quadrilateral" { "planar" } else { "volume" };
+    let hole = matches!(name, "direct_quad_one_hole" | "direct_hex_one_hole");
+    let geometry = if mode == "planar" || hole {
+        json!({"kind":"plate","width":w,"height":h,"thickness":depth,"corner_radius":0.,"chamfer":0.,
+            "holes":if hole { json!([{"x":w*0.5,"y":h*0.5,"radius":w.min(h)*(0.1+0.08*u(3))}]) } else { json!([]) }})
+    } else {
+        json!({"kind":"box","width":w,"height":h,"depth":depth})
+    };
+    let resolution = if random {
+        u(7)
+    } else {
+        (ordinal as f64 + 0.5) / count as f64
+    };
+    let size = w.min(h) * (0.12 + 0.08 * resolution);
+    let project = json!({"schema_version":1,"name":format!("{}_{index:07}",name),"mode":mode,
+        "units":{"input":"mm","internal":"m"},"geometry":geometry,
+        "mesh":{"element_shape":shape,"size":size,"min_size":size*0.25,"order":2,"quadratic_layout":"serendipity",
+            "structured":{"grading":[if name=="direct_quad_graded_rectangle"{1.15}else{1.},1.,1.]},"algorithm":"automatic","recombine":false,"threads":1,"max_elements":50000},
+        "repair":{"enabled":false,"tolerance":1e-7,"sew":true,"small_edges":true,"small_faces":false,"make_solids":false},
+        "quality_policy":{"poor_threshold":0.2,"minimum_quality":0.03,"strict":false}});
+    let geometry_id =
+        hash_json(&json!({"geometry":project["geometry"],"mode":mode,"units":project["units"]}));
+    let case_id = hash_json(
+        &json!({"generator":GENERATOR_VERSION,"profile":plan.profile,"seed":plan.seed,"index":index,"project":project}),
+    );
+    Ok(
+        json!({"schema":"atelier.corpus.generated_case.v1","case_id":case_id,"index":index,
+        "origin":if random{"random"}else{"structured"},"family":name,"family_index":family,
+        "geometry_id":geometry_id,"geometry_group":geometry_id,"split":split_for_plan(plan,family),
+        "expected_invalid":false,"defect":if name=="direct_hex_thin_box"{"thin_volume"}else{"none"},"critical_zone_template":Value::Null,
+        "generation_requirement":"direct_same_family_no_recombination","project":project}),
+    )
+}
+
 pub fn strategies(project: &Value, count: u64) -> Vec<(String, Value)> {
+    if ["quadrilateral", "hexahedron", "prism", "pyramid"]
+        .contains(&project["mesh"]["element_shape"].as_str().unwrap_or(""))
+    {
+        let base = project["mesh"]["size"].as_f64().unwrap_or(1.);
+        let minimum = project["mesh"]["min_size"].as_f64().unwrap_or(base * 0.2);
+        return (0..count)
+            .map(|index| {
+                let mut p = project.clone();
+                let scale = [1., 0.85, 0.7, 0.55][index.min(3) as usize];
+                p["mesh"]["size"] = json!((base * scale).max(minimum));
+                (
+                    (if index == 0 {
+                        "automatic_base".into()
+                    } else {
+                        format!("direct_structured_{index}")
+                    }),
+                    p,
+                )
+            })
+            .collect();
+    }
     let volume = project["mode"] == "volume";
     let local = project["refinement_regions"]
         .as_array()
@@ -389,7 +547,7 @@ mod tests {
     }
     #[test]
     fn structured_configurations_are_distinct_even_on_spheres() {
-        let p = Plan::parse(&json!({"structured":2400,"random":0})).unwrap();
+        let p = Plan::parse(&json!({"structured":2400,"random":0,"profile":"general"})).unwrap();
         let mut ids = std::collections::BTreeSet::new();
         for i in (9..2400).step_by(24) {
             let c = case_at(i, &p).unwrap();
@@ -408,7 +566,7 @@ mod tests {
     }
     #[test]
     fn synthetic_zones_cover_contacts_interfaces_and_marked_stress() {
-        let p = Plan::parse(&json!({"structured":24,"random":0})).unwrap();
+        let p = Plan::parse(&json!({"structured":24,"random":0,"profile":"general"})).unwrap();
         let kinds = (0..24)
             .filter_map(|i| {
                 case_at(i, &p).unwrap()["critical_zone_template"]["kind"]

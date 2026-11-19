@@ -1,46 +1,64 @@
-# Évolutions de la version 1.0.0rc7 — 7 novembre 2026
+# Évolutions de Mailleur
 
-- Champs flottants INP limités à 20 caractères tout en conservant 13 à 17
-  chiffres significatifs : lecture compatible des petites coordonnées.
-- Initialisation de l'import IGES dans Gmsh/OpenCASCADE avant le choix de
-  l'unité cible ; contrôle d'en-têtes IGES en mètres et millimètres.
-- Les erreurs de l'optimiseur quadratique Gmsh deviennent des refus structurés
-  au lieu d'exceptions C++ non interceptées ; l'ordre et la qualité restent contrôlés.
-- Lecture JSON exacte des flottants pour la reprise de l'entraînement ;
-  provenance numérique révisée pour conserver la distinction avec les contextes antérieurs.
-- Journal d'intégrité de tous les segments clos du corpus, avec adoption
-  explicite des anciennes campagnes dépourvues de cette référence historique.
-- Métadonnées GPL en expression SPDX et alternative d'installation Linux ARM64.
-- Campagne élargie : installations neuves, géométries variées, gros maillage,
-  reprise/altération de corpus, vrais calculs Cast3M et CalculiX, Ubuntu ARM64.
+## 1.0.0rc10
 
-Les résultats finaux et limites sont dans
-[VALIDATION_RC7.md](docs/VALIDATION_RC7.md). Les preuves rc6 sont conservées
-séparément et ne sont pas renommées en réussites rc7.
+La rc10 utilise le générateur structuré direct. Le choix automatique et l’apprentissage donnent la priorité au contrat quadrilatères/hexaèdres. Les lanceurs et l’API vérifient l’identité du noyau utilisé. [Guide et vérifications](README.md)
+
+## Archive directe amont 1.0.0rc6
+La rc6 ajoute la génération directe de quadrilatères et de volumes structurés
+sur des primitives compatibles. Les nouveaux projets utilisent l'ordre 2 ;
+les projets d'ordre 1 explicite restent lisibles. Les connectivités et nœuds
+quadratiques des blocs directs sont construits en Rust, sans recombinaison
+ni maillage linéaire intermédiaire.
+
+- Forme demandée explicitement : quadrilatère, hexaèdre, prisme ou pyramide
+  sur les blocs pris en charge ; erreur diagnostiquée pour les cas incompatibles.
+- Grilles non uniformes par progression des intervalles, divisions explicites
+  ou déduites de la taille ; variantes quadratiques complètes ou serendipity.
+- API Python d'entrées/sorties et protocole JSON natif versionnés pour les
+  scripts, les relances et une boucle pilotée par le solveur destinataire.
+- Réponses de solveur identifiées par empreinte du maillage ; décisions
+  d'adaptation et conversion des indicateurs dans Rust.
+- Recherche de recettes respectant la famille et les réglages structurés,
+  représentation spatiale à deux échelles et validation renforcée du classement.
+- Profil de corpus `structured_direct` distinct du profil historique `general`.
+- Sources STL/discrètes : ordre 2 conservé sur la géométrie facettisée, avec
+  nœuds aux milieux des arêtes et contrôle des Jacobiennes ; l'optimisation
+  de courbure réservée à la CAO analytique n'est pas appliquée à ces sources.
+- Sphères primitives, surfaces et volumes : projection analytique des nœuds
+  quadratiques de frontière, avec transformations et contrôle des facettes ;
+  les nœuds d'arêtes intérieures du volume restent inchangés. Les qualités
+  et Jacobiennes des facettes et des volumes sont contrôlées séparément.
+
+Le [guide rc6](docs/EVOLUTIONS_RC6.md) et le
+[guide de l'API](docs/API_ET_COUPLAGE_SOLVEURS.md) distinguent les fonctions
+livrées des extensions nécessaires : découpage général de CAO complexes,
+remaillage local conforme des blocs, adaptation anisotrope et transfert
+des états physiques par chaque solveur.
+
+## Vérifications exécutées sur la rc6
+
+Le [rapport de livraison du 19 novembre 2026](verification/native_release/summary.json)
+consigne **195 tests Python et 139 tests Rust réussis**, sans test ignoré,
+ainsi que huit exemples maillés à l'ordre 2 et leurs exports complets.
+Le pilote direct a réellement évalué 32 configurations et 96 stratégies
+acceptées, sur huit familles ; le pilote général a traité 48 configurations.
+Le million reste un plan, sans exécution de cette campagne complète.
+
+Le conseiller historique à huit entrées est activé sur son domaine classique :
+10 cas d'entraînement, six de validation et gain d'environ 0,02046. Ce bilan
+ne prouve pas un avantage sur les nouvelles formes directes. Le réseau de
+mémoire v3 et les conseillers de corpus restent inactifs pour le classement,
+faute de gain validé. Les fixtures de couplage ne sont pas des calculs
+physiques, et les essais macOS/M3, Windows et solveurs externes restent à faire.
+
+Les anciennes mesures et validations ci-dessous restent associées aux versions
+sur lesquelles elles ont été exécutées. Elles ne constituent pas de nouveaux
+gains de performance ou de généralisation du réseau pour la rc6.
 
 ---
 
-# Évolutions de la version 1.0.0rc6 — 7 novembre 2026
-
-- Imports intégrés étendus : OBJ, PLY, OFF, 3MF Core, VTU, INP, MED, BDF,
-  Medit et Netgen, avec relecture MSH/VTK/UNV et reconstruction des peaux.
-- Préparation native Rust : faces internes, triangulation, unités et
-  transformations ; conservation des originaux et signalement des approximations.
-- Passerelles locales configurables pour les formats propriétaires ; script
-  SOLIDWORKS Windows COM vers STEP et conteneur d'assemblage `.cadpack`.
-- Nouveaux exports Nastran BDF, LS-DYNA KEY et ANSYS structural APDL,
-  sans réduction silencieuse d'ordre et avec limites de types documentées.
-- Catalogue partagé CLI, API et Qt ; `atelier formats`, `/api/formats` et
-  `atelier pack-cad` ; exemples OBJ et 3MF prêts à utiliser.
-- Annulation conservée entre étapes, délai global et nettoyage des processus.
-- Licence choisie : GPL-3.0-or-later ; guides publics PDF/Word et fichiers de contribution GitHub.
-
-Validation locale : 195 tests Python et 121 tests Rust réussis sans test ignoré,
-plus neuf scénarios simulés de passerelle PowerShell. Aucun solveur commercial
-ni SOLIDWORKS réel n'a été exécuté. Voir [VALIDATION_RC6.md](docs/VALIDATION_RC6.md).
-La cible 2020+ n'est pas une certification universelle.
-
-## Historique : version 1.0.0rc5
+# Évolutions de la version 1.0.0rc5
 
 Cette version cible les coûts répétés du parcours rc4, en conservant la
 séparation entre l'interface Python et les traitements numériques natifs.
@@ -140,10 +158,12 @@ de validation vaut zéro : **le classement du réseau reste désactivé**.
 Le parcours continu 128→12→1 a conservé son historique et le réemploi revalidé
 sur six géométries ; aucun gain de généralisation n'est annoncé.
 
-Ces chiffres sont détaillés dans le [rapport du corpus (archive complète)](docs/provenance/PREUVES_EXTERNES.md)
-et le [rapport natif](verification/native_release/summary.json). Les tests de
-streaming sur des enregistrements synthétiques ne sont pas ajoutés aux
-48 cas réellement maillés ou essayés du pilote.
+Ces chiffres décrivent la campagne rc4. Les résultats du
+[rapport de livraison courant](verification/native_release/summary.json)
+doivent être lus avec sa propre version ; ils ne constituent pas la preuve
+d'une nouvelle exécution de la campagne historique. Les tests de streaming
+sur des enregistrements synthétiques ne sont pas ajoutés aux 48 cas
+réellement maillés ou essayés de ce pilote.
 
 ---
 

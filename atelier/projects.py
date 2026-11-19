@@ -9,11 +9,8 @@ from pathlib import Path, PurePosixPath
 import stat
 import zipfile
 
-from .import_registry import SOURCE_EXTENSIONS, source_extension
-
 MAX_UPLOAD = 50 * 1024 * 1024
-CAD_EXTENSIONS = SOURCE_EXTENSIONS
-ELEMENT_POLICY = "quad_hex_only"
+CAD_EXTENSIONS = {".step", ".stp", ".iges", ".igs", ".brep", ".stl", ".msh", ".vtk", ".unv"}
 
 
 def _constant(value):
@@ -52,8 +49,8 @@ def safe_filename(name: str) -> str:
     reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
     if name.split(".", 1)[0].upper() in reserved:
         raise ValueError("Nom de fichier réservé par Windows")
-    if source_extension(name) not in CAD_EXTENSIONS:
-        raise ValueError("Format de source inconnu. Consulter atelier formats ; les formats propriétaires exigent un convertisseur configuré et les scripts ne sont pas acceptés.")
+    if Path(name).suffix.lower() not in CAD_EXTENSIONS:
+        raise ValueError("Importer STEP, IGES, BREP, STL ou une peau triangulée MSH/VTK/UNV. Les scripts ne sont pas acceptés.")
     return name
 
 
@@ -84,8 +81,9 @@ def normalize_project(project: dict) -> dict:
     repair = data.setdefault("repair", {})
     if not isinstance(mesh, dict) or not isinstance(repair, dict):
         raise ValueError("mesh et repair doivent être des objets JSON")
-    defaults = {"size": .5, "min_size": .1, "order": 1, "algorithm": "automatic", "recombine": False, "threads": 1, "max_elements": 200000,
-                "element_policy": ELEMENT_POLICY}
+    defaults = {"size": .5, "min_size": .1, "order": 2, "algorithm": "automatic", "recombine": False,
+                "element_shape": "automatic", "quadratic_layout": "serendipity", "threads": 1,
+                "max_elements": 200000}
     for key, value in defaults.items(): mesh.setdefault(key, value)
     for key in ("size", "min_size"):
         value = mesh[key]
@@ -102,8 +100,33 @@ def normalize_project(project: dict) -> dict:
         raise ValueError("Algorithme inconnu")
     if type(mesh["recombine"]) is not bool:
         raise ValueError("recombine doit être vrai ou faux")
-    if mesh["element_policy"] != ELEMENT_POLICY:
-        raise ValueError("mesh.element_policy doit être quad_hex_only : quadrilatères en surface, hexaèdres en volume")
+    if mesh["recombine"]:
+        raise ValueError("La recombinaison est retirée : choisir une forme quadrilateral directe et une géométrie compatible")
+    shapes = ("automatic", "triangle", "quadrilateral", "tetrahedron", "hexahedron", "prism", "pyramid")
+    shape = mesh["element_shape"]
+    if shape not in shapes:
+        raise ValueError("Forme d'élément inconnue")
+    if mesh["quadratic_layout"] not in ("serendipity", "complete"):
+        raise ValueError("quadratic_layout doit être serendipity ou complete")
+    if shape != "automatic":
+        compatible = ("tetrahedron", "hexahedron", "prism", "pyramid") if data["mode"] == "volume" else ("triangle", "quadrilateral")
+        if shape not in compatible:
+            raise ValueError("La forme d'élément demandée ne correspond pas au domaine plan, coque ou volume")
+    if "structured" in mesh:
+        structured = mesh["structured"]
+        if not isinstance(structured, dict):
+            raise ValueError("mesh.structured doit être un objet")
+        if "divisions" in structured:
+            divisions = structured["divisions"]
+            if (not isinstance(divisions, list) or len(divisions) != 3
+                    or any(type(number) is not int or not 1 <= number <= 2000 for number in divisions)):
+                raise ValueError("structured.divisions doit contenir trois entiers de 1 à 2000")
+        if "grading" in structured:
+            grading = structured["grading"]
+            if (not isinstance(grading, list) or len(grading) != 3
+                    or any(isinstance(number, bool) or not isinstance(number, (int, float))
+                           or not math.isfinite(number) or number <= 0 for number in grading)):
+                raise ValueError("structured.grading doit contenir trois rapports finis strictement positifs")
     for key, default, maximum in (("smoothing", 1, 100), ("curvature_elements", 16, 100)):
         if key in mesh and (type(mesh[key]) is not int or not 0 <= mesh[key] <= maximum):
             raise ValueError(f"mesh.{key} doit être un entier de 0 à {maximum}")
@@ -203,12 +226,28 @@ def default_examples() -> list[dict]:
     base = {"schema_version": 1, "name": "Plaque percée", "mode": "planar",
             "geometry": {"kind": "plate", "width": 10, "height": 6, "thickness": 2, "corner_radius": .5,
                          "chamfer": 0, "holes": [{"x": 3, "y": 3, "radius": .8}, {"x": 7, "y": 3, "radius": 1}]},
-            "mesh": {"size": .65, "min_size": .18, "order": 1, "algorithm": "automatic", "recombine": False, "threads": 1, "max_elements": 200000},
+            "mesh": {"size": .65, "min_size": .18, "order": 2, "algorithm": "automatic", "recombine": False, "threads": 1, "max_elements": 200000},
             "repair": {"enabled": False, "tolerance": 1e-7, "sew": True, "small_edges": True, "small_faces": False, "make_solids": False}}
     cases = []
     def add(identifier, name, description, project):
+        if "element_shape" not in project["mesh"]:
+            # These examples deliberately exercise free meshing on complex CAD.
+            volume = project["mode"] == "volume"
+            project["mesh"]["element_shape"] = "tetrahedron" if volume else "triangle"
+            name += " · " + ("tétraèdres" if volume else "triangles")
         project["name"] = name
         cases.append({"id": identifier, "name": name, "description": description, "project": normalize_project(project)})
+    direct_quad = copy.deepcopy(base)
+    direct_quad["geometry"].update(width=8, height=6, corner_radius=0, chamfer=0, holes=[])
+    direct_quad["mesh"].update(element_shape="quadrilateral", quadratic_layout="serendipity",
+                               structured={"divisions": [8, 6, 1], "grading": [1., 1., 1.]})
+    add("direct_quad", "Plaque structurée · QUAD8", "Quadrilatères quadratiques directs, sans recombinaison.", direct_quad)
+    direct_hex = copy.deepcopy(base)
+    direct_hex["mode"] = "volume"
+    direct_hex["geometry"] = {"kind": "box", "width": 6, "height": 4, "depth": 3}
+    direct_hex["mesh"].update(element_shape="hexahedron", quadratic_layout="serendipity",
+                              structured={"divisions": [6, 4, 3], "grading": [1., 1., 1.]})
+    add("direct_hex", "Bloc structuré · HEX20", "Hexaèdres quadratiques directs, sans conversion de tétraèdres.", direct_hex)
     add("plate", "Plaque percée à congés", "Deux trous circulaires et quatre coins arrondis.", copy.deepcopy(base))
     chamfer = copy.deepcopy(base)
     chamfer["geometry"].update(corner_radius=0, chamfer=.6)

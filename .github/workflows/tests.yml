@@ -25,6 +25,10 @@ jobs:
       - name: Bibliothèques natives Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libglu1-mesa libxft2 libegl1 libxkbcommon0 libxcb-cursor0
+      - name: Contrats de conversion SOLIDWORKS vers STEP (application simulée)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\scripts\converters\test_solidworks_bridge.ps1
       - name: Tests du noyau Rust
         run: cargo test --locked --manifest-path rust_core/Cargo.toml
       - name: Compiler le noyau Rust
@@ -40,10 +44,6 @@ jobs:
         run: python -m compileall -q atelier mailleur scripts
       - name: Tests
         run: python -m unittest discover -s tests -v
-      - name: Contrats simulés de la passerelle SOLIDWORKS (sans SOLIDWORKS)
-        if: ${{ !cancelled() && runner.os == 'Windows' }}
-        shell: powershell
-        run: .\scripts\converters\test_solidworks_bridge.ps1
       - name: Conserver le diagnostic natif après un échec
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7.0.2

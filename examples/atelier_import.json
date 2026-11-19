@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "Pièce CAO importée",
+  "name": "Pièce CAO importée · tétraèdres",
   "mode": "volume",
   "geometry": {
     "kind": "import"
@@ -12,7 +12,7 @@
     "algorithm": "automatic",
     "threads": 1,
     "max_elements": 200000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "tetrahedron"
   },
   "repair": {
     "enabled": false,

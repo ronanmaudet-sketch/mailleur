@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const INPUTS: usize = crate::representation::INPUTS;
 const HIDDEN: usize = 12;
-const SCHEMA: &str = "atelier.experience_model.v2";
+const SCHEMA: &str = "atelier.experience_model.v3";
 const INPUT_CLIP: f64 = 4.0;
 const REQUIRED_IMPROVEMENT: f64 = 1e-5;
 const NON_REGRESSION_TOLERANCE: f64 = 1e-12;
@@ -20,6 +20,13 @@ pub struct Example {
     pub target: f64,
     /// A geometry/context identity, shared by all its candidate actions.
     pub group: String,
+}
+
+/// Candidate indices of one original numerical context. Geometry groups are
+/// used for hold-out; contexts remain separate when evaluating recipe choice.
+pub struct SelectionCase {
+    pub group: String,
+    pub candidates: Vec<usize>,
 }
 
 #[derive(Clone)]
@@ -90,18 +97,13 @@ impl Network {
     }
 
     fn forward(&self, features: &[f64; INPUTS]) -> ([f64; HIDDEN], f64) {
-        let clipped = features.map(|feature| feature.clamp(-INPUT_CLIP, INPUT_CLIP));
-        self.forward_clipped(&clipped)
-    }
-
-    fn forward_clipped(&self, clipped: &[f64; INPUTS]) -> ([f64; HIDDEN], f64) {
         let mut hidden = [0.0; HIDDEN];
         for (i, value) in hidden.iter_mut().enumerate() {
             let x = self.hidden[i]
                 + self.input[i]
                     .iter()
-                    .zip(clipped)
-                    .map(|(weight, feature)| weight * feature)
+                    .zip(features)
+                    .map(|(weight, feature)| weight * feature.clamp(-INPUT_CLIP, INPUT_CLIP))
                     .sum::<f64>();
             *value = x.tanh();
         }
@@ -116,10 +118,7 @@ impl Network {
     }
 
     fn step(&mut self, example: &Example, rate: f64) {
-        // Each feature has the same bound for every hidden neuron and its
-        // gradient. Reuse one stack buffer without changing any sum order.
-        let clipped = example.features.map(|feature| feature.clamp(-INPUT_CLIP, INPUT_CLIP));
-        let (hidden, predicted) = self.forward_clipped(&clipped);
+        let (hidden, predicted) = self.forward(&example.features);
         let output_gradient = 2.0 * (predicted - example.target) * predicted * (1.0 - predicted);
         let mut hidden_gradients = [0.0; HIDDEN];
         for k in 0..HIDDEN {
@@ -130,7 +129,7 @@ impl Network {
             self.output[k] -= rate * (output_gradient * hidden[k] + 1e-5 * self.output[k]);
             self.hidden[k] -= rate * hidden_gradients[k];
             for j in 0..INPUTS {
-                let x = clipped[j];
+                let x = example.features[j].clamp(-INPUT_CLIP, INPUT_CLIP);
                 self.input[k][j] -= rate * (hidden_gradients[k] * x + 1e-5 * self.input[k][j]);
             }
         }
@@ -202,11 +201,8 @@ fn group_names(value: &Value, key: &str) -> Result<BTreeSet<String>, String> {
 }
 
 fn load_model(value: &Value) -> Result<(Network, BTreeSet<String>, BTreeSet<String>), String> {
-    if value["schema"] != SCHEMA || value["schema_version"] != 2 {
-        return Err("Version du modèle cumulatif incompatible : les poids rc3 à 16 entrées ne peuvent pas être repris par la représentation spatiale rc4".into());
-    }
-    if value["element_policy"] != crate::dataset_model::ELEMENT_POLICY {
-        return Err("Modèle historique sans provenance quadrilatères/hexaèdres : les anciens poids sont conservés sans reprise".into());
+    if value["schema"] != SCHEMA || value["schema_version"] != 3 {
+        return Err("Version du modèle cumulatif incompatible : les poids anciens à 16 entrées ou v2 à 128 entrées ne peuvent pas être repris par la représentation multiechelle v3".into());
     }
     if value["input_count"] != INPUTS
         || value["hidden_count"] != HIDDEN
@@ -359,15 +355,109 @@ impl EvaluationLayout {
     }
 }
 
+/// Replay counterfactual candidate ordering over recorded, held-out contexts.
+/// This is an equal-number-of-trials comparison, not an elapsed-time claim and
+/// not a new run of the native mesher. It never changes validation partitions.
+fn selection_metrics(
+    network: &Network,
+    examples: &[Example],
+    cases: &[SelectionCase],
+    validation: &BTreeSet<String>,
+) -> Value {
+    let eligible = cases
+        .iter()
+        .filter(|case| validation.contains(&case.group) && case.candidates.len() >= 2)
+        .collect::<Vec<_>>();
+    let mut budgets = Vec::new();
+    for budget in [1, 2, 4] {
+        let mut selected_sum = 0.;
+        let mut baseline_sum = 0.;
+        let mut selected_accepted = 0usize;
+        let mut baseline_accepted = 0usize;
+        for case in &eligible {
+            let mut ranked = case
+                .candidates
+                .iter()
+                .enumerate()
+                .map(|(position, index)| {
+                    (
+                        position,
+                        *index,
+                        network.forward(&examples[*index].features).1,
+                    )
+                })
+                .collect::<Vec<_>>();
+            ranked.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.0.cmp(&b.0)));
+            let selected = ranked
+                .iter()
+                .take(budget)
+                .map(|item| examples[item.1].target)
+                .fold(0., f64::max);
+            let baseline = case
+                .candidates
+                .iter()
+                .take(budget)
+                .map(|index| examples[*index].target)
+                .fold(0., f64::max);
+            selected_sum += selected;
+            baseline_sum += baseline;
+            selected_accepted += usize::from(selected > 0.);
+            baseline_accepted += usize::from(baseline > 0.);
+        }
+        let count = eligible.len();
+        budgets.push(json!({"budget":budget,"cases":count,
+            "selected_mean_score":if count>0 {Some(selected_sum/count as f64)} else {None},
+            "baseline_mean_score":if count>0 {Some(baseline_sum/count as f64)} else {None},
+            "gain":if count>0 {Some((selected_sum-baseline_sum)/count as f64)} else {None},
+            "selected_accepted_rate":if count>0 {Some(selected_accepted as f64/count as f64)} else {None},
+            "baseline_accepted_rate":if count>0 {Some(baseline_accepted as f64/count as f64)} else {None}}));
+    }
+    let gain = budgets[0]["gain"].clone();
+    let non_regressing = !eligible.is_empty()
+        && budgets.iter().all(|row| {
+            row["gain"]
+                .as_f64()
+                .is_some_and(|gain| gain >= -NON_REGRESSION_TOLERANCE)
+                && row["selected_accepted_rate"].as_f64().unwrap_or(0.) + NON_REGRESSION_TOLERANCE
+                    >= row["baseline_accepted_rate"].as_f64().unwrap_or(1.)
+        });
+    json!({"schema":"atelier.selection_validation.v1","eligible_cases":eligible.len(),
+        "baseline":"recorded_context_candidate_order","budgets":budgets,"gain_at_budget_one":gain,
+        "non_regressing_budgets":non_regressing,"elapsed_time_compared":false,
+        "native_meshes_recalculated":false,"validation_groups_excluded_from_gradients":true})
+}
+
 /// Warm-start and replay cumulative examples, keeping a non-regressing network.
 ///
 /// A corrupt/incompatible saved model is explicitly recorded and replaced by a
 /// fresh model. Omitting a group from a valid model's history is an error. The
 /// scalar target must be in [0,1]; caller-defined feasibility checks remain the
 /// sole authority for accepting a generated mesh.
+#[cfg(test)]
 pub fn update(
     existing: Option<&Value>,
     examples: &[Example],
+    epochs: usize,
+    seed: u64,
+) -> Result<Value, String> {
+    let mut grouped = BTreeMap::<String, Vec<usize>>::new();
+    for (index, example) in examples.iter().enumerate() {
+        grouped
+            .entry(example.group.clone())
+            .or_default()
+            .push(index);
+    }
+    let cases = grouped
+        .into_iter()
+        .map(|(group, candidates)| SelectionCase { group, candidates })
+        .collect::<Vec<_>>();
+    update_with_selection(existing, examples, &cases, epochs, seed)
+}
+
+pub fn update_with_selection(
+    existing: Option<&Value>,
+    examples: &[Example],
+    selection_cases: &[SelectionCase],
     epochs: usize,
     seed: u64,
 ) -> Result<Value, String> {
@@ -385,6 +475,18 @@ pub fn update(
             || example.group.len() > 1024
     }) {
         return Err("Caractéristiques, cible ou groupe d'expérience invalides".into());
+    }
+    let mut covered = BTreeSet::new();
+    for case in selection_cases {
+        if case.candidates.is_empty()
+            || case.candidates.iter().any(|index| {
+                *index >= examples.len()
+                    || examples[*index].group != case.group
+                    || !covered.insert(*index)
+            })
+        {
+            return Err("Cas de sélection invalides : indices, groupes ou doublons".into());
+        }
     }
     let groups = examples
         .iter()
@@ -488,10 +590,18 @@ pub fn update(
     let improvement = validation_mse
         .zip(constant_validation_mse)
         .map(|(network, baseline)| baseline - network);
+    let selection_validation =
+        selection_metrics(&best, examples, selection_cases, &validation_groups);
+    let selection_enabled = selection_validation["eligible_cases"].as_u64().unwrap_or(0) > 0
+        && selection_validation["gain_at_budget_one"]
+            .as_f64()
+            .is_some_and(|gain| gain > REQUIRED_IMPROVEMENT)
+        && selection_validation["non_regressing_budgets"] == true;
     let deploy_enabled = groups.len() >= 3
         && training_groups.len() >= 2
         && !validation_groups.is_empty()
-        && improvement.is_some_and(|value| value > REQUIRED_IMPROVEMENT);
+        && improvement.is_some_and(|value| value > REQUIRED_IMPROVEMENT)
+        && selection_enabled;
     let revision = if warm_started {
         existing
             .and_then(|value| value["revision"].as_u64())
@@ -513,9 +623,8 @@ pub fn update(
     }
     Ok(json!({
         "schema": SCHEMA,
-        "schema_version": 2,
+        "schema_version": 3,
         "feature_schema": crate::representation::SCHEMA,
-        "element_policy": crate::dataset_model::ELEMENT_POLICY,
         "revision": revision,
         "weight_revision": weight_revision,
         "input_count": INPUTS,
@@ -550,8 +659,10 @@ pub fn update(
         "constant_validation_mse": constant_validation_mse,
         "validation_improvement": improvement,
         "required_improvement": REQUIRED_IMPROVEMENT,
+        "selection_validation": selection_validation,
+        "deployment_policy": "held_out_mse_and_equal_budget_selection_v1",
         "deploy_enabled": deploy_enabled,
-        "deployment_reason": if groups.len() < 3 {"at_least_three_geometry_context_groups_required"} else if !deploy_enabled {"no_validated_improvement_over_constant_baseline"} else {"held_out_group_improvement"},
+        "deployment_reason": if groups.len() < 3 {"at_least_three_geometry_context_groups_required"} else if !improvement.is_some_and(|value| value > REQUIRED_IMPROVEMENT) {"no_validated_improvement_over_constant_baseline"} else if !selection_enabled {"no_validated_equal_budget_selection_gain"} else {"held_out_mse_and_selection_improvement"},
         "validation_note": "Groupes de validation exclus des gradients et utilisés pour sélectionner les poids ; ce contrôle ne constitue pas un essai industriel indépendant.",
         "network": best.value(),
     }))
@@ -568,6 +679,11 @@ pub fn predict(model: &Value, features: &[f64; INPUTS]) -> Option<f64> {
         || validation.is_empty()
         || !improvement.is_finite()
         || improvement <= REQUIRED_IMPROVEMENT
+        || model["deployment_policy"] != "held_out_mse_and_equal_budget_selection_v1"
+        || model["selection_validation"]["non_regressing_budgets"] != true
+        || !model["selection_validation"]["gain_at_budget_one"]
+            .as_f64()
+            .is_some_and(|gain| gain > REQUIRED_IMPROVEMENT)
     {
         return None;
     }
@@ -578,64 +694,6 @@ pub fn predict(model: &Value, features: &[f64; INPUTS]) -> Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn preclipped_inputs_preserve_forward_and_sgd_bits() {
-        // Retain the former per-neuron clipping path as a numerical reference.
-        fn reference_forward(network: &Network, features: &[f64; INPUTS]) -> ([f64; HIDDEN], f64) {
-            let mut hidden = [0.; HIDDEN];
-            for (i, value) in hidden.iter_mut().enumerate() {
-                *value = (network.hidden[i]
-                    + network.input[i].iter().zip(features)
-                        .map(|(w, x)| w * x.clamp(-INPUT_CLIP, INPUT_CLIP)).sum::<f64>())
-                    .tanh();
-            }
-            let output = network.bias + network.output.iter().zip(hidden)
-                .map(|(w, x)| w * x).sum::<f64>();
-            (hidden, sigmoid(output))
-        }
-        fn reference_step(network: &mut Network, example: &Example, rate: f64) {
-            let (hidden, predicted) = reference_forward(network, &example.features);
-            let output_gradient = 2. * (predicted - example.target) * predicted * (1. - predicted);
-            let mut gradients = [0.; HIDDEN];
-            for k in 0..HIDDEN {
-                gradients[k] = output_gradient * network.output[k] * (1. - hidden[k] * hidden[k]);
-            }
-            network.bias -= rate * output_gradient;
-            for k in 0..HIDDEN {
-                network.output[k] -= rate * (output_gradient * hidden[k] + 1e-5 * network.output[k]);
-                network.hidden[k] -= rate * gradients[k];
-                for j in 0..INPUTS {
-                    let x = example.features[j].clamp(-INPUT_CLIP, INPUT_CLIP);
-                    network.input[k][j] -= rate * (gradients[k] * x + 1e-5 * network.input[k][j]);
-                }
-            }
-        }
-        fn bits(network: &Network) -> Vec<u64> {
-            network.input.iter().flatten().chain(network.hidden.iter())
-                .chain(network.output.iter()).chain(std::iter::once(&network.bias))
-                .map(|value| value.to_bits()).collect()
-        }
-        let boundaries = [-1e6, -4.00001, -4., -0., 0., 0.375, 4., 4.00001, 1e6];
-        for seed in [0, 42, u32::MAX as u64] {
-            let mut current = Network::new(seed, 0.37);
-            let mut reference = current.clone();
-            for offset in 0..boundaries.len() {
-                let example = Example {
-                    features: std::array::from_fn(|i| boundaries[(i + offset) % boundaries.len()]),
-                    target: offset as f64 / (boundaries.len() - 1) as f64,
-                    group: "clipping_regression".into(),
-                };
-                let (actual_hidden, actual) = current.forward(&example.features);
-                let (expected_hidden, expected) = reference_forward(&reference, &example.features);
-                assert_eq!(actual.to_bits(), expected.to_bits());
-                assert_eq!(actual_hidden.map(f64::to_bits), expected_hidden.map(f64::to_bits));
-                current.step(&example, 0.08);
-                reference_step(&mut reference, &example, 0.08);
-                assert_eq!(bits(&current), bits(&reference));
-            }
-        }
-    }
 
     fn examples(groups: &[&str]) -> Vec<Example> {
         let mut rows = Vec::new();
@@ -819,19 +877,6 @@ mod tests {
         assert_eq!(next["parameter_count"], 1561);
         assert_eq!(next["feature_schema"], crate::representation::SCHEMA);
     }
-    #[test]
-    fn old_same_architecture_weights_without_strict_policy_are_not_warm_started() {
-        let rows=examples(&["one","two","three"]);
-        let mut old=update(None,&rows,10,42).unwrap();
-        old.as_object_mut().unwrap().remove("element_policy");
-        let before=old.clone();
-        assert!(predict(&old,&rows[0].features).is_none());
-        let next=update(Some(&old),&rows,10,42).unwrap();
-        assert_eq!(next["warm_started"],false);
-        assert!(next["previous_model_rejected"].is_string());
-        assert_eq!(next["element_policy"],crate::dataset_model::ELEMENT_POLICY);
-        assert_eq!(old,before);
-    }
 
     #[test]
     fn unchanged_constant_targets_do_not_enable_network() {
@@ -841,5 +886,89 @@ mod tests {
         }
         let model = update(None, &rows, 40, 42).unwrap();
         assert_eq!(model["deploy_enabled"], false);
+    }
+    #[test]
+    fn equal_budget_selection_evaluates_each_context_separately() {
+        let mut network = Network::new(1, 0.5);
+        network.input = [[0.; INPUTS]; HIDDEN];
+        network.hidden = [0.; HIDDEN];
+        network.output = [0.; HIDDEN];
+        network.bias = 0.;
+        network.input[0][0] = 2.;
+        network.output[0] = 2.;
+        let values = [(0., 0.1), (1., 0.8), (1., 0.9), (0., 0.)];
+        let rows = values
+            .iter()
+            .map(|(x, target)| {
+                let mut features = [0.; INPUTS];
+                features[0] = *x;
+                Example {
+                    features,
+                    target: *target,
+                    group: "validation".into(),
+                }
+            })
+            .collect::<Vec<_>>();
+        let cases = vec![
+            SelectionCase {
+                group: "validation".into(),
+                candidates: vec![0, 1],
+            },
+            SelectionCase {
+                group: "validation".into(),
+                candidates: vec![2, 3],
+            },
+        ];
+        let report = selection_metrics(
+            &network,
+            &rows,
+            &cases,
+            &BTreeSet::from(["validation".into()]),
+        );
+        assert_eq!(report["eligible_cases"], 2);
+        assert!((report["gain_at_budget_one"].as_f64().unwrap() - 0.35).abs() < 1e-12);
+        assert_eq!(report["budgets"][1]["gain"], 0.0);
+        assert_eq!(report["non_regressing_budgets"], true);
+        assert_eq!(report["elapsed_time_compared"], false);
+    }
+
+    #[test]
+    fn better_regression_error_alone_cannot_enable_a_useless_ranking() {
+        let mut rows = examples(&["one", "two", "three", "four"]);
+        for context in rows.chunks_mut(8) {
+            context.reverse();
+        }
+        let model = update(None, &rows, 160, 42).unwrap();
+        assert!(model["validation_improvement"].as_f64().unwrap() > REQUIRED_IMPROVEMENT);
+        // The first recorded recipe was already the best, so even a perfect
+        // regressor cannot claim an equal-budget selection gain on these cases.
+        assert_eq!(model["selection_validation"]["gain_at_budget_one"], 0.0);
+        assert_eq!(model["deploy_enabled"], false);
+        assert_eq!(
+            model["deployment_reason"],
+            "no_validated_equal_budget_selection_gain"
+        );
+    }
+
+    #[test]
+    fn prior_same_width_feature_schema_is_rejected_and_missing_gate_cannot_predict() {
+        let rows = examples(&["one", "two", "three", "four"]);
+        let current = update(None, &rows, 160, 42).unwrap();
+        let mut previous = current.clone();
+        previous["schema"] = json!("atelier.experience_model.v2");
+        previous["schema_version"] = json!(2);
+        previous["feature_schema"] = json!("atelier.geometry_action_features.v2");
+        let restored = update(Some(&previous), &rows, 20, 42).unwrap();
+        assert_eq!(restored["warm_started"], false);
+        assert!(restored["previous_model_rejected"]
+            .as_str()
+            .unwrap()
+            .contains("128 entrées"));
+        let mut incomplete = current;
+        incomplete
+            .as_object_mut()
+            .unwrap()
+            .remove("selection_validation");
+        assert!(predict(&incomplete, &rows[0].features).is_none());
     }
 }

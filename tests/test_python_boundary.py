@@ -66,7 +66,7 @@ class PythonNumericalBoundary(unittest.TestCase):
             called = session.return_value.generate.call_args.args[0]
             self.assertEqual(called["units"]["input"], "m")
             self.assertEqual(result["native_kernel"]["language"], "rust")
-            self.assertEqual((root / "result/mesh.msh").read_text(), "native mesh")
+            self.assertEqual((root / "result/mesh.msh").read_text(encoding="utf-8"), "native mesh")
 
     def test_backend_does_not_erase_a_source_on_output_collision(self):
         from atelier.backend import run_project
@@ -74,7 +74,7 @@ class PythonNumericalBoundary(unittest.TestCase):
             source = Path(folder) / "model.brep"; source.write_text("original")
             with self.assertRaisesRegex(ValueError, "source doit être distinct"):
                 run_project({"geometry": {"kind": "import"}}, Path(folder), source)
-            self.assertEqual(source.read_text(), "original")
+            self.assertEqual(source.read_text(encoding="utf-8"), "original")
 
     def test_backend_failure_does_not_leave_a_prior_exportable_mesh(self):
         from atelier.backend import run_project

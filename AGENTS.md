@@ -1,7 +1,5 @@
-# Moteur de référence de Mailleur
+# Travailler sur Mailleur
 
-La référence de développement est le générateur structuré direct du projet « Optimiser le mailleur ». Le [README](README.md#moteur-de-référence) indique quelle implémentation est disponible dans ce dépôt.
+Ce dépôt développe le mailleur structuré direct du chat « Optimiser le mailleur ». L’archive amont du 19 novembre 2026 porte le numéro rc6. La première livraison publique de cette lignée dans ce dépôt est la rc10.
 
-Pour les évolutions de l’application, des scripts, de l’API et de l’apprentissage, utiliser le même moteur de référence. Le maillage automatique et ses essais d’apprentissage doivent construire directement des quadrilatères en 2D et des hexaèdres en 3D, avec l’ordre 2 par défaut. Lors d’une vérification, identifier le noyau réellement exécuté. La forme des cellules dans un fichier exporté ne suffit pas à établir la méthode de génération.
-
-Conserver la révision du moteur avec les jeux d’apprentissage, les mesures de performance, les vérifications dans les solveurs et les supports de présentation.
+Utiliser le même noyau Rust pour le bureau, les commandes, l’API et l’apprentissage. Le choix automatique produit des quadrilatères en 2D et des hexaèdres en 3D, directement, avec l’ordre 2 par défaut. Conserver les familles manuelles explicites et les refus des géométries incompatibles. Identifier le moteur, relire les cellules écrites et rattacher les résultats d’essai et de présentation à leur révision.

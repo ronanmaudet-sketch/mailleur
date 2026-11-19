@@ -105,18 +105,6 @@ class DesktopWorkflow(unittest.TestCase):
             "preview": {},
         })
 
-    def test_element_family_is_imposed_for_both_surface_and_volume(self):
-        from tests.test_native import plate
-        project = plate()
-        self.window.load_project(project)
-        self.assertEqual(self.window.element_family.text(), "Quadrilatères uniquement")
-        self.assertEqual(self.window.project_from_form()["mesh"]["element_policy"], "quad_hex_only")
-        project["mode"] = "volume"
-        self.window.load_project(project)
-        self.assertEqual(self.window.element_family.text(), "Hexaèdres uniquement")
-        self.assertEqual(self.window.project_from_form()["mesh"]["element_policy"], "quad_hex_only")
-        self.assertFalse(self.window.remesh_button.isEnabled())
-
     def test_display_and_stale_results_are_blocked_before_the_export_dialog(self):
         with patch("atelier.desktop.QFileDialog.getExistingDirectory", return_value="") as dialog:
             self._receive_result("inspect")

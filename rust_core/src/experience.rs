@@ -8,6 +8,7 @@ mod model;
 
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::cell::OnceCell;
 use std::collections::{BTreeSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -17,9 +18,10 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 type R<T> = Result<T, String>;
 const MEMORY_SCHEMA: &str = "atelier.experience.v1";
 const ENGINE: &str = "4.15.2";
-// rc9 changes final element families. Preserve earlier observations as archives;
-// neither old context aliases nor unverified numerical labels enter strict replay.
-const CONTEXT_NUMERICS_VERSION: &str = "1.0.0-rc.9-quad-hex";
+// rc6 changes direct element recipes and feature semantics. Older experience
+// contexts remain archived and are re-encoded, but are never accepted as an
+// identical numerical request solely because the CAD source is unchanged.
+const CONTEXT_NUMERICS_VERSION: &str = "1.0.0-rc.10";
 const MAX_MEMORY_BYTES: u64 = 128 * 1024 * 1024;
 const MAX_EVENT_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_CONTEXTS: usize = 1000;
@@ -433,18 +435,12 @@ pub fn memory_info(request: &Value) -> R<Value> {
         }
     }
     let model_path = path.join("model.json");
-    let mut learned = if model_path.is_file() {
+    let learned = if model_path.is_file() {
         serde_json::from_slice::<Value>(&fs::read(model_path).map_err(|e| e.to_string())?)
             .map_err(|e| e.to_string())?
     } else {
         Value::Null
     };
-    if learned.is_object() && (learned["element_policy"] != crate::dataset_model::ELEMENT_POLICY
-        || learned["feature_schema"] != crate::representation::SCHEMA) {
-        learned["historical_deploy_enabled"] = learned["deploy_enabled"].clone();
-        learned["deploy_enabled"] = json!(false);
-        learned["deployment_reason"] = json!("historical_model_without_current_quad_hex_provenance");
-    }
     let versions = if path.join("models").is_dir() {
         fs::read_dir(path.join("models"))
             .map_err(|e| e.to_string())?
@@ -484,6 +480,9 @@ struct Candidate {
     recipe: Value,
     project: Value,
     from_memory: bool,
+    // Geometry/reference and numerical settings are immutable for this action.
+    // Cache once so sequential ordering does not rebuild CAD descriptors.
+    input: OnceCell<[f64; model::INPUTS]>,
 }
 
 fn recipe(project: &Value, action: &str) -> Value {
@@ -492,8 +491,20 @@ fn recipe(project: &Value, action: &str) -> Value {
 
 fn candidate(original: &Value, recipe: Value, from_memory: bool) -> R<Candidate> {
     let mut project = original.clone();
-    if !recipe["mesh"].is_object() || recipe["mesh"]["element_policy"] != crate::dataset_model::ELEMENT_POLICY {
+    if !recipe["mesh"].is_object() {
         return Err("Recette mémorisée invalide".into());
+    }
+    for key in ["element_shape", "order", "quadratic_layout"] {
+        if let Some(required) = original["mesh"].get(key) {
+            if recipe["mesh"].get(key) != Some(required) {
+                return Err(format!(
+                    "La recette modifierait la contrainte de maillage {key}"
+                ));
+            }
+        }
+    }
+    if original["mesh"]["structured"]["grading"] != recipe["mesh"]["structured"]["grading"] {
+        return Err("La recette modifierait la progression structurée demandée".into());
     }
     project["mesh"] = recipe["mesh"].clone();
     for key in ["local_sizes", "refinement_regions"] {
@@ -511,6 +522,7 @@ fn candidate(original: &Value, recipe: Value, from_memory: bool) -> R<Candidate>
         recipe,
         project,
         from_memory,
+        input: OnceCell::new(),
     })
 }
 
@@ -555,6 +567,13 @@ fn add_unique(
     Ok(())
 }
 
+fn is_direct(project: &Value) -> bool {
+    matches!(
+        project["mesh"]["element_shape"].as_str(),
+        Some("quadrilateral" | "hexahedron" | "prism" | "pyramid")
+    )
+}
+
 fn initial_candidates(original: &Value, remembered: Option<&Value>) -> R<VecDeque<Candidate>> {
     let mut queue = VecDeque::new();
     let mut seen = BTreeSet::new();
@@ -576,14 +595,58 @@ fn initial_candidates(original: &Value, remembered: Option<&Value>) -> R<VecDequ
     if !["automatic", "delaunay", "frontal"].contains(&requested) {
         return Err("Algorithme inconnu".into());
     }
+    let direct = is_direct(original);
     let algorithms: Vec<&str> = [requested, "delaunay", "frontal", "automatic"]
         .into_iter()
-        .filter(|a| !(volume && has_local && *a == "frontal"))
+        .filter(|a| {
+            (direct && *a == requested) || (!direct && !(volume && has_local && *a == "frontal"))
+        })
         .collect();
     let base = positive_mesh(original, "size", 0.5)?;
     let minimum = positive_mesh(original, "min_size", 0.1)?;
     if minimum > base {
         return Err("La taille minimale doit être inférieure à la taille globale".into());
+    }
+    if direct && original["mesh"]["structured"]["divisions"].is_array() {
+        for scale in [1., 1.25, 1.5, 2.] {
+            let counts = original["mesh"]["structured"]["divisions"]
+                .as_array()
+                .unwrap();
+            if counts.len() != 3
+                || counts
+                    .iter()
+                    .any(|n| n.as_u64().is_none_or(|v| v == 0 || v > 2000))
+            {
+                return Err("Trois divisions structurées entières positives sont requises".into());
+            }
+            let mut project = original.clone();
+            let mut divisions = [1u64; 3];
+            for axis in 0..if volume { 3 } else { 2 } {
+                divisions[axis] = (counts[axis].as_u64().unwrap() as f64 * scale).ceil() as u64;
+            }
+            if divisions.iter().any(|n| *n > 2000) {
+                continue;
+            }
+            if divisions
+                .iter()
+                .try_fold(1u64, |n, x| n.checked_mul(*x))
+                .is_none_or(|n| n > 2_000_000)
+            {
+                continue;
+            }
+            project["mesh"]["structured"]["divisions"] = json!(divisions);
+            add_unique(
+                &mut queue,
+                &mut seen,
+                candidate(
+                    original,
+                    recipe(&project, &format!("direct:divisions:{scale}")),
+                    false,
+                )?,
+                false,
+            )?;
+        }
+        return Ok(queue);
     }
     let mut volume_actions = BTreeSet::new();
     for scale in [1., 0.85, 0.65, 0.5] {
@@ -611,7 +674,7 @@ fn initial_candidates(original: &Value, remembered: Option<&Value>) -> R<VecDequ
     // A separate, deterministic strategy refines the selected protected entities.
     if let Some(zones) = original["critical_zones"]
         .as_array()
-        .filter(|z| !z.is_empty())
+        .filter(|z| !direct && !z.is_empty())
     {
         let mut project = original.clone();
         project["mesh"]["algorithm"] = json!("delaunay");
@@ -651,7 +714,9 @@ fn features(
     candidate: &Candidate,
     report: Option<&Value>,
 ) -> [f64; model::INPUTS] {
-    crate::representation::features(original, &candidate.project, report)
+    *candidate
+        .input
+        .get_or_init(|| crate::representation::features(original, &candidate.project, report))
 }
 
 fn reference_report(report: &Value, project: &Value) -> Value {
@@ -666,6 +731,11 @@ fn adaptive_candidate(
     report: &Value,
     iteration: usize,
 ) -> R<Option<Candidate>> {
+    if is_direct(original) {
+        // This route varies whole structured grids. Unstructured local fields
+        // would change the requested generation method and are not substituted.
+        return Ok(None);
+    }
     let Some(samples) = report["quality"]["poor_samples"]
         .as_array()
         .filter(|s| !s.is_empty())
@@ -725,14 +795,82 @@ fn adaptive_candidate(
     )?))
 }
 
+struct SearchObservation {
+    features: [f64; model::INPUTS],
+    score: f64,
+}
+
+/// Lightweight online surrogate updated after each native experiment. The
+/// exploration term measures kernel support, not calibrated probability.
+fn sequential_order(
+    queue: &mut VecDeque<Candidate>,
+    original: &Value,
+    reference: Option<&Value>,
+    observations: &[SearchObservation],
+    corpus: Option<&Value>,
+    replay: Option<&Value>,
+) -> Value {
+    if observations.is_empty() || queue.front().is_some_and(|c| c.from_memory) {
+        return json!({"policy":"initial_or_exact_memory_order","completed_observations":observations.len()});
+    }
+    let explore = (observations.len() + 1) % 4 == 0;
+    let mut choice = None;
+    for (index, candidate) in queue.iter().enumerate() {
+        let input = features(original, candidate, reference);
+        let prior = corpus
+            .and_then(|model| crate::dataset_model::predict(model, &input).ok().flatten())
+            .or_else(|| replay.and_then(|model| model::predict(model, &input)))
+            .unwrap_or(0.5);
+        let mut support = 0.;
+        let mut weighted = 0.;
+        for observation in observations {
+            let distance = (4..16)
+                .chain(80..128)
+                .map(|i| (input[i] - observation.features[i]).powi(2))
+                .sum::<f64>();
+            let weight = (-distance / 0.0625).exp();
+            support += weight;
+            weighted += weight * observation.score;
+        }
+        let predicted = (0.25 * prior + weighted) / (0.25 + support);
+        let exploration = 1. / (1. + support).sqrt();
+        let acquisition = if explore {
+            exploration
+        } else {
+            predicted + 0.12 * exploration
+        };
+        if choice
+            .as_ref()
+            .is_none_or(|(_, score, _, _): &(usize, f64, f64, f64)| acquisition > *score)
+        {
+            choice = Some((index, acquisition, predicted, exploration));
+        }
+    }
+    let Some((index, acquisition, predicted, exploration)) = choice else {
+        return Value::Null;
+    };
+    let selected = queue.remove(index).unwrap();
+    queue.push_front(selected);
+    json!({"policy":"kernel_support_exploration_v1","mode":if explore {"explore"} else {"exploit_with_exploration"},
+        "completed_observations":observations.len(),"predicted_score":predicted,
+        "exploration_proxy":exploration,"acquisition":acquisition,"calibrated_uncertainty":false})
+}
+
+#[cfg(test)]
 fn model_examples(memory: &Value) -> Vec<model::Example> {
+    model_examples_and_cases(memory).0
+}
+
+fn model_examples_and_cases(memory: &Value) -> (Vec<model::Example>, Vec<model::SelectionCase>) {
     let mut result = Vec::new();
+    let mut cases = Vec::new();
     for context in memory["contexts"].as_array().unwrap() {
         let Some(group) = context["geometry_id"].as_str() else {
             continue;
         };
+        let start = result.len();
         for row in context["observations"].as_array().into_iter().flatten() {
-            if row["feature_schema"] != crate::representation::SCHEMA || !strict_observation(row) {
+            if row["feature_schema"] != crate::representation::SCHEMA {
                 continue;
             }
             let Some(values) = row["features"]
@@ -767,43 +905,108 @@ fn model_examples(memory: &Value) -> Vec<model::Example> {
                 group: group.to_string(),
             });
         }
+        if result.len() > start {
+            cases.push(model::SelectionCase {
+                group: group.to_string(),
+                candidates: (start..result.len()).collect(),
+            });
+        }
     }
-    result
+    (result, cases)
 }
 
-/// Classify archived labels without rewriting their data or topology provenance.
-/// Historical inputs remain in the index and the append-only original journal.
+/// Re-encode archived labels using saved CAD context, never using their quality.
+/// Original inputs remain in the index and the append-only original journal.
+/// v2 vectors are reconstructed from the saved CAD/recipe, never relabelled v3.
 fn migrate_feature_history(memory: &mut Value) -> Value {
-    // Reading legacy history must never manufacture a new strict topology proof.
-    // Keep recipes, vectors, labels and the append-only journal byte-for-byte.
+    let mut preserved = 0usize;
+    let mut reencoded = 0usize;
     let mut excluded = 0usize;
-    let mut current = 0usize;
-    for context in memory["contexts"].as_array().into_iter().flatten() {
-        for row in context["observations"].as_array().into_iter().flatten() {
-            if row["feature_schema"] == crate::representation::SCHEMA && strict_observation(row) {
-                current += 1;
-            } else {
+    let mut previously_reencoded = 0usize;
+    let mut missing_graph = 0usize;
+    let mut reasons = BTreeSet::new();
+    for context in memory["contexts"].as_array_mut().into_iter().flatten() {
+        let original = context["project"].clone();
+        let reference = context
+            .get("last_geometry_report")
+            .cloned()
+            .filter(|r| r["entity_catalog"].is_array());
+        let enriched = reference.as_ref().map(|r| reference_report(r, &original));
+        if let Some(r) = &enriched {
+            context["last_geometry_report"] = r.clone();
+        }
+        for row in context["observations"].as_array_mut().into_iter().flatten() {
+            let old_len = row["features"].as_array().map_or(0, Vec::len);
+            if old_len == model::INPUTS && row["feature_schema"] == crate::representation::SCHEMA {
+                if row["feature_migration"].is_object() {
+                    preserved += 1;
+                    previously_reencoded += 1;
+                }
+                continue;
+            }
+            preserved += 1;
+            let known_previous = old_len == 16
+                || (old_len == 128
+                    && row["feature_schema"] == "atelier.geometry_action_features.v2");
+            if !known_previous || !original.is_object() || !row["recipe"]["mesh"].is_object() {
                 excluded += 1;
+                reasons.insert(
+                    "Contexte ou recette absents, ou ancien vecteur de schéma inconnu".to_string(),
+                );
+                continue;
+            }
+            if original["geometry"]["kind"] == "import" && enriched.is_none() {
+                excluded += 1;
+                reasons.insert("Géométrie importée sans catalogue CAD sauvegardé : positions non reconstructibles".to_string());
+                continue;
+            }
+            let mut old_original = original.clone();
+            let mut old_recipe = row["recipe"].clone();
+            // Prior schemas used implicit order1; preserve the meaning of their
+            // measured labels while rc6's omitted-order default is now2.
+            if old_original["mesh"].get("order").is_none() {
+                old_original["mesh"]["order"] =
+                    old_recipe["mesh"].get("order").cloned().unwrap_or(json!(1));
+            }
+            if old_recipe["mesh"].get("order").is_none() {
+                old_recipe["mesh"]["order"] = json!(1);
+            }
+            match candidate(&old_original, old_recipe, false) {
+                Ok(action) => {
+                    let input = features(&old_original, &action, enriched.as_ref());
+                    let old = row["features"].clone();
+                    let old_schema = row["feature_schema"].clone();
+                    if row["legacy_features"].is_array() {
+                        if !row["legacy_feature_versions"].is_array() {
+                            row["legacy_feature_versions"] = json!([]);
+                        }
+                        row["legacy_feature_versions"]
+                            .as_array_mut()
+                            .unwrap()
+                            .push(json!({"feature_schema":old_schema,"features":old}));
+                    } else {
+                        row["legacy_features"] = old;
+                    }
+                    row["features"] = json!(input.to_vec());
+                    row["feature_schema"] = json!(crate::representation::SCHEMA);
+                    let graph_available = enriched.as_ref().is_some_and(|r| {
+                        r["geometry_descriptor"]["entity_graph"]["relation_source"]
+                            == "native_cad_boundary"
+                    });
+                    if !graph_available {
+                        missing_graph += 1;
+                    }
+                    row["feature_migration"] = json!({"from_inputs":old_len,"from_schema":old_schema,"to_inputs":model::INPUTS,"to_schema":crate::representation::SCHEMA,"method":"saved_project_recipe_and_geometry_catalogue","target_quality_or_connectivity_used":false,"cad_boundary_graph_available":graph_available,"note":if graph_available{"Relations CAD sauvegardées utilisées"}else{"Ancien catalogue sans relations CAD : le canal de topologie inconnue reste explicite"}});
+                    reencoded += 1;
+                }
+                Err(error) => {
+                    excluded += 1;
+                    reasons.insert(format!("Recette ancienne non reconstructible : {error}"));
+                }
             }
         }
     }
-    json!({"legacy_examples_preserved":excluded,"legacy_examples_reencoded":0,
-        "legacy_examples_reencoded_total":0,"legacy_examples_excluded_from_new_training":excluded,
-        "current_strict_examples":current,"reencoded_without_cad_boundary_graph":0,
-        "exclusion_reasons":if excluded>0{vec!["Absence de provenance et de contrôle quadrilatères/hexaèdres compatibles : recalcul requis"]}else{vec![]},
-        "message":"Les anciennes observations sont conservées sans conversion de leurs étiquettes ni de leurs caractéristiques. Seuls les essais explicites quadrilatères/hexaèdres, avec résultats contrôlés ou échec à score nul, alimentent le nouvel apprentissage."})
-}
-
-fn strict_observation(row: &Value) -> bool {
-    if row["recipe"]["mesh"]["element_policy"] != crate::dataset_model::ELEMENT_POLICY
-        || row["element_policy"]["requested"] != crate::dataset_model::ELEMENT_POLICY {
-        return false;
-    }
-    if row["success"] == true {
-        crate::dataset_model::validate_element_evidence(&row["element_policy"]).is_ok()
-    } else {
-        row["success"] == false && row["accepted"] == false && row["score"].as_f64() == Some(0.)
-    }
+    json!({"legacy_examples_preserved":preserved,"legacy_examples_reencoded":reencoded,"legacy_examples_reencoded_total":previously_reencoded+reencoded,"legacy_examples_excluded_from_new_training":excluded,"reencoded_without_cad_boundary_graph":missing_graph,"exclusion_reasons":reasons.into_iter().collect::<Vec<_>>(),"message":if preserved>0{"Les anciennes observations, recettes et entrées brutes sont conservées. Les caractéristiques spatiales sont reconstruites depuis les contextes CAD disponibles ; seules les observations non reconstructibles sont exclues. Les poids des schémas antérieurs, y compris v2 à 128 entrées, sont réinitialisés explicitement."}else{"Représentation spatiale courante ; aucune ancienne observation incompatible."}})
 }
 
 fn save_observation(memory: &mut Value, context_index: usize, observation: Value) -> R<()> {
@@ -854,7 +1057,7 @@ fn remembered_recipe(memory: &Value, index: usize) -> Option<Value> {
     if let Some(recipe) = context["observations"]
         .as_array()?
         .iter()
-        .find(|r| r["recipe_id"] == context["best_recipe_id"] && r["accepted"] == true && strict_observation(r))
+        .find(|r| r["recipe_id"] == context["best_recipe_id"] && r["accepted"] == true)
         .map(|r| r["recipe"].clone())
     {
         return Some(recipe);
@@ -865,7 +1068,7 @@ fn remembered_recipe(memory: &Value, index: usize) -> Option<Value> {
         .as_array()?
         .iter()
         .flat_map(|c| c["observations"].as_array().into_iter().flatten())
-        .filter(|r| r["accepted"] == true && r["resulting_context_id"] == context["context_id"] && strict_observation(r))
+        .filter(|r| r["accepted"] == true && r["resulting_context_id"] == context["context_id"])
         .max_by(|a, b| crate::quality::compare_reports(a, b))
         .map(|r| r["recipe"].clone())
 }
@@ -982,16 +1185,6 @@ pub fn learn(request: &Value) -> R<Value> {
             .as_str()
             .ok_or("Dossier de sortie absent")?,
     );
-    let mut strict_request = request.clone();
-    if !strict_request["project"].is_object() || !strict_request["project"]["mesh"].is_object() {
-        return Err("Projet et paramètres de maillage absents".into());
-    }
-    let requested_policy = &strict_request["project"]["mesh"]["element_policy"];
-    if !requested_policy.is_null() && requested_policy != crate::dataset_model::ELEMENT_POLICY {
-        return Err("L’apprentissage exige la politique quad_hex_only".into());
-    }
-    strict_request["project"]["mesh"]["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
-    let request = &strict_request;
     let original = request
         .get("project")
         .filter(|p| p.is_object())
@@ -1002,9 +1195,22 @@ pub fn learn(request: &Value) -> R<Value> {
     if !["planar", "surface", "volume"].contains(&original["mode"].as_str().unwrap_or("planar")) {
         return Err("Mode de maillage inconnu".into());
     }
+    let shape = crate::backend::learning_shape(original)?;
+    let mut qualified = original.clone();
+    qualified["mesh"]["element_shape"] = json!(shape);
+    if qualified["mesh"].get("order").is_none() {
+        qualified["mesh"]["order"] = json!(2);
+    }
+    let original = &qualified;
+    let dimension = if original["mode"] == "volume" { 3 } else { 2 };
+    crate::backend::validate_shape_request(original, dimension, "mesh")?;
     let settings = &request["search"];
     let max_trials = integer(settings, "max_trials", 12, 1, 64)? as usize;
     let epochs = integer(settings, "epochs", 80, 1, 200)? as usize;
+    let search_policy = settings["policy"].as_str().unwrap_or("sequential");
+    if !["sequential", "initial_order"].contains(&search_policy) {
+        return Err("Politique de recherche inconnue : sequential ou initial_order".into());
+    }
     let seed = integer(settings, "seed", 42, 0, u32::MAX as u64)?;
     let max_seconds = integer(settings, "max_seconds", 240, 1, 86400)? as f64;
     let use_memory = boolean(settings, "use_memory", true)?;
@@ -1020,6 +1226,15 @@ pub fn learn(request: &Value) -> R<Value> {
     fs::create_dir_all(&output).map_err(|e| e.to_string())?;
     let _lock = MemoryLock::acquire(&memory_path)?;
     let mut memory = load_memory(&memory_path)?;
+    if memory["element_policy"] != "direct_quad_hex" {
+        if memory_path.join("memory.json").exists() || memory_path.join("model.json").exists()
+            || memory_path.join("events.jsonl").exists()
+        {
+            return Err("Cette mémoire provient d’une autre filière d’apprentissage. Choisir un nouveau dossier pour les quadrilatères et hexaèdres directs.".into());
+        }
+        memory["element_policy"] = json!("direct_quad_hex");
+        atomic_json(&memory_path.join("memory.json"), &memory)?;
+    }
     let representation_migration = migrate_feature_history(&mut memory);
     clear_previous_output(
         &output,
@@ -1072,7 +1287,7 @@ pub fn learn(request: &Value) -> R<Value> {
         if contexts.len() >= MAX_CONTEXTS {
             return Err("La mémoire a atteint 1000 contextes ; archiver explicitement les expériences avant de poursuivre".into());
         }
-        contexts.push(json!({"context_id":context_id,"geometry_id":geometry_id,"numerics_version":CONTEXT_NUMERICS_VERSION,"project":original,"source":source,"created_at":now(),"updated_at":now(),"observations":[],"best_recipe_id":null}));
+        contexts.push(json!({"context_id":context_id,"geometry_id":geometry_id,"project":original,"source":source,"created_at":now(),"updated_at":now(),"observations":[],"best_recipe_id":null}));
         contexts.len() - 1
     };
     let remembered = if use_memory {
@@ -1083,22 +1298,15 @@ pub fn learn(request: &Value) -> R<Value> {
     let mut queue = initial_candidates(original, remembered.as_ref())?;
     let model_path = memory_path.join("model.json");
     let existing_model: Option<Value> = if use_memory && model_path.is_file() {
-        Some(
-            serde_json::from_slice(&fs::read(&model_path).map_err(|e| e.to_string())?)
-                .map_err(|e| format!("Modèle mémorisé illisible : {e}"))?,
-        )
+        let saved: Value = serde_json::from_slice(&fs::read(&model_path).map_err(|e| e.to_string())?)
+            .map_err(|e| format!("Modèle mémorisé illisible : {e}"))?;
+        if saved["element_policy"] != "direct_quad_hex" {
+            return Err("Le modèle de cette mémoire n’atteste pas un entraînement direct quad/hex. Choisir un nouveau dossier.".into());
+        }
+        Some(saved)
     } else {
         None
     };
-    if existing_model.as_ref().is_some_and(|model| model["element_policy"] != crate::dataset_model::ELEMENT_POLICY) {
-        let bytes = fs::read(&model_path).map_err(|e| e.to_string())?;
-        let archive = memory_path.join("models").join(format!("legacy-model-{:x}.json", Sha256::digest(&bytes)));
-        fs::create_dir_all(archive.parent().unwrap()).map_err(|e| e.to_string())?;
-        if !archive.exists() { fs::write(&archive, &bytes).map_err(|e| e.to_string())?; }
-        if fs::read(&archive).map_err(|e| e.to_string())? != bytes {
-            return Err("L'archive du modèle historique est incohérente ; poids conservés sans remplacement".into());
-        }
-    }
     // Extract CAD information once before predictions; target mesh quality and
     // target connectivity must never influence the candidate's input features.
     let mut historic_report = memory["contexts"][context_index]
@@ -1142,8 +1350,9 @@ pub fn learn(request: &Value) -> R<Value> {
                         .map_err(|e| e.to_string())
                 });
             match loaded {
-                Ok(value) if value["feature_schema"] == crate::representation::SCHEMA => Some(value),
-                Ok(_) => { guidance_notes.push("Modèle du corpus ignoré : schéma spatial incompatible avec les 128 entrées de cette version".into()); None },
+                Ok(value) if value["feature_schema"] == crate::representation::SCHEMA
+                    && value["element_policy"] == "direct_quad_hex" => Some(value),
+                Ok(_) => { guidance_notes.push("Modèle du corpus ignoré : profil direct quad/hex ou schéma des caractéristiques incompatible.".into()); None },
                 Err(error) => {
                     guidance_notes.push(format!("Modèle du corpus ignoré : {error}"));
                     None
@@ -1206,6 +1415,7 @@ pub fn learn(request: &Value) -> R<Value> {
         "deterministic_search_no_validated_model"
     };
     let mut tried = BTreeSet::new();
+    let mut observations = Vec::new();
     let mut trials = Vec::new();
     let mut best: Option<(Value, PathBuf, Value, String)> = None;
     let mut memory_reused = false;
@@ -1221,6 +1431,18 @@ pub fn learn(request: &Value) -> R<Value> {
             notes.push("Budget de temps atteint entre deux essais ; le traitement d'un essai est borné par le délai maximal de l'interface".into());
             break;
         }
+        let search_choice = if search_policy == "sequential" {
+            sequential_order(
+                &mut queue,
+                original,
+                historic_report.as_ref(),
+                &observations,
+                corpus_model.as_ref(),
+                existing_model.as_ref(),
+            )
+        } else {
+            json!({"policy":"initial_order","completed_observations":observations.len()})
+        };
         let current = queue.pop_front().unwrap();
         let mut numerical = current.recipe.clone();
         numerical.as_object_mut().unwrap().remove("action_id");
@@ -1248,13 +1470,11 @@ pub fn learn(request: &Value) -> R<Value> {
             native["source"] = json!(source);
         }
         let trial_started = Instant::now();
-        let evaluated = crate::backend::run(&native).and_then(|report| {
-            crate::dataset_model::validate_element_evidence(&report["element_policy"])?;
-            Ok(report)
-        });
+        let evaluated = crate::backend::run(&native);
         let seconds = trial_started.elapsed().as_secs_f64();
         memory_reused |= current.from_memory;
         let mut trial = json!({"index":index,"recipe_id":recipe_id,"action_id":current.recipe["action_id"],"algorithm":current.project["mesh"]["algorithm"],"size":current.project["mesh"]["size"],"local_refinement":current.project["local_sizes"].as_array().map_or(0,Vec::len)+current.project["refinement_regions"].as_array().map_or(0,Vec::len),"from_memory":current.from_memory,"seconds":seconds});
+        trial["search_choice"] = search_choice;
         let input;
         match evaluated {
             Ok(report) => {
@@ -1263,7 +1483,6 @@ pub fn learn(request: &Value) -> R<Value> {
                 trial["success"] = json!(true);
                 trial["accepted"] = json!(accepted);
                 trial["quality"] = report["quality"].clone();
-                trial["element_policy"] = report["element_policy"].clone();
                 trial["score"] = json!(score);
                 trial["elements"] = report["elements"].clone();
                 input = features(original, &current, historic_report.as_ref());
@@ -1288,7 +1507,6 @@ pub fn learn(request: &Value) -> R<Value> {
                 trial["accepted"] = json!(false);
                 trial["score"] = json!(0.);
                 trial["error"] = json!(error);
-                trial["element_policy"] = json!({"requested":crate::dataset_model::ELEMENT_POLICY,"verified":false});
             }
         }
         let mut observation = trial.clone();
@@ -1304,6 +1522,10 @@ pub fn learn(request: &Value) -> R<Value> {
         save_observation(&mut memory, context_index, observation.clone())?;
         append_event(&memory_path, &mut memory, context_index, &observation)?;
         atomic_json(&memory_path.join("memory.json"), &memory)?;
+        observations.push(SearchObservation {
+            features: input,
+            score: trial["score"].as_f64().unwrap_or(0.),
+        });
         trials.push(trial);
         // Diagnostics survive cancellation after any completed experiment.
         atomic_json(
@@ -1311,10 +1533,17 @@ pub fn learn(request: &Value) -> R<Value> {
             &json!({"context_id":context_id,"geometry_id":geometry_id,"executed_trials":trials.len(),"max_trials":max_trials,"trials":trials}),
         )?;
     }
-    let examples = model_examples(&memory);
-    let learning = match model::update(existing_model.as_ref(), &examples, epochs, seed) {
+    let (examples, selection_cases) = model_examples_and_cases(&memory);
+    let learning = match model::update_with_selection(
+        existing_model.as_ref(),
+        &examples,
+        &selection_cases,
+        epochs,
+        seed,
+    ) {
         Ok(mut learned) => {
             let version = memory["model_version"].as_u64().unwrap_or(0) + 1;
+            learned["element_policy"] = json!("direct_quad_hex");
             learned["model_version"] = json!(version);
             learned["updated_at"] = json!(now());
             fs::create_dir_all(memory_path.join("models")).map_err(|e| e.to_string())?;
@@ -1336,8 +1565,7 @@ pub fn learn(request: &Value) -> R<Value> {
     };
     let mut experience = json!({"schema":"atelier.experience.result.v1","context_id":context_id,"geometry_id":geometry_id,"memory_reused":memory_reused,"use_memory":use_memory,"executed_trials":trials.len(),"max_trials":max_trials,"max_seconds":max_seconds,"elapsed_seconds":started.elapsed().as_secs_f64(),"accepted":best.is_some(),"history_contexts":memory["contexts"].as_array().unwrap().len(),"history_observations":observation_count(&memory),"learning":learning,"trials":trials,"notes":notes,"chosen_project":null,"chosen_recipe_id":null});
     experience["guidance_source"] = json!(guidance_source);
-    experience["numerics_version"] = json!(CONTEXT_NUMERICS_VERSION);
-    experience["guidance"] = json!({"source":guidance_source,"corpus_predictions":corpus_predictions,"local_predictions":local_predictions,"memory_isolation":!use_memory,"never_bypasses_native_quality":true});
+    experience["guidance"] = json!({"source":guidance_source,"corpus_predictions":corpus_predictions,"local_predictions":local_predictions,"memory_isolation":!use_memory,"never_bypasses_native_quality":true,"search_policy":search_policy,"sequential_surrogate_updates":if search_policy=="sequential"{observations.len()}else{0},"neural_weight_updates":"after_search","uncertainty_calibrated":false});
     experience["representation"] = json!({"feature_schema":crate::representation::SCHEMA,"input_count":model::INPUTS,"reference":historic_report.as_ref().map(|r|r["geometry_descriptor"].clone()),"target_quality_or_connectivity_used":false});
     experience["representation_migration"] = representation_migration;
     if let Some((mut report, directory, chosen, recipe_id)) = best {
@@ -1366,11 +1594,11 @@ pub fn learn(request: &Value) -> R<Value> {
 mod tests {
     use super::*;
     fn project() -> Value {
-        json!({"schema_version":1,"name":"A","mode":"planar","units":{"input":"mm","internal":"m"},"geometry":{"kind":"plate","width":4.,"height":3.},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic","order":1,"element_policy":crate::dataset_model::ELEMENT_POLICY,"max_elements":5000},"critical_zones":[]})
+        json!({"schema_version":1,"name":"A","mode":"planar","units":{"input":"mm","internal":"m"},"geometry":{"kind":"plate","width":4.,"height":3.},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic","order":1,"max_elements":5000},"critical_zones":[]})
     }
 
     #[test]
-    fn precise_json_release_separates_legacy_context_without_erasing_observations() {
+    fn numerical_rc6_context_is_distinct_from_rc4_without_erasing_source_identity() {
         let mut p = project();
         p["name"] = json!("Nom sans effet numérique");
         p["learning"] = json!({"max_trials":8});
@@ -1384,62 +1612,37 @@ mod tests {
             &json!({"engine":ENGINE,"core":"1.0.0-rc.4","project":numerical,"source":source}),
         )
         .unwrap();
-        let current=context_identity(&p,&source).unwrap().0;
-        assert_ne!(current,previous);
-        let observations=json!([{"recipe_id":"legacy-recipe","accepted":true,"recipe":{"mesh":p["mesh"]},"resulting_context_id":previous}]);
-        let memory=json!({"contexts":[{"context_id":previous,"observations":observations},
-            {"context_id":current,"numerics_version":CONTEXT_NUMERICS_VERSION,"observations":[]}]});
-        assert!(remembered_recipe(&memory,1).is_none());
-        assert_eq!(memory["contexts"][0]["observations"],observations);
-        assert!(memory["contexts"][1]["observations"].as_array().unwrap().is_empty());
+        assert_ne!(context_identity(&p, &source).unwrap().0, previous);
         p["loads"]["force"] = json!(126);
         assert_ne!(context_identity(&p, &source).unwrap().0, previous);
     }
 
     #[test]
-    fn legacy_inputs_are_preserved_without_inventing_strict_training_labels() {
+    fn legacy_inputs_are_reconstructed_without_erasing_the_raw_history() {
         let p = project();
-        let old = json!({"features":vec![0.25;16],"recipe":{"mesh":p["mesh"]},"score":0.8});
-        let mut memory = json!({"contexts":[{"project":p,"geometry_id":"one","observations":[old]}]});
-        let before = memory.clone();
+        let old = vec![0.25; 16];
+        let mut memory = json!({"contexts":[{"project":p,"geometry_id":"one","observations":[{"features":old,"recipe":{"mesh":p["mesh"]},"score":0.8}]}]});
         let migration = migrate_feature_history(&mut memory);
-        assert_eq!(migration["legacy_examples_reencoded"], 0);
-        assert_eq!(migration["legacy_examples_excluded_from_new_training"], 1);
-        assert_eq!(memory, before);
-        assert!(model_examples(&memory).is_empty());
+        assert_eq!(migration["legacy_examples_reencoded"], 1);
+        assert_eq!(migration["legacy_examples_excluded_from_new_training"], 0);
+        assert_eq!(
+            memory["contexts"][0]["observations"][0]["legacy_features"]
+                .as_array()
+                .unwrap()
+                .len(),
+            16
+        );
+        assert_eq!(
+            memory["contexts"][0]["observations"][0]["features"]
+                .as_array()
+                .unwrap()
+                .len(),
+            128
+        );
+        assert_eq!(model_examples(&memory).len(), 1);
         let second = migrate_feature_history(&mut memory);
-        assert_eq!(second["legacy_examples_reencoded_total"], 0);
-        assert_eq!(memory, before);
-    }
-    #[test]
-    fn current_features_alone_do_not_turn_unverified_history_into_strict_labels() {
-        let p=project();
-        let mut row=json!({"recipe":{"mesh":p["mesh"]},"features":vec![0.;model::INPUTS],
-            "feature_schema":crate::representation::SCHEMA,"success":true,"accepted":true,"score":0.8});
-        let mut memory=json!({"contexts":[{"project":p,"geometry_id":"quad","observations":[row]}]});
-        assert!(model_examples(&memory).is_empty());
-        row["element_policy"]=json!({"requested":crate::dataset_model::ELEMENT_POLICY,"verified":true,
-            "dimension":2,"final_cell_counts":{"quadrilateral":4,"hexahedron":0,"segment":8}});
-        memory["contexts"][0]["observations"][0]=row.clone();
-        assert_eq!(model_examples(&memory).len(),1);
-        row["element_policy"]["final_cell_counts"]["triangle"]=json!(1);
-        memory["contexts"][0]["observations"][0]=row;
-        assert!(model_examples(&memory).is_empty());
-        let before=memory.clone();
-        assert_eq!(migrate_feature_history(&mut memory)["legacy_examples_excluded_from_new_training"],1);
-        assert_eq!(memory,before);
-    }
-    #[test]
-    fn memory_information_disables_historical_guidance_without_changing_saved_weights() {
-        let root=std::env::temp_dir().join(format!("mailleur-policy-info-{}",std::process::id()));
-        let _=fs::remove_dir_all(&root);fs::create_dir_all(&root).unwrap();
-        let bytes=b"{\"deploy_enabled\":true,\"feature_schema\":\"atelier.geometry_action_features.v2\",\"network\":{\"weights\":[0.1]}}";
-        fs::write(root.join("model.json"),bytes).unwrap();
-        let info=memory_info(&json!({"memory_dir":root})).unwrap();
-        assert_eq!(info["model"]["deploy_enabled"],false);
-        assert_eq!(info["model"]["historical_deploy_enabled"],true);
-        assert_eq!(fs::read(root.join("model.json")).unwrap(),bytes);
-        fs::remove_dir_all(root).unwrap();
+        assert_eq!(second["legacy_examples_reencoded"], 0);
+        assert_eq!(second["legacy_examples_reencoded_total"], 1);
     }
 
     #[test]
@@ -1653,7 +1856,7 @@ mod tests {
         let current = candidate(&original, recipe(&changed, "frontal:size:1"), false).unwrap();
         let chosen = chosen_project(&original, &current);
         let id = context_identity(&chosen, &Value::Null).unwrap().0;
-        let mut memory = json!({"contexts":[{"context_id":"original","observations":[{"recipe_id":"recipe","recipe":current.recipe,"accepted":true,"success":true,"element_policy":{"requested":crate::dataset_model::ELEMENT_POLICY,"verified":true,"dimension":2,"final_cell_counts":{"quadrilateral":12,"hexahedron":0,"segment":8}},"resulting_context_id":id,"quality":{"accepted":true,"minimum":0.8,"mean":0.9},"elements":12}]},{"context_id":id,"observations":[]}]});
+        let mut memory = json!({"contexts":[{"context_id":"original","observations":[{"recipe_id":"recipe","recipe":current.recipe,"accepted":true,"resulting_context_id":id,"quality":{"accepted":true,"minimum":0.8,"mean":0.9},"elements":12}]},{"context_id":id,"observations":[]}]});
         assert!(remembered_recipe(&memory, 1).is_some());
         let mut different = chosen;
         different["critical_zones"] =
@@ -1706,5 +1909,105 @@ mod tests {
         assert!(directory.join("source.step").is_file());
         assert!(directory.join("memory").is_dir());
         fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn v2_history_is_reconstructed_and_raw_vectors_are_retained() {
+        let p = project();
+        let old = vec![0.375; 128];
+        let mut memory = json!({"contexts":[{"project":p,"geometry_id":"one","observations":[{
+            "features":old,"feature_schema":"atelier.geometry_action_features.v2",
+            "recipe":{"mesh":p["mesh"]},"score":0.8}]}]});
+        let result = migrate_feature_history(&mut memory);
+        assert_eq!(result["legacy_examples_reencoded"], 1);
+        let row = &memory["contexts"][0]["observations"][0];
+        assert_eq!(row["legacy_features"], json!(vec![0.375; 128]));
+        assert_eq!(row["feature_schema"], crate::representation::SCHEMA);
+        assert_ne!(row["features"], row["legacy_features"]);
+        assert_eq!(row["feature_migration"]["from_inputs"], 128);
+        assert_eq!(
+            migrate_feature_history(&mut memory)["legacy_examples_reencoded"],
+            0
+        );
+    }
+
+    #[test]
+    fn direct_recipes_preserve_family_order_and_grading_and_vary_grid_counts() {
+        let mut p = project();
+        p["mode"] = json!("volume");
+        p["geometry"] = json!({"kind":"box","width":2.,"height":1.,"depth":1.});
+        p["mesh"]["order"] = json!(2);
+        p["mesh"]["element_shape"] = json!("hexahedron");
+        p["mesh"]["quadratic_layout"] = json!("serendipity");
+        p["mesh"]["structured"] = json!({"divisions":[2,3,2],"grading":[1.,1.2,1.]});
+        let candidates = initial_candidates(&p, None).unwrap();
+        assert_eq!(candidates.len(), 4);
+        assert_ne!(
+            candidates[0].project["mesh"]["structured"]["divisions"],
+            candidates[1].project["mesh"]["structured"]["divisions"]
+        );
+        for candidate in &candidates {
+            assert_eq!(candidate.project["mesh"]["element_shape"], "hexahedron");
+            assert_eq!(candidate.project["mesh"]["order"], 2);
+            assert_eq!(candidate.project["mesh"]["quadratic_layout"], "serendipity");
+            assert_eq!(
+                candidate.project["mesh"]["structured"]["grading"],
+                p["mesh"]["structured"]["grading"]
+            );
+            assert!(candidate.project["local_sizes"].is_null());
+        }
+        let mut incompatible = candidates[0].recipe.clone();
+        incompatible["mesh"]["element_shape"] = json!("tetrahedron");
+        assert!(candidate(&p, incompatible, true).is_err());
+        assert!(adaptive_candidate(
+            &p,
+            &candidates[0],
+            &json!({"quality":{"poor_samples":[{"center":[0.,0.,0.]}]}}),
+            1
+        )
+        .unwrap()
+        .is_none());
+    }
+
+    #[test]
+    fn sequential_search_uses_completed_scores_and_has_explicit_exploration() {
+        let p = project();
+        let mut queue = initial_candidates(&p, None).unwrap();
+        let original_first = queue[0].clone();
+        let input = features(&p, &original_first, None);
+        let observed = vec![SearchObservation {
+            features: input,
+            score: 0.0,
+        }];
+        let report = sequential_order(&mut queue, &p, None, &observed, None, None);
+        assert_eq!(report["policy"], "kernel_support_exploration_v1");
+        assert_eq!(report["calibrated_uncertainty"], false);
+        assert_eq!(report["completed_observations"], 1);
+        assert_ne!(queue[0].recipe, original_first.recipe);
+        let observed = (0..3)
+            .map(|_| SearchObservation {
+                features: input,
+                score: 0.0,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sequential_order(&mut queue, &p, None, &observed, None, None)["mode"],
+            "explore"
+        );
+    }
+
+    #[test]
+    fn selection_replay_never_mixes_distinct_contexts_of_one_geometry() {
+        let p = project();
+        let rows = vec![
+            json!({"feature_schema":crate::representation::SCHEMA,"features":vec![0.;128],"score":0.2}),
+            json!({"feature_schema":crate::representation::SCHEMA,"features":vec![0.1;128],"score":0.8}),
+        ];
+        let memory = json!({"contexts":[{"geometry_id":"same","project":p,"observations":rows},
+                                       {"geometry_id":"same","project":p,"observations":rows}]});
+        let (examples, cases) = model_examples_and_cases(&memory);
+        assert_eq!(examples.len(), 4);
+        assert_eq!(cases.len(), 2);
+        assert_eq!(cases[0].candidates, vec![0, 1]);
+        assert_eq!(cases[1].candidates, vec![2, 3]);
     }
 }

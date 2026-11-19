@@ -7,7 +7,7 @@ Les dépendances sont importées à la demande pour garder le diagnostic lisible
 """
 from __future__ import annotations
 
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 import io
 import json
 import os
@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import shutil
 import tempfile
+import threading
 import unicodedata
 import zipfile
 
@@ -26,20 +27,18 @@ FORMATS = {
     "vtu": {"extension": ".vtu", "label": "VTK XML", "solver": "ParaView", "notes": "Groupes conservés comme masques group:nom ; format de visualisation."},
     "unv": {"extension": ".unv", "label": "I-DEAS Universal", "solver": "Salome, Cast3M et lecteurs UNV", "notes": "Écriture Gmsh ; groupes permanents. Vérifier les éléments autorisés par le lecteur cible."},
     "ansys": {"extension": ".dat", "label": "ANSYS APDL — maillage", "solver": "ANSYS Mechanical APDL", "notes": "Script MESH200 sans degrés de liberté : attribuer des éléments de calcul dans ANSYS avant résolution."},
-    "ansys_structural": {"extension": ".apdl", "label": "ANSYS APDL — éléments structuraux", "solver": "ANSYS Mechanical APDL", "notes": "SOLID185, PLANE182 ou SHELL181 pour hexaèdres/quadrilatères linéaires ; ordre 2 refusé sans conversion. Matériaux et sections à compléter, sans exécution ANSYS."},
+    "ansys_structural": {"extension": ".apdl", "label": "ANSYS APDL — éléments structuraux", "solver": "ANSYS Mechanical APDL", "notes": "QUAD4/HEX8, triangles plans et tétraèdres à 4/10 nœuds. QUAD8/HEX20 refusés sans conversion. Matériaux et sections à compléter, sans exécution ANSYS."},
     "nastran": {"extension": ".bdf", "label": "Nastran Bulk Data", "solver": "Nastran et lecteurs BDF compatibles", "notes": "Éléments 2D/3D linéaires et quadratiques pris en charge, SET1 pour les groupes ; propriétés et matériaux à définir. Coordonnées GRID* en champs de 16 caractères."},
-    "lsdyna": {"extension": ".key", "label": "LS-DYNA Keyword — maillage", "solver": "LS-DYNA et lecteurs Keyword compatibles", "notes": "Quadrilatères et hexaèdres linéaires ; groupes nommés. Les éléments quadratiques sont refusés sans conversion silencieuse."},
+    "lsdyna": {"extension": ".key", "label": "LS-DYNA Keyword — maillage", "solver": "LS-DYNA et lecteurs Keyword compatibles", "notes": "Cellules linéaires : triangles, quadrilatères, tétraèdres, prismes et hexaèdres. Groupes nommés. Les éléments quadratiques sont refusés sans conversion silencieuse."},
     "cast3m": {"extension": ".dgibi", "label": "Cast3M — import UNV", "solver": "Cast3M", "notes": "Script Gibiane d'import accompagné de son fichier UNV ; aucune hypothèse de matériau."},
 }
+
+DEFAULT_EXPORT_FORMATS = ("msh", "med", "inp", "vtu", "unv", "ansys", "cast3m")
 
 _DIMS = {"vertex": 0, "line": 1, "line3": 1, "triangle": 2, "triangle6": 2,
          "quad": 2, "quad8": 2, "quad9": 2, "tetra": 3, "tetra10": 3,
          "hexahedron": 3, "hexahedron20": 3, "hexahedron27": 3,
          "wedge": 3, "wedge15": 3, "wedge18": 3, "pyramid": 3, "pyramid13": 3, "pyramid14": 3}
-
-ELEMENT_POLICY = "quad_hex_only"
-_QUAD_HEX_TYPES = {"vertex", "line", "line3", "quad", "quad8", "quad9",
-                   "hexahedron", "hexahedron20", "hexahedron27"}
 
 
 def _libraries():
@@ -49,6 +48,53 @@ def _libraries():
     except ImportError as error:
         raise ValueError("Les exports nécessitent meshio et numpy ; lancer l'installation du projet.") from error
     return meshio, np
+
+
+_MESHIO_REGISTRY_LOCK = threading.RLock()
+
+
+@contextmanager
+def _meshio_compatibility():
+    """Scope two missing meshio 5.3.5 dimensions to a single I/O operation.
+
+    That version already supplies the Gmsh-to-VTK permutations, node counts,
+    MED names and VTK identifiers for wedge15/pyramid13, but CellBlock's
+    dimension registry omits them. No connectivity or node is changed here.
+    The registry is restored even if reading or writing fails; importing this
+    module never changes meshio. Our readers/converters serialize this bounded
+    compatibility section so concurrent calls cannot restore it too early.
+    """
+    meshio, _ = _libraries()
+    with _MESHIO_REGISTRY_LOCK:
+        if meshio.__version__ != "5.3.5":
+            yield
+            return
+        from meshio._mesh import topological_dimension
+        additions = {name: 3 for name in ("wedge15", "pyramid13") if name not in topological_dimension}
+        topological_dimension.update(additions)
+        try:
+            yield
+        finally:
+            for name in additions:
+                topological_dimension.pop(name, None)
+
+
+def read_mesh(source: Path, *, file_format: str | None = None):
+    """Read a mesh with the explicitly scoped high-order I/O compatibility.
+
+    Returned CellBlocks retain their dimensions after the registry is restored.
+    For Gmsh files, meshio applies its documented Gmsh-to-VTK node permutation;
+    writers consume that canonical order. This function does not mesh geometry.
+    """
+    meshio, _ = _libraries()
+    options = {} if file_format is None else {"file_format": file_format}
+    with _meshio_compatibility(), redirect_stdout(io.StringIO()):
+        try:
+            return meshio.read(Path(source), **options)
+        except SystemExit as error:
+            # meshio's format autodetection exits on malformed files. A file
+            # adapter must report an error without terminating its caller.
+            raise ValueError("Lecture du maillage impossible ; fichier malformé ou format non pris en charge.") from error
 
 
 def _safe_names(names):
@@ -106,12 +152,16 @@ def _check_source_quality(source: Path):
 
 
 def _read(source: Path):
+    with _meshio_compatibility():
+        return _read_impl(source)
+
+
+def _read_impl(source: Path):
     meshio, np = _libraries()
     if source.suffix.lower() != ".msh" or not source.is_file() or source.is_symlink():
         raise ValueError("Un fichier Gmsh .msh régulier est requis pour l'export.")
     # meshio prints a blank line while reading Gmsh; keep CLI JSON clean.
-    with redirect_stdout(io.StringIO()):
-        original = meshio.read(source, file_format="gmsh")
+    original = read_mesh(source, file_format="gmsh")
     points = np.asarray(original.points, dtype=float)
     if points.ndim != 2 or points.shape[1] not in (2, 3) or not len(points) or not np.isfinite(points).all():
         raise ValueError("Coordonnées de maillage absentes ou non finies.")
@@ -169,28 +219,6 @@ def _read(source: Path):
 def _summary(mesh):
     return {"nodes": len(mesh.points), "elements": sum(len(c.data) for c in mesh.cells),
             "cell_counts": {c.type: len(c.data) for c in mesh.cells}}
-
-
-def _check_element_policy(mesh):
-    """Check the actual file; a project flag or an adjacent report is not proof.
-
-    Reading old triangle/tetrahedron meshes remains available for remeshing.
-    Exporting an analysis result is restricted to quadrangles and hexahedra,
-    including surface cells bounding a volume. Points and boundary segments
-    are retained as lower-dimensional geometric entities.
-    """
-    forbidden = sorted({cell.type for cell in mesh.cells if cell.type not in _QUAD_HEX_TYPES})
-    dimension = max(_DIMS[cell.type] for cell in mesh.cells)
-    if forbidden or dimension < 2:
-        detail = ", ".join(forbidden) if forbidden else "dimension inférieure à 2"
-        raise ValueError("La politique quad_hex_only exige des quadrilatères en surface et des "
-                         "hexaèdres en volume ; export refusé pour : " + detail +
-                         ". Remailler la géométrie avant de l'exporter.")
-    if any(len(set(row)) != len(row) for cell in mesh.cells for row in cell.data):
-        raise ValueError("La politique quad_hex_only refuse les connectivités avec nœuds répétés ; "
-                         "un triangle ou un tétraèdre dégénéré ne peut pas être déguisé en quadrilatère/hexaèdre.")
-    return {"policy": ELEMENT_POLICY, "verified_from_actual_cells": True,
-            "dimension": dimension, "cell_counts": _summary(mesh)["cell_counts"]}
 
 
 def _groups(mesh):
@@ -730,34 +758,88 @@ def _write_unv(source, path):
     try:
         gmsh.option.setNumber("General.Terminal", 0)
         gmsh.open(str(source))
-        before_types, before_tags, _ = gmsh.model.mesh.getElements()
-        before_counts = {int(kind): len(tags) for kind, tags in zip(before_types, before_tags)}
-        before_nodes = len(gmsh.model.mesh.getNodes()[0])
+        _, before_tags, _ = gmsh.model.mesh.getElements()
+        before = sum(len(v) for v in before_tags)
         gmsh.option.setNumber("Mesh.SaveGroupsOfNodes", 1)
         gmsh.option.setNumber("Mesh.SaveGroupsOfElements", 1)
         gmsh.write(str(path))
         gmsh.clear()
         gmsh.open(str(path))
-        after_types, after_tags, _ = gmsh.model.mesh.getElements()
+        _, after_tags, _ = gmsh.model.mesh.getElements()
         after = sum(len(v) for v in after_tags)
-        after_counts = {int(kind): len(tags) for kind, tags in zip(after_types, after_tags)}
-        after_nodes = len(gmsh.model.mesh.getNodes()[0])
-        if before_counts != after_counts or before_nodes != after_nodes:
-            raise ValueError("La relecture UNV a changé les types, l'ordre ou le nombre de nœuds/éléments.")
+        if before != after:
+            raise ValueError(f"La relecture UNV a changé le nombre d'éléments ({before} → {after}).")
         names = [gmsh.model.getPhysicalName(dim, tag) for dim, tag in gmsh.model.getPhysicalGroups()]
         return {"readback": True, "groups_readback": False, "reader": "Gmsh UNV", "physical_names_read": names,
-                "elements_read": after, "nodes_read": after_nodes, "element_types_read": after_counts,
-                "element_families_and_order_preserved": True}
+                "elements_read": after}
     finally:
         gmsh.finalize()
 
 
 def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool = False) -> dict:
+    """Convert without dropping nodes, with explicitly bounded meshio support."""
+    if format_name == "msh":
+        return _copy_native_msh(Path(source), Path(target))
+    with _meshio_compatibility():
+        return _convert_mesh_impl(source, target, format_name, planar=planar)
+
+
+def _copy_native_msh(source: Path, target: Path) -> dict:
+    """Keep native MSH copying independent of optional conversion libraries."""
+    if source.resolve() == target.resolve():
+        raise ValueError("La destination doit être différente du maillage source.")
+    if source.suffix.lower() != ".msh" or not source.is_file() or source.is_symlink():
+        raise ValueError("Un fichier Gmsh .msh régulier est requis pour l'export.")
+    if target.suffix.lower() != ".msh":
+        raise ValueError("Extension attendue pour msh : .msh.")
+    _check_source_quality(source)
+    with source.open("rb") as stream:
+        header = stream.read(256)
+    if not header.startswith(b"$MeshFormat\n") and not header.startswith(b"$MeshFormat\r\n"):
+        raise ValueError("En-tête Gmsh MSH absent ; copie refusée.")
+    mesh = None
+    names = {}
+    try:
+        import meshio  # noqa: F401
+        import numpy  # noqa: F401
+    except ImportError:
+        pass
+    else:
+        with _meshio_compatibility():
+            mesh, names = _read(source)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix=".export_", suffix=".msh", dir=target.parent)
+    os.close(descriptor)
+    temp = Path(temporary)
+    try:
+        shutil.copyfile(source, temp)
+        import hashlib
+        def digest(path):
+            value = hashlib.sha256()
+            with path.open("rb") as stream:
+                for block in iter(lambda: stream.read(1024 * 1024), b""):
+                    value.update(block)
+            return value.digest()
+        if digest(source) != digest(temp):
+            raise ValueError("La copie MSH diffère du fichier source.")
+        os.replace(temp, target)
+    finally:
+        temp.unlink(missing_ok=True)
+    return {"format": "msh", "status": "ok", "file": target.name, "files": [target.name],
+            **(_summary(mesh) if mesh is not None else {"nodes": None, "elements": None, "cell_counts": {}}),
+            "groups": _groups(mesh) if mesh is not None else {"elements": {}, "node_sets": {}},
+            "group_name_map": names,
+            "warnings": [] if mesh is not None else ["Copie native exacte ; compteurs non relus car meshio ou numpy est indisponible."],
+            "verification": {"byte_identical": True, "readback": mesh is not None,
+                             "groups_readback": mesh is not None, "groups_byte_preserved": True,
+                             "reader": "native Gmsh copy"}}
+
+
+def _convert_mesh_impl(source: Path, target: Path, format_name: str, *, planar: bool = False) -> dict:
     """Convert a native .msh, retaining order or raising an actionable ValueError.
 
-    ``planar`` selects INP and APDL structural formulations. The legacy
-    ``ansys`` key remains a topology-only MESH200 script. Return values never
-    claim an external solver was executed.
+    ``planar`` affects INP formulation only. ANSYS exports a topology-only
+    MESH200 script. Return values never claim an external solver was executed.
     Destination files are replaced only after successful writing and checks.
     """
     if format_name not in FORMATS:
@@ -769,7 +851,6 @@ def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool =
         raise ValueError(f"Extension attendue pour {format_name} : {FORMATS[format_name]['extension']}.")
     _check_source_quality(source)
     mesh, names = _read(source)
-    element_policy = _check_element_policy(mesh)
     target.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".export_", suffix=target.suffix, dir=target.parent)
     os.close(descriptor)
@@ -777,11 +858,7 @@ def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool =
     result_mesh, warnings = mesh, []
     files = [target.name]
     try:
-        if format_name == "msh":
-            shutil.copyfile(source, temp)
-            verification = {"byte_identical": source.read_bytes() == temp.read_bytes(), "readback": True,
-                            "groups_readback": True, "reader": "native Gmsh copy"}
-        elif format_name == "med":
+        if format_name == "med":
             verification = _write_med(temp, mesh)
         elif format_name == "vtu":
             verification = _write_vtu(temp, mesh)
@@ -818,18 +895,24 @@ def convert_mesh(source: Path, target: Path, format_name: str, *, planar: bool =
         temp.unlink(missing_ok=True)
     return {"format": format_name, "status": "ok", "file": target.name, "files": files,
             **_summary(result_mesh), "groups": _groups(result_mesh), "group_name_map": names,
-            "element_policy": element_policy, "warnings": warnings, "verification": verification}
+            "warnings": warnings, "verification": verification}
+
+
+def default_export_formats(cell_types):
+    """Native files retain complete quadratic layouts unsupported by solver dialects."""
+    if set(cell_types) & {"quad9", "hexahedron27", "wedge18", "pyramid14"}:
+        return ("msh", "vtu")
+    return DEFAULT_EXPORT_FORMATS
 
 
 def export_bundle(source: Path, output_dir: Path, formats: list[str] | None = None, *, planar: bool = False) -> dict:
     """Export independent formats and a ZIP; report each failure explicitly."""
     source = Path(source)
     _check_source_quality(source)
-    mesh, names = _read(source)
-    element_policy = _check_element_policy(mesh)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    requested = list(FORMATS) if formats is None else list(dict.fromkeys(formats))
+    mesh, names = _read(source)
+    requested = list(default_export_formats(c.type for c in mesh.cells)) if formats is None else list(dict.fromkeys(formats))
     if not requested or any(name not in FORMATS for name in requested):
         raise ValueError("Sélection de formats vide ou inconnue.")
     results, files = [], set()
@@ -849,7 +932,6 @@ def export_bundle(source: Path, output_dir: Path, formats: list[str] | None = No
     (output_dir / "groups.json").write_text(json.dumps(groups, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     files.add("groups.json")
     report = {"schema": "atelier.exports.v1", "complete": all(r["status"] == "ok" for r in results),
-              "element_policy": element_policy,
               "archive": "exports.zip", "results": results, "files": sorted(files | {"export_manifest.json"}),
               "warnings": ["Compatibilité de format vérifiée ; aucun calcul n'a été exécuté dans les solveurs destinataires."]}
     (output_dir / "export_manifest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

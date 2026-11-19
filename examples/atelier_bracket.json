@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "Équerre 3D",
+  "name": "Équerre 3D · tétraèdres",
   "mode": "volume",
   "geometry": {
     "kind": "bracket",
@@ -13,12 +13,13 @@
   "mesh": {
     "size": 0.7,
     "min_size": 0.2,
-    "order": 1,
+    "order": 2,
     "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
     "max_elements": 200000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "tetrahedron",
+    "quadratic_layout": "serendipity"
   },
   "repair": {
     "enabled": false,

@@ -21,18 +21,23 @@ def main():
                         help="budget mémoire Cast3M en Mio, défaut 1024")
     parser.add_argument("--reference", action="store_true",
                         help="réutiliser la référence quadrilatères/hexaèdres fournie, sans installation Mailleur")
+    parser.add_argument("--reference-directory", type=Path,
+                        help="dossier d’un essai Mailleur précédemment généré à relire dans Cast3M")
     args = parser.parse_args()
     if args.memory_mib < 1:
         parser.error("--memory-mib doit être un entier positif")
     target = args.output.expanduser().resolve()
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         parser.error("Choisir un dossier neuf ou vide")
-    if args.reference:
-        target.mkdir(parents=True, exist_ok=True)
+    if args.reference or args.reference_directory:
+        reference = args.reference_directory or HERE / "reference_quad_hex"
         names = ["project.json", "import_cast3m.dgibi", "import_cast3m.unv",
                  "import_cast3m.dgibi.units.json", "traction.dgibi", "maillage.json"]
+        if not all((reference / name).is_file() for name in names):
+            parser.error("Choisir un essai déjà généré avec --reference-directory ou lancer sans --reference pour créer le maillage.")
+        target.mkdir(parents=True, exist_ok=True)
         for name in names:
-            shutil.copyfile(HERE / "reference_quad_hex" / name, target / name)
+            shutil.copyfile(reference / name, target / name)
     else:
         generation = subprocess.run([sys.executable, str(HERE / "generer_maillage.py"), "--output", str(target)])
         if generation.returncode:

@@ -64,7 +64,6 @@ def main():
         parser.error("Choisir un dossier neuf ou vide pour conserver les résultats précédents")
     from atelier import __version__
     from atelier.native import NativeSession, core_path
-    from atelier.formats import _check_element_policy, _read
     project = json.loads((HERE / "project.json").read_text(encoding="utf-8"))
     target.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="mailleur-cast3m-") as scratch:
@@ -75,7 +74,9 @@ def main():
         if native["report"]["quality"]["accepted"] is not True:
             raise RuntimeError("Le maillage n'a pas été accepté")
         source = Path(native["directory"]) / "mesh.msh"
-        _check_element_policy(_read(source)[0])
+        generation = native["report"]["generation"]
+        if generation.get("method") != "rust_direct_structured" or generation.get("direct_high_order_nodes") is not True:
+            raise RuntimeError("Cet essai exige un maillage quadratique généré directement en Rust")
         expected = expected_mesh(source)
         started = time.perf_counter()
         session.export(source.parent, target / "import_cast3m.dgibi", "cast3m", units="mm")
@@ -95,7 +96,7 @@ def main():
                                capture_output=True, text=True).stdout.strip(),
                            "native_kernel_sha256": sha256(core_path())},
               "units": {"input": "mm", "internal": "m", "export": "mm"},
-              "element_policy": "quad_hex_only",
+              "generation": generation,
               "expected": expected, "quality": native["report"]["quality"],
               "timing_seconds": {"generation": generation_seconds, "export": export_seconds},
               "files_sha256": {name: sha256(target / name) for name in names},

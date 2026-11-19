@@ -15,18 +15,18 @@
 
   const defaults = {
     schema_version: 1,
-    name: "Plaque percée",
+    name: "Plaque structurée · QUAD8",
     mode: "planar",
-    geometry: { kind: "plate", width: 10, height: 6, thickness: 2, corner_radius: 0.6, chamfer: 0, holes: [{ x: 5, y: 3, radius: 1.2 }] },
-    mesh: { size: 0.5, min_size: 0.1, order: 1, algorithm: "automatic", recombine: false, element_policy: "quad_hex_only", threads: 1, max_elements: 200000 },
+    geometry: { kind: "plate", width: 8, height: 6, thickness: 2, corner_radius: 0, chamfer: 0, holes: [] },
+    mesh: { size: 0.5, min_size: 0.1, order: 2, algorithm: "automatic", element_shape: "quadrilateral", quadratic_layout: "serendipity", structured: { divisions: [8, 6, 1], grading: [1, 1, 1] }, recombine: false, threads: 1, max_elements: 200000 },
     repair: { enabled: false, tolerance: 1e-7, sew: true, small_edges: true, small_faces: false, make_solids: false },
   };
 
   const fallbackExamples = [
-    { id: "plate", name: "Plaque percée", description: "Un perçage circulaire et des coins arrondis.", project: defaults },
-    { id: "solid", name: "Plaque extrudée", description: "Un volume fermé traversé par un perçage.", project: { ...defaults, name: "Plaque extrudée", mode: "volume" } },
-    { id: "bracket", name: "Équerre mécanique", description: "Un assemblage en L pour explorer le maillage volumique.", project: { ...defaults, name: "Équerre mécanique", mode: "volume", geometry: { kind: "bracket", width: 8, height: 6, depth: 3, wall: 1, throughhole_radius: 0.35 } } },
-    { id: "shell", name: "Surface sphérique", description: "Une coque courbe dans l’espace.", project: { ...defaults, name: "Surface sphérique", mode: "surface", geometry: { kind: "sphere", radius: 3 } } },
+    { id: "direct_quad", name: "Plaque structurée · QUAD8", description: "Quadrilatères quadratiques directs.", project: defaults },
+    { id: "direct_hex", name: "Bloc structuré · HEX20", description: "Hexaèdres quadratiques directs.", project: { ...defaults, name: "Bloc structuré · HEX20", mode: "volume", geometry: { kind: "box", width: 6, height: 4, depth: 3 }, mesh: { ...defaults.mesh, element_shape: "hexahedron", structured: { divisions: [6, 4, 3], grading: [1, 1, 1] } } } },
+    { id: "bracket", name: "Équerre mécanique", description: "Un assemblage en L pour explorer le maillage volumique.", project: { ...defaults, name: "Équerre mécanique", mode: "volume", mesh: { ...defaults.mesh, element_shape: "tetrahedron", structured: undefined }, geometry: { kind: "bracket", width: 8, height: 6, depth: 3, wall: 1, throughhole_radius: 0.35 } } },
+    { id: "shell", name: "Surface sphérique", description: "Une coque courbe dans l’espace.", project: { ...defaults, name: "Surface sphérique", mode: "surface", mesh: { ...defaults.mesh, element_shape: "triangle", structured: undefined }, geometry: { kind: "sphere", radius: 3 } } },
   ];
 
   function icon(name) {
@@ -164,8 +164,9 @@
       name: $("project-name").value.trim() || "Sans titre",
       mode: currentMode(), geometry,
       mesh: { ...(state.baseProject.mesh || {}), size, min_size: minSize,
-        order: value("mesh-order", "Ordre", { integer: true, min: 1 }),
-        algorithm: $("mesh-algorithm").value, recombine: false, element_policy: "quad_hex_only",
+        order: value("mesh-order", "Ordre", { integer: true, min: 1, max: 2 }),
+        element_shape: $("mesh-element-shape").value, quadratic_layout: $("mesh-quadratic-layout").value,
+        algorithm: $("mesh-algorithm").value, recombine: $("mesh-recombine").checked,
         threads: value("mesh-threads", "Fils de calcul", { integer: true, min: 1, max: 32 }),
         max_elements: value("mesh-max-elements", "Limite d’éléments", { integer: true, min: 10, max: 2000000 }) },
       repair: { ...(state.baseProject.repair || {}), enabled: $("repair-enabled").checked,
@@ -173,6 +174,16 @@
         sew: $("repair-sew").checked, small_edges: $("repair-small-edges").checked,
         small_faces: $("repair-small-faces").checked, make_solids: $("repair-make-solids").checked },
     };
+    if (["automatic", "quadrilateral", "hexahedron", "prism", "pyramid"].includes(project.mesh.element_shape)) {
+      const structured = { ...(project.mesh.structured || {}),
+        grading: ["x", "y", "z"].map((axis) => value(`mesh-grading-${axis}`, `Progression ${axis}`, { min: Number.EPSILON })) };
+      if ($("mesh-use-divisions").checked) {
+        structured.divisions = ["x", "y", "z"].map((axis) => value(`mesh-divisions-${axis}`, `Divisions ${axis}`, { integer: true, min: 1, max: 2000 }));
+      } else delete structured.divisions;
+      project.mesh.structured = structured;
+    } else if (project.mesh.element_shape !== (state.baseProject.mesh?.element_shape ?? "automatic")) {
+      delete project.mesh.structured;
+    }
     return project;
   }
 
@@ -223,7 +234,21 @@
     $("native-geometry").hidden = kind === "import";
     $("import-geometry").hidden = kind !== "import";
     const isVolume = currentMode() === "volume";
-    $("mesh-element-policy").textContent = `${isVolume ? "Hexaèdres" : "Quadrilatères"} uniquement. Un résultat d’une autre forme est refusé.`;
+    const shapeSelect = $("mesh-element-shape");
+    for (const option of $("mesh-element-shape").options) {
+      option.disabled = option.value !== "automatic" && !(isVolume
+        ? ["tetrahedron", "hexahedron", "prism", "pyramid"].includes(option.value)
+        : ["triangle", "quadrilateral"].includes(option.value));
+    }
+    if (shapeSelect.selectedOptions[0]?.disabled) shapeSelect.value = "automatic";
+    const shape = shapeSelect.value;
+    $("mesh-recombine").disabled = true;
+    $("mesh-recombine").closest("label").hidden = !$("mesh-recombine").checked;
+    const structured = ["automatic", "quadrilateral", "hexahedron", "prism", "pyramid"].includes(shape);
+    $("structured-settings").hidden = !structured;
+    $("mesh-algorithm").disabled = structured;
+    $("mesh-quadratic-layout").disabled = $("mesh-order").value !== "2";
+    for (const axis of ["x", "y", "z"]) $("mesh-divisions-" + axis).disabled = !structured || !$("mesh-use-divisions").checked;
     $("import-empty").hidden = kind !== "import" || Boolean(state.preview);
     if (kind === "import") {
       $("import-empty").querySelector("h2").textContent = state.uploadId ? "Géométrie importée" : "Une pièce à explorer";
@@ -248,10 +273,17 @@
       "geo-corner-radius": g.corner_radius ?? 0, "geo-chamfer": g.chamfer ?? 0,
       "geo-wall": g.wall ?? 1, "geo-throughhole-radius": g.throughhole_radius ?? 0,
       "mesh-size": m.size ?? 0.5, "mesh-min-size": m.min_size ?? 0.1,
-      "mesh-order": m.order ?? 1, "mesh-algorithm": m.algorithm ?? "automatic",
+      "mesh-order": m.order ?? 2, "mesh-algorithm": m.algorithm ?? "automatic",
+      "mesh-element-shape": m.element_shape ?? "automatic", "mesh-quadratic-layout": m.quadratic_layout ?? "serendipity",
       "mesh-threads": m.threads ?? 1, "mesh-max-elements": m.max_elements ?? 200000,
       "repair-tolerance": r.tolerance ?? 1e-7 };
     for (const [id, val] of Object.entries(map)) $(id).value = val;
+    $("mesh-recombine").checked = Boolean(m.recombine);
+    $("mesh-use-divisions").checked = Boolean(m.structured?.divisions);
+    ["x", "y", "z"].forEach((axis, index) => {
+      $("mesh-divisions-" + axis).value = m.structured?.divisions?.[index] ?? 1;
+      $("mesh-grading-" + axis).value = m.structured?.grading?.[index] ?? 1;
+    });
     $("repair-enabled").checked = Boolean(r.enabled);
     $("repair-sew").checked = r.sew !== false;
     $("repair-small-edges").checked = r.small_edges !== false;
@@ -506,7 +538,10 @@
       $("export-button").disabled = true; $("bundle-button").disabled = true;
       const format = $("export-format").value;
       const path = `/api/jobs/${encodeURIComponent(state.completedJob)}/${bundle ? "bundle" : `download?format=${encodeURIComponent(format)}`}`;
-      const result = await request(path, { blob: true });
+      const optional = !bundle && state.info?.default_export_formats && !state.info.default_export_formats.includes(format);
+      const result = optional
+        ? await request(`/api/jobs/${encodeURIComponent(state.completedJob)}/export`, { method: "POST", data: { format }, blob: true })
+        : await request(path, { blob: true });
       const extension = state.info?.formats?.[format]?.extension || format;
       downloadBlob(result.blob, filenameFrom(result.disposition, `${state.report.project_name || "maillage"}.${bundle ? "zip" : String(extension).replace(/^\./, "")}`));
       log(bundle ? "Archive des exports préparée." : `Maillage exporté · ${format.toUpperCase()}.`);
@@ -806,6 +841,7 @@
     document.querySelectorAll("#mode-control button").forEach((button) => button.addEventListener("click", () => { setMode(button.dataset.mode); fitView(true); }));
     document.querySelectorAll(".config-panel input:not([data-hole]), .config-panel select, .config-panel textarea, #project-name").forEach((input) => input.addEventListener("input", changed));
     $("geometry-kind").addEventListener("change", () => { if (["box", "sphere", "bracket"].includes($("geometry-kind").value) && currentMode() === "planar") setMode("volume", false); changed(); fitView(true); });
+    $("mesh-element-shape").addEventListener("change", () => { if ($("mesh-element-shape").value !== "automatic") $("mesh-recombine").checked = false; changed(); });
     $("repair-enabled").addEventListener("change", () => { if ($("repair-enabled").checked && currentMode() === "volume") $("repair-make-solids").checked = true; changed(); });
     $("add-hole").addEventListener("click", () => addHole());
     $("generate-button").addEventListener("click", generate); $("cancel-button").addEventListener("click", cancelJob);
@@ -826,9 +862,6 @@
     $("generate-button").disabled = true;
     try {
       const info = await request("/api/info"); state.info = info; state.token = info.token || info.csrf_token || "";
-      if (info.import_formats?.formats) {
-        $("cad-file-input").accept = info.import_formats.formats.map((format) => format.extension).join(",");
-      }
       $("footer-version").textContent = `Atelier Mailleur ${info.version || ""}`;
       if (info.backend?.available) {
         $("backend-status").textContent = `Moteur prêt${info.backend.version ? ` · Gmsh ${info.backend.version}` : ""}`;

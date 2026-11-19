@@ -1,6 +1,0 @@
-{
-  "conversion_backend": "rust",
-  "coordinate_factor": 1000.0,
-  "export": "mm",
-  "internal": "m"
-}

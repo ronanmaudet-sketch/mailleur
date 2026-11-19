@@ -1,32 +1,12 @@
 # Architecture native de la version rc6
 
-> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
-> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
-> apprentissage exclut les anciennes données sans preuve de cette politique.
-> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
-> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
-
-La rc6 ajoute une couche d'entrée explicite : catalogue `import_registry.py`,
-lecteurs de fichiers `imports.py`, processus isolé `import_worker.py`, puis
-opération Rust `prepare_mesh_import` pour extraire, orienter et trianguler une
-peau. Les transformations géométriques et la conversion des unités de 3MF
-s'exécutent dans Rust ; Python décode et sérialise les données de fichier.
-Les originaux restent conservés. Les formats propriétaires nécessitent une
-passerelle locale configurée, distincte des lecteurs intégrés.
-Voir le [guide public rc6](UTILISATION_ET_DEVELOPPEMENT.md) et les
-[passerelles natives](IMPORTS_NATIFS.md).
-
-Voir aussi le [guide complet](GUIDE_COMPLET_MAILLEUR.md), la
-[documentation API](API_UTILISATION.md) et les [mesures Apple M3](MESURES_M3.md).
-Les contrats numériques introduits dans la rc4 restent applicables à la rc5.
-
 ## Répartition des responsabilités
 
 | Couche | Technologie | Responsabilité |
 | --- | --- | --- |
 | Interface de bureau | Python / PySide6 | Trois pages, saisie des paramètres, unités affichées, sélection d'entités, lancement des opérations, lecture des rapports |
 | Pont natif | Python, module `atelier.native` | Localiser le binaire, sérialiser les demandes, démarrer le processus Rust et décoder sa réponse |
-| Noyau de l'application | Rust, `rust_core/` | Valider les paramètres, appliquer les conversions et transformations, préparer les entités, piloter le maillage, le remaillage et les contrôles numériques |
+| Noyau de l'application | Rust, `rust_core/` | Valider les paramètres, appliquer les conversions, construire directement les cellules structurées, piloter les parcours natifs classiques, contrôler la qualité et planifier l'adaptation |
 | Bibliothèque géométrique et maillage | Gmsh / OpenCASCADE, code natif C/C++ | Calculs CAO et algorithmes de maillage exposés par l'API C appelée depuis Rust |
 | Fichiers et profils | Couche d'entrée/sortie et profils solveur | Sérialisation et représentation des résultats ; les transformations numériques restent confiées au noyau |
 
@@ -34,6 +14,10 @@ Le noyau est une application Rust qui charge la bibliothèque native Gmsh et
 utilise son interface C. Cela ne signifie pas que les algorithmes internes
 OpenCASCADE ou Gmsh ont été réécrits en Rust : ils restent exécutés par leur
 bibliothèque C/C++.
+Le générateur structuré `direct_cells.rs` ajoute une construction propre à
+l'application en Rust. Il émet les nœuds et connectivités demandés ; Gmsh les
+classe sur la CAO et vérifie leurs qualités. Ce parcours n'appelle pas une
+recombinaison de triangles ou de tétraèdres.
 
 Le parcours de production ne délègue pas ses opérations géométriques,
 conversions de coordonnées, génération ou contrôles de qualité au prototype
@@ -143,6 +127,19 @@ Le modèle de corpus est distinct du petit réseau de mémoire interactive. Ses
 dimensions, ses points de reprise et ses critères d'activation figurent dans
 son rapport ; un fichier de poids présent ne prouve pas un gain de qualité.
 Voir [CORPUS_ET_LANGAGES.md](CORPUS_ET_LANGAGES.md).
+
+## API de scripts et boucle solveur
+
+`atelier.api.MeshingClient` est une façade d'entrées/sorties vers le noyau.
+Elle fournit des résultats persistants et expose les capacités du binaire.
+Le protocole natif JSON est également utilisable sans ouvrir l'interface.
+
+La boucle d'adaptation reçoit les mesures du solveur choisi. Rust vérifie
+l'identité de maillage, les unités et les limites, puis prépare le projet
+suivant. Python transporte les données, exporte et appelle l'adaptateur fourni.
+Il ne calcule ni un estimateur physique, ni les nouvelles tailles de maillage.
+La poursuite du calcul et le transfert d'états appartiennent au solveur.
+Voir [API_ET_COUPLAGE_SOLVEURS.md](API_ET_COUPLAGE_SOLVEURS.md).
 
 ## Code historique
 

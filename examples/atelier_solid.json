@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "Plaque 3D percée",
+  "name": "Plaque 3D percée · tétraèdres",
   "mode": "volume",
   "geometry": {
     "kind": "plate",
@@ -25,12 +25,13 @@
   "mesh": {
     "size": 0.8,
     "min_size": 0.18,
-    "order": 1,
+    "order": 2,
     "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
     "max_elements": 200000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "tetrahedron",
+    "quadratic_layout": "serendipity"
   },
   "repair": {
     "enabled": false,

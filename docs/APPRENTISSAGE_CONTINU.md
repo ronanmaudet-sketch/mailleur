@@ -1,10 +1,30 @@
 # Apprendre sur une géométrie nouvelle
 
-> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
-> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
-> apprentissage exclut les anciennes données sans preuve de cette politique.
-> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
-> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+## Utilisation du moteur direct (rc10)
+
+Le bouton **Apprendre sur cette pièce** et la commande `learn` essaient des réglages de taille sur la géométrie ouverte. En surface chaque essai utilise des quadrilatères. En volume il utilise des hexaèdres. L’ordre par défaut est 2. Le générateur construit les cellules et leurs nœuds directement, puis vérifie la qualité globale et celle des zones critiques. Une famille manuelle différente est refusée pour l’apprentissage.
+
+La boîte, le rectangle, le quadrilatère convexe, la plaque à un trou circulaire et les extrusions compatibles constituent les principaux cas pris en charge. Une CAO importée exige une décomposition en blocs qui reste à développer. Une grille structurée utilise ses divisions et ses progressions pour régler la résolution. Les champs locaux isotropes ne sont pas disponibles sur ce parcours.
+
+Depuis le dossier du projet avec l’environnement activé, cet exemple lance la recherche sur une plaque percée et écrit ses résultats dans `resultats_plaque`.
+
+```sh
+python -m atelier learn examples/apprentissage_plaque_zones.json -o resultats_plaque
+```
+
+Le [second exemple](../examples/apprentissage_volume_zone.json) applique un contrôle à une face de contact et au volume d’une boîte. Le rapport `report.json` donne la méthode de génération, la famille effectivement contrôlée et les mesures de qualité. `experience.json` décrit les essais et la recette retenue. Une recette mémorisée est rejouée et contrôlée au prochain calcul.
+
+La mémoire active se trouve dans `experience_quad_hex/` sous le dossier de travail, ou dans le dossier choisi avec `--memory`. L’index et le modèle portent le champ `element_policy` de valeur `direct_quad_hex`. Le programme conserve à part les historiques antérieurs et refuse de les utiliser comme base d’un nouvel entraînement quad/hex. L’entraînement sur un corpus emploie le profil `direct_quad_hex`.
+
+## Archive des parcours rc3 à rc6
+
+Les commandes, géométries importées, champs locaux et règles de migration décrits ci-dessous documentent les versions antérieures.
+
+La rc6 conserve ce parcours et ajoute les formes directes, une représentation
+v3 à deux échelles et une exploration séquentielle des recettes. Les choix de
+famille, d'ordre et de grille sont conservés. Le [guide rc6](EVOLUTIONS_RC6.md)
+décrit ces évolutions et les migrations ; les passages décrivant rc3/rc4
+ci-dessous donnent le contexte historique de leurs premiers formats.
 
 La recherche de recettes porte sur la **pièce réellement ouverte**.
 Elle accepte les primitives natives et les sources importées que le backend
@@ -60,8 +80,7 @@ compte dans les recettes.
 Une recherche de 12 essais ne signifie donc ni 12 algorithmes indépendants,
 ni 12 géométries différentes. Elle n'explore pas toutes les topologies ou toutes
 les partitions possibles d'une pièce. Il n'y a pas de décomposition générale en
-blocs structurés. Depuis la rc9, la subdivision produit les quadrilatères ou
-hexaèdres finaux ; leur type et leur qualité sont contrôlés avant acceptation.
+blocs structurés et pas de garantie de volume tout-hexa.
 
 ## Qualité globale et régions protégées
 
@@ -119,9 +138,11 @@ conditions aux limites et états de contact qui produiraient ces contraintes.
 
 Une première utilisation consiste à marquer les régions sensibles connues.
 Les résultats d'un calcul effectué séparément peuvent aider à choisir ces
-régions. La rc3 ne fournit pas de boucle automatique solveur–estimation
-d'erreur–adaptation du maillage, ni de chargement automatique d'un champ de
-contraintes servant de critère à cette boucle.
+régions. La rc6 ajoute une [boucle d'échanges avec le solveur](API_ET_COUPLAGE_SOLVEURS.md),
+à travers un adaptateur qui fournit des indicateurs du maillage courant.
+Le mailleur ne déduit pas les contraintes de la CAO et ne fournit pas de
+connecteur prévalidé pour chaque logiciel de calcul. Le transfert des états
+physiques et la poursuite de l'analyse restent gérés par le solveur.
 
 ## Taille non uniforme
 

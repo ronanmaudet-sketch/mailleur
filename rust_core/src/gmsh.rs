@@ -112,12 +112,6 @@ impl Gmsh {
         context.initialized = true;
         context.set_number("General.Terminal", 0.0)?;
         context.set_number("General.AbortOnError", 2.0)?;
-        // OCC's analytical boxes can retain the unscaled location of degenerate
-        // sphere edges after dilation. Configure before any shape/synchronize,
-        // including imports and replay, so every catalogue uses physical SI
-        // bounds. These tighter tessellation bounds are approximate, not exact
-        // analytical envelopes (Gmsh documents this option as slower).
-        context.set_number("Geometry.OCCBoundsUseStl", 1.0)?;
         let version = context.get_string("General.Version")?;
         if !version.starts_with("4.15.") {
             return Err(format!(
@@ -291,21 +285,6 @@ impl Gmsh {
         self.check(ierr)?;
         Ok(result)
     }
-    pub fn get_number(&self, name: &str) -> Result<f64, String> {
-        let name = text(name)?;
-        let mut value = 0.0;
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshOptionGetNumber",
-            unsafe extern "C" fn(*const c_char, *mut f64, *mut c_int),
-            name.as_ptr(),
-            &mut value,
-            &mut ierr
-        );
-        self.check(ierr)?;
-        Ok(value)
-    }
     pub fn add_model(&self, name: &str) -> Result<(), String> {
         let name = text(name)?;
         let mut ierr = 0;
@@ -314,16 +293,6 @@ impl Gmsh {
             "gmshModelAdd",
             unsafe extern "C" fn(*const c_char, *mut c_int),
             name.as_ptr(),
-            &mut ierr
-        );
-        self.check(ierr)
-    }
-    pub fn remove_model(&self) -> Result<(), String> {
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshModelRemove",
-            unsafe extern "C" fn(*mut c_int),
             &mut ierr
         );
         self.check(ierr)
@@ -492,32 +461,6 @@ impl Gmsh {
         );
         self.check(ierr)?;
         Ok(tag)
-    }
-    /// Read provenance only: source groups are not reapplied after a geometric
-    /// skin reconstruction, whose new CAD entities have different identities.
-    pub fn physical_group_inventory(&self) -> Result<Vec<(i32,i32,String,Vec<i32>)>,String> {
-        let mut groups=ptr::null_mut();let mut length=0;let mut ierr=0;
-        invoke!(self,"gmshModelGetPhysicalGroups",
-            unsafe extern "C" fn(*mut *mut c_int,*mut usize,c_int,*mut c_int),
-            &mut groups,&mut length,-1,&mut ierr);
-        let values=self.take(groups,length);self.check(ierr)?;
-        let groups=paired(values?)?;
-        if groups.len()>10_000 {return Err("Trop de groupes physiques pour l'inventaire d'import".into());}
-        let mut result=Vec::with_capacity(groups.len());
-        for (dimension,tag) in groups {
-            let mut name=ptr::null_mut();
-            invoke!(self,"gmshModelGetPhysicalName",
-                unsafe extern "C" fn(c_int,c_int,*mut *mut c_char,*mut c_int),
-                dimension,tag,&mut name,&mut ierr);
-            let name=self.take_text(name);self.check(ierr)?;
-            let mut entities=ptr::null_mut();let mut count=0;
-            invoke!(self,"gmshModelGetEntitiesForPhysicalGroup",
-                unsafe extern "C" fn(c_int,c_int,*mut *mut c_int,*mut usize,*mut c_int),
-                dimension,tag,&mut entities,&mut count,&mut ierr);
-            let entities=self.take(entities,count);self.check(ierr)?;
-            result.push((dimension,tag,name,entities?));
-        }
-        Ok(result)
     }
     pub fn remove_physical_groups(&self, entities: &[DimTag]) -> Result<(), String> {
         let values = flattened(entities);
@@ -1046,27 +989,180 @@ impl Gmsh {
         );
         self.check(ierr)
     }
-    /// Refine the current mesh using Gmsh's explicitly selected subdivision.
-    pub fn mesh_refine(&self) -> Result<(), String> {
+    /// Insert nodes emitted by a native direct generator. No mesh generation,
+    /// recombination or change of interpolation order is performed here.
+    pub fn mesh_add_nodes(
+        &self,
+        dim: i32,
+        entity: i32,
+        tags: &[usize],
+        points: &[[f64; 3]],
+    ) -> Result<(), String> {
+        if tags.len() != points.len() || points.iter().flatten().any(|x| !x.is_finite()) {
+            return Err("Nœuds directs incohérents ou non finis".into());
+        }
+        let coordinates = points.iter().flatten().copied().collect::<Vec<_>>();
         let mut ierr = 0;
         invoke!(
             self,
-            "gmshModelMeshRefine",
+            "gmshModelMeshAddNodes",
+            unsafe extern "C" fn(
+                c_int,
+                c_int,
+                *const usize,
+                usize,
+                *const f64,
+                usize,
+                *const f64,
+                usize,
+                *mut c_int,
+            ),
+            dim,
+            entity,
+            tags.as_ptr(),
+            tags.len(),
+            coordinates.as_ptr(),
+            coordinates.len(),
+            ptr::null(),
+            0,
+            &mut ierr
+        );
+        self.check(ierr)
+    }
+    pub fn mesh_add_elements_by_type(
+        &self,
+        entity: i32,
+        element_type: i32,
+        tags: &[usize],
+        nodes: &[usize],
+    ) -> Result<(), String> {
+        let mut ierr = 0;
+        invoke!(
+            self,
+            "gmshModelMeshAddElementsByType",
+            unsafe extern "C" fn(
+                c_int,
+                c_int,
+                *const usize,
+                usize,
+                *const usize,
+                usize,
+                *mut c_int,
+            ),
+            entity,
+            element_type,
+            tags.as_ptr(),
+            tags.len(),
+            nodes.as_ptr(),
+            nodes.len(),
+            &mut ierr
+        );
+        self.check(ierr)
+    }
+    pub fn mesh_reclassify_nodes(&self) -> Result<(), String> {
+        let mut ierr = 0;
+        invoke!(
+            self,
+            "gmshModelMeshReclassifyNodes",
             unsafe extern "C" fn(*mut c_int),
             &mut ierr
         );
         self.check(ierr)
     }
-    pub fn mesh_set_order(&self, order: i32) -> Result<(), String> {
+    /// Orthogonal projection onto an existing CAD curve or surface. This is
+    /// used only to classify already generated boundary cells, not to alter
+    /// the direct generator's node coordinates.
+    pub fn closest_points(
+        &self,
+        dim: i32,
+        entity: i32,
+        points: &[[f64; 3]],
+    ) -> Result<Vec<[f64; 3]>, String> {
+        let coordinates = points.iter().flatten().copied().collect::<Vec<_>>();
+        let mut closest = ptr::null_mut();
+        let mut closest_count = 0;
+        let mut parameters = ptr::null_mut();
+        let mut parameter_count = 0;
         let mut ierr = 0;
         invoke!(
             self,
-            "gmshModelMeshSetOrder",
-            unsafe extern "C" fn(c_int, *mut c_int),
-            order,
+            "gmshModelGetClosestPoint",
+            unsafe extern "C" fn(
+                c_int,
+                c_int,
+                *const f64,
+                usize,
+                *mut *mut f64,
+                *mut usize,
+                *mut *mut f64,
+                *mut usize,
+                *mut c_int,
+            ),
+            dim,
+            entity,
+            coordinates.as_ptr(),
+            coordinates.len(),
+            &mut closest,
+            &mut closest_count,
+            &mut parameters,
+            &mut parameter_count,
             &mut ierr
         );
-        self.check(ierr)
+        let closest = self.take(closest, closest_count);
+        let parameters = self.take(parameters, parameter_count);
+        self.check(ierr)?;
+        parameters?;
+        let closest = closest?;
+        if closest.len() != coordinates.len() || closest.iter().any(|x| !x.is_finite()) {
+            return Err("Projection CAD de frontière incohérente".into());
+        }
+        Ok(closest
+            .chunks_exact(3)
+            .map(|p| [p[0], p[1], p[2]])
+            .collect())
+    }
+    pub fn parametrization(
+        &self,
+        dim: i32,
+        entity: i32,
+        points: &[[f64; 3]],
+    ) -> Result<Vec<f64>, String> {
+        if !(1..=2).contains(&dim) {
+            return Err("Paramétrisation de courbe ou surface attendue".into());
+        }
+        let coordinates = points.iter().flatten().copied().collect::<Vec<_>>();
+        let mut parameters = ptr::null_mut();
+        let mut parameter_count = 0;
+        let mut ierr = 0;
+        invoke!(
+            self,
+            "gmshModelGetParametrization",
+            unsafe extern "C" fn(
+                c_int,
+                c_int,
+                *const f64,
+                usize,
+                *mut *mut f64,
+                *mut usize,
+                *mut c_int,
+            ),
+            dim,
+            entity,
+            coordinates.as_ptr(),
+            coordinates.len(),
+            &mut parameters,
+            &mut parameter_count,
+            &mut ierr
+        );
+        let parameters = self.take(parameters, parameter_count);
+        self.check(ierr)?;
+        let parameters = parameters?;
+        if parameters.len() != points.len() * dim as usize
+            || parameters.iter().any(|x| !x.is_finite())
+        {
+            return Err("Paramètres CAD de nœuds incohérents ou non finis".into());
+        }
+        Ok(parameters)
     }
     pub fn mesh_optimize(&self, method: &str) -> Result<(), String> {
         let method = text(method)?;
@@ -1082,26 +1178,6 @@ impl Gmsh {
             0,
             &mut ierr
         );
-        self.check(ierr)
-    }
-    pub fn logger_start(&self) -> Result<(),String> {
-        let mut ierr=0;
-        invoke!(self,"gmshLoggerStart",unsafe extern "C" fn(*mut c_int),&mut ierr);
-        self.check(ierr)
-    }
-    pub fn logger_messages(&self) -> Result<Vec<String>,String> {
-        let mut messages=ptr::null_mut();let mut count=0;let mut ierr=0;
-        invoke!(self,"gmshLoggerGet",
-            unsafe extern "C" fn(*mut *mut *mut c_char,*mut usize,*mut c_int),
-            &mut messages,&mut count,&mut ierr);
-        let pointers=self.take(messages,count)?;
-        let result=pointers.into_iter().map(|pointer|self.take_text(pointer)).collect();
-        self.check(ierr)?;
-        Ok(result)
-    }
-    pub fn logger_stop(&self) -> Result<(),String> {
-        let mut ierr=0;
-        invoke!(self,"gmshLoggerStop",unsafe extern "C" fn(*mut c_int),&mut ierr);
         self.check(ierr)
     }
     pub fn mesh_clear(&self, entities: &[DimTag]) -> Result<(), String> {
@@ -1286,7 +1362,12 @@ impl Gmsh {
     pub fn nodes(&self) -> Result<(Vec<usize>, Vec<[f64; 3]>), String> {
         self.nodes_for(-1, -1, false)
     }
-    pub fn nodes_for(&self, dim: i32, entity: i32, include_boundary: bool) -> Result<(Vec<usize>, Vec<[f64; 3]>), String> {
+    pub fn nodes_for(
+        &self,
+        dim: i32,
+        entity: i32,
+        include_boundary: bool,
+    ) -> Result<(Vec<usize>, Vec<[f64; 3]>), String> {
         let mut tags = ptr::null_mut();
         let mut tag_count = 0;
         let mut coords = ptr::null_mut();
@@ -1336,6 +1417,33 @@ impl Gmsh {
             tags,
             coords.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect(),
         ))
+    }
+    pub fn set_node_with_parameters(
+        &self,
+        tag: usize,
+        coords: [f64; 3],
+        parameters: &[f64],
+    ) -> Result<(), String> {
+        if coords
+            .iter()
+            .chain(parameters)
+            .any(|value| !value.is_finite())
+        {
+            return Err("Coordonnées non finies".into());
+        }
+        let mut ierr = 0;
+        invoke!(
+            self,
+            "gmshModelMeshSetNode",
+            unsafe extern "C" fn(usize, *const f64, usize, *const f64, usize, *mut c_int),
+            tag,
+            coords.as_ptr(),
+            coords.len(),
+            parameters.as_ptr(),
+            parameters.len(),
+            &mut ierr
+        );
+        self.check(ierr)
     }
     pub fn elements(&self, dim: i32, tag: i32) -> Result<Vec<ElementBlock>, String> {
         let mut types = ptr::null_mut();

@@ -252,8 +252,6 @@ class AtelierWindow(QMainWindow):
         self.generate_button = self._ribbon_button("▶  Générer le maillage", self.generate_mesh, primary=True)
         row.addWidget(self.generate_button)
         self.remesh_button = self._ribbon_button("Remailler la sélection", self.remesh_selected)
-        self.remesh_button.setToolTip("Le maillage strict quadrilatères/hexaèdres exige actuellement de régénérer toute la pièce pour préserver la conformité.")
-        self.remesh_button.setEnabled(False)
         row.addWidget(self.remesh_button)
         self.learn_ribbon_button = self._ribbon_button("Apprendre cette pièce", self.learn_current_piece)
         row.addWidget(self.learn_ribbon_button)
@@ -403,17 +401,32 @@ class AtelierWindow(QMainWindow):
         self.min_size = self._double(.18, 1e-12)
         form.addRow("Taille globale", self.mesh_size)
         form.addRow("Taille minimale", self.min_size)
+        self.element_shape = QComboBox()
+        self.element_shape.setObjectName("elementShape")
+        for label, value in (("Automatique · quadrilatères / hexaèdres", "automatic"), ("Triangles", "triangle"),
+                             ("Quadrilatères directs", "quadrilateral"), ("Tétraèdres", "tetrahedron"),
+                             ("Hexaèdres directs", "hexahedron"), ("Prismes directs", "prism"),
+                             ("Pyramides directes", "pyramid")):
+            self.element_shape.addItem(label, value)
+        form.addRow("Forme des éléments", self.element_shape)
         self.order = QComboBox()
         self.order.addItem("Linéaire · ordre 1", 1)
         self.order.addItem("Quadratique · ordre 2", 2)
+        self.order.setCurrentIndex(self.order.findData(2))
         form.addRow("Ordre", self.order)
+        self.quadratic_layout = QComboBox()
+        self.quadratic_layout.setObjectName("quadraticLayout")
+        self.quadratic_layout.addItem("Nœuds d'arêtes · QUAD8 / HEX20", "serendipity")
+        self.quadratic_layout.addItem("Complet · QUAD9 / HEX27", "complete")
+        form.addRow("Disposition d'ordre 2", self.quadratic_layout)
         self.algorithm = QComboBox()
         for label, value in (("Automatique", "automatic"), ("Delaunay", "delaunay"), ("Frontal", "frontal")):
             self.algorithm.addItem(label, value)
         form.addRow("Algorithme", self.algorithm)
-        self.element_family = QLabel("Quadrilatères uniquement")
-        self.element_family.setObjectName("elementFamily")
-        form.addRow("Forme des éléments", self.element_family)
+        self.recombine = QCheckBox("Ancienne recombinaison retirée")
+        self.recombine.setEnabled(False)
+        self.recombine.setToolTip("Choisir une forme directe pour migrer ce projet. La recombinaison n'est plus proposée.")
+        form.addRow(self.recombine)
         self.calculation_threads = QSpinBox()
         self.calculation_threads.setRange(1, 32)
         self.calculation_threads.setValue(1)
@@ -424,6 +437,33 @@ class AtelierWindow(QMainWindow):
         self.max_elements.setSingleStep(10000)
         form.addRow("Limite d'éléments", self.max_elements)
         layout.addLayout(form)
+        self.structured_group = QGroupBox("Grille structurée directe")
+        grid_form = QFormLayout(self.structured_group)
+        self.use_divisions = QCheckBox("Fixer les divisions par direction")
+        self.use_divisions.setObjectName("useStructuredDivisions")
+        grid_form.addRow(self.use_divisions)
+        self.structured_divisions = []
+        self.structured_grading = []
+        for axis in "XYZ":
+            divisions = QSpinBox()
+            divisions.setRange(1, 2000)
+            divisions.setValue(1)
+            divisions.setObjectName("structuredDivisions" + axis)
+            divisions.setEnabled(False)
+            self.use_divisions.toggled.connect(divisions.setEnabled)
+            self.structured_divisions.append(divisions)
+            grid_form.addRow("Divisions " + axis, divisions)
+            grading = self._double(1, 1e-6, 1e6, decimals=6)
+            grading.setObjectName("structuredGrading" + axis)
+            self.structured_grading.append(grading)
+            grid_form.addRow("Progression " + axis, grading)
+        grid_hint = QLabel("Sans divisions imposées, le noyau utilise la taille cible. Une progression de 1 donne un espacement uniforme. La forme demandée doit être compatible avec la géométrie ; aucun repli vers une autre forme n'est effectué.")
+        grid_hint.setObjectName("hint")
+        grid_hint.setWordWrap(True)
+        grid_form.addRow(grid_hint)
+        layout.addWidget(self.structured_group)
+        self.element_shape.currentIndexChanged.connect(self.update_mesh_controls)
+        self.order.currentIndexChanged.connect(self.update_mesh_controls)
         local = QGroupBox("Réglages locaux sur la sélection")
         local_layout = QVBoxLayout(local)
         self.local_size = self._double(.25, 1e-12)
@@ -639,6 +679,10 @@ class AtelierWindow(QMainWindow):
         body.addWidget(QLabel("Dossier du corpus"))
         body.addLayout(path_row)
         plan = QFormLayout()
+        self.corpus_profile = QComboBox()
+        self.corpus_profile.setObjectName("corpusProfile")
+        self.corpus_profile.addItem("Quadrilatères et hexaèdres directs", "direct_quad_hex")
+        plan.addRow("Familles du corpus", self.corpus_profile)
         self.corpus_structured = QSpinBox()
         self.corpus_structured.setObjectName("corpusStructured")
         self.corpus_structured.setRange(0, 1000000000)
@@ -738,8 +782,12 @@ class AtelierWindow(QMainWindow):
         form = QFormLayout()
         self.format = QComboBox()
         self.format.setObjectName("solverProfile")
-        from .formats import FORMATS
-        for value, info in FORMATS.items(): self.format.addItem(info["label"], value)
+        formats = (("Code_Aster / Salome-Meca · MED", "med"), ("CalculiX / Abaqus · INP", "inp"),
+                   ("Gmsh · MSH", "msh"), ("ParaView · VTU", "vtu"),
+                   ("I-DEAS / Salome · UNV", "unv"), ("ANSYS · APDL MESH200", "ansys"),
+                   ("Cast3M · UNV + import", "cast3m"), ("Nastran · BDF", "nastran"),
+                   ("LS-DYNA · Keyword", "lsdyna"), ("ANSYS · APDL structural", "ansys_structural"))
+        for label, value in formats: self.format.addItem(label, value)
         form.addRow("Logiciel / format", self.format)
         self.export_units = self._units_combo("exportUnits")
         form.addRow("Unités exportées", self.export_units)
@@ -785,9 +833,27 @@ class AtelierWindow(QMainWindow):
 
     def mode_changed(self):
         volume = self.mode.currentData() == "volume"
-        self.element_family.setText("Hexaèdres uniquement" if volume else "Quadrilatères uniquement")
+        for index in range(self.element_shape.count()):
+            shape = self.element_shape.itemData(index)
+            self.element_shape.model().item(index).setEnabled(
+                shape == "automatic" or (shape in ("tetrahedron", "hexahedron", "prism", "pyramid") if volume
+                                         else shape in ("triangle", "quadrilateral")))
+        if not self._loading and not self.element_shape.model().item(self.element_shape.currentIndex()).isEnabled():
+            self.element_shape.setCurrentIndex(self.element_shape.findData("automatic"))
+        self.update_mesh_controls()
         if volume and self.repair_enabled.isChecked(): self.make_solids.setChecked(True)
         self.update_geometry_visibility()
+
+    def update_mesh_controls(self):
+        shape = self.element_shape.currentData()
+        structured = shape in ("automatic", "quadrilateral", "hexahedron", "prism", "pyramid")
+        self.structured_group.setEnabled(structured)
+        self.quadratic_layout.setEnabled(self.order.currentData() == 2)
+        self.algorithm.setEnabled(not structured)
+        self.recombine.setEnabled(False)
+        if shape != "automatic" and not self._loading:
+            self.recombine.setChecked(False)
+        self.recombine.setVisible(self.recombine.isChecked())
 
     def update_export_notes(self):
         notes = {
@@ -796,6 +862,9 @@ class AtelierWindow(QMainWindow):
             "msh": "MSH conserve les entités et groupes physiques du moteur natif.",
             "vtu": "VTU permet la visualisation et l'inspection des groupes dans ParaView.",
             "unv": "UNV transporte la connectivité et les groupes reconnus par le convertisseur.",
+            "nastran": "BDF transporte les groupes SET1 et les connectivités QUAD4/8 et HEX8/20. Définir les propriétés et les matériaux.",
+            "lsdyna": "Keyword transporte les groupes et les cellules linéaires. Compléter les cartes PART, SECTION et MAT.",
+            "ansys_structural": "Pour les quadrilatères et hexaèdres, cet écrivain structural accepte QUAD4 et HEX8. Compléter les propriétés et les conditions aux limites.",
             "ansys": "APDL utilise MESH200 pour échanger le maillage. MESH200 n'a pas de degrés de liberté : affecter ensuite les éléments de calcul dans ANSYS.",
             "cast3m": "Le pont Cast3M produit un fichier UNV et un script d'import. Les deux fichiers doivent rester ensemble.",
         }
@@ -831,8 +900,17 @@ class AtelierWindow(QMainWindow):
         self.polygon_holes.setPlainText(json.dumps(geometry.get("holes", []) if geometry.get("kind") == "polygon" else []))
         self.mesh_size.setValue(float(mesh.get("size", .5)))
         self.min_size.setValue(float(mesh.get("min_size", .1)))
-        self.order.setCurrentIndex(max(0, self.order.findData(mesh.get("order", 1))))
+        self.element_shape.setCurrentIndex(max(0, self.element_shape.findData(mesh.get("element_shape", "automatic"))))
+        self.order.setCurrentIndex(max(0, self.order.findData(mesh.get("order", 2))))
+        self.quadratic_layout.setCurrentIndex(max(0, self.quadratic_layout.findData(mesh.get("quadratic_layout", "serendipity"))))
         self.algorithm.setCurrentIndex(max(0, self.algorithm.findData(mesh.get("algorithm", "automatic"))))
+        self.recombine.setChecked(bool(mesh.get("recombine", False)))
+        structured = mesh.get("structured", {})
+        self.use_divisions.setChecked("divisions" in structured)
+        for field, number in zip(self.structured_divisions, structured.get("divisions", [1, 1, 1])):
+            field.setValue(number)
+        for field, number in zip(self.structured_grading, structured.get("grading", [1, 1, 1])):
+            field.setValue(number)
         self.calculation_threads.setValue(mesh.get("threads", 1))
         self.max_elements.setValue(mesh.get("max_elements", 200000))
         self.repair_enabled.setChecked(bool(repair.get("enabled", False)))
@@ -895,10 +973,23 @@ class AtelierWindow(QMainWindow):
         geometry["transform"] = {"translation": [field.value() for field in self.translation], "scale": self.scale.value()}
         project["geometry"] = geometry
         project["units"] = {"input": self.input_units.currentData(), "internal": "m"}
-        project["mesh"] = {"size": self.mesh_size.value(), "min_size": self.min_size.value(), "order": self.order.currentData(),
+        project["mesh"] = {**project.get("mesh", {}), "size": self.mesh_size.value(), "min_size": self.min_size.value(), "order": self.order.currentData(),
                            "algorithm": self.algorithm.currentData(), "threads": self.calculation_threads.value(),
-                           "max_elements": self.max_elements.value(), "recombine": False,
-                           "element_policy": "quad_hex_only"}
+                           "max_elements": self.max_elements.value(), "recombine": self.recombine.isChecked(),
+                           "element_shape": self.element_shape.currentData(), "quadratic_layout": self.quadratic_layout.currentData()}
+        if self.element_shape.currentData() in ("automatic", "quadrilateral", "hexahedron", "prism", "pyramid"):
+            structured = copy.deepcopy(project["mesh"].get("structured", {}))
+            structured["grading"] = [field.value() for field in self.structured_grading]
+            if self.use_divisions.isChecked():
+                structured["divisions"] = [field.value() for field in self.structured_divisions]
+            else:
+                structured.pop("divisions", None)
+            project["mesh"]["structured"] = structured
+        elif self.element_shape.currentData() != self.project.get("mesh", {}).get("element_shape", "automatic"):
+            # A deliberate switch to a free-mesh family must not inherit a
+            # hidden grid from the previous QUAD/HEX example. An explicitly
+            # loaded structured triangle/tet project keeps its own settings.
+            project["mesh"].pop("structured", None)
         project["repair"] = {"enabled": self.repair_enabled.isChecked(), "tolerance": self.repair_tolerance.value(),
                              "sew": True, "small_edges": True, "small_faces": False, "make_solids": self.make_solids.isChecked()}
         dimension = 3 if project["mode"] == "volume" else 2
@@ -1160,7 +1251,7 @@ class AtelierWindow(QMainWindow):
     def plan_corpus(self):
         self._start_corpus_operation("corpus_plan", "corpus_plan", "Création du plan du corpus · aucun calcul de maillage n'est lancé…",
             structured=self.corpus_structured.value(), random=self.corpus_random.value(), seed=self.corpus_seed.value(),
-            strategies=self.corpus_strategies.value(), shard_size=1000)
+            strategies=self.corpus_strategies.value(), shard_size=1000, profile=self.corpus_profile.currentData())
 
     def run_corpus_batch(self):
         self._start_corpus_operation("corpus_run", "corpus_run", "Calcul du prochain lot dans Rust · reprise des cas non terminés…",
@@ -1197,11 +1288,19 @@ class AtelierWindow(QMainWindow):
             if isinstance(test, dict) and test.get("cases") is not None:
                 text += f"\nTest final distinct : {test['cases']} configurations évaluées après sélection du modèle."
         else:
+            profile = report.get("profile", report.get("plan", {}).get("profile"))
+            profile_index = self.corpus_profile.findData(profile)
+            if profile_index >= 0:
+                self.corpus_profile.setCurrentIndex(profile_index)
             text = (f"Objectif : {report.get('planned_total', '—')} configurations. "
                     f"Traitées : {report.get('completed_cases', '—')}.\n"
                     f"Appels au moteur : {report.get('backend_evaluations', '—')}.\n"
                     f"Stratégies acceptées : {report.get('accepted_actions', '—')} · "
                     f"refusées ou échouées : {report.get('failed_actions', '—')}.")
+            if profile_index >= 0:
+                text += "\nFamilles : " + self.corpus_profile.currentText() + "."
+            elif profile:
+                text += f"\nProfil historique en consultation : {profile}."
             if report.get("generated_cases") is not None:
                 text += f"\nConfigurations générées : {report['generated_cases']}."
             if report.get("meshed_cases") is not None:
@@ -1376,7 +1475,7 @@ class AtelierWindow(QMainWindow):
         self.properties.setEnabled(True)
         self.pages.setEnabled(True)
         self.generate_button.setEnabled(True)
-        self.remesh_button.setEnabled(False)
+        self.remesh_button.setEnabled(True)
         self.train_button.setEnabled(True)
         self.learn_button.setEnabled(True)
         self.learn_ribbon_button.setEnabled(True)
@@ -1411,15 +1510,14 @@ class AtelierWindow(QMainWindow):
         if self.calculation_thread is not None and self.calculation_thread.isRunning():
             self.set_status("Attendez la fin du calcul ou arrêtez-le avant d'importer une autre pièce.")
             return
-        from .import_registry import file_dialog_filter, MESH_READERS, source_extension
-        filename, _ = QFileDialog.getOpenFileName(self, "Importer une pièce", "", file_dialog_filter())
+        filename, _ = QFileDialog.getOpenFileName(self, "Importer une pièce", "", "Formats pris en charge (*.step *.stp *.iges *.igs *.brep *.stl *.msh *.vtk *.unv);;CAO (*.step *.stp *.iges *.igs *.brep);;Peaux triangulées (*.stl *.msh *.vtk *.unv);;Tous les fichiers (*)")
         if not filename: return
         project = self.project_from_form()
         project["name"] = Path(filename).stem
         project["geometry"] = {"kind": "import"}
-        if source_extension(filename) in set(MESH_READERS) | {".stl", ".unv", ".3mf"}: project["mode"] = "surface"
+        if Path(filename).suffix.lower() in (".stl", ".msh", ".vtk", ".unv"): project["mode"] = "surface"
         self.load_project(project, Path(filename))
-        self.set_status("Vérifiez l'unité et le domaine, puis examinez la géométrie. Les formats propriétaires demandent une passerelle locale configurée ; les maillages sont reconstruits à partir de leur peau.")
+        self.set_status("Vérifiez l'unité de la source, puis examinez la géométrie.")
 
     def load_example(self):
         if self.calculation_thread is not None and self.calculation_thread.isRunning():

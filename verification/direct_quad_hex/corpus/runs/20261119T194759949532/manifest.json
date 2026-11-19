@@ -1,0 +1,77 @@
+{
+  "core_version": "1.0.0-rc.10",
+  "created_at": 1795114080,
+  "families": [
+    {
+      "name": "direct_quad_rectangle",
+      "random": 3,
+      "split": "train",
+      "structured": 3,
+      "total": 6
+    },
+    {
+      "name": "direct_quad_one_hole",
+      "random": 3,
+      "split": "validation",
+      "structured": 3,
+      "total": 6
+    },
+    {
+      "name": "direct_hex_box",
+      "random": 3,
+      "split": "train",
+      "structured": 3,
+      "total": 6
+    },
+    {
+      "name": "direct_hex_one_hole",
+      "random": 3,
+      "split": "test",
+      "structured": 3,
+      "total": 6
+    },
+    {
+      "name": "direct_hex_thin_box",
+      "random": 2,
+      "split": "train",
+      "structured": 2,
+      "total": 4
+    },
+    {
+      "name": "direct_quad_graded_rectangle",
+      "random": 2,
+      "split": "train",
+      "structured": 2,
+      "total": 4
+    }
+  ],
+  "feature_schema": "atelier.geometry_action_features.v3",
+  "generator_version": "atelier.corpus.generator.v2",
+  "gmsh_version": "4.15.2",
+  "notes": [
+    "Créer ce plan ne génère ni un million de fichiers ni un million de maillages",
+    "Les défauts synthétiques contrôlés ne couvrent pas toute la diversité des CAO industrielles",
+    "Les configurations de test sont séparées des familles d'apprentissage"
+  ],
+  "plan": {
+    "profile": "direct_quad_hex",
+    "random": 16,
+    "seed": 42,
+    "shard_size": 8,
+    "strategies": 3,
+    "structured": 16
+  },
+  "plan_id": "39a9bfad652c0030491c08a243c35d32e9790ec399c7ff0ac50eaf32de9d9e71",
+  "planned_split_counts": {
+    "test": 6,
+    "train": 20,
+    "validation": 6
+  },
+  "planned_total": 32,
+  "sampling": {
+    "random": "family-stratified reproducible Latin hypercube with coprime affine permutations",
+    "split": "whole geometry families assigned before all parameter and meshing variations",
+    "structured": "mixed-radix deterministic parameter grid with unique resolution coordinate"
+  },
+  "schema": "atelier.corpus.v1"
+}

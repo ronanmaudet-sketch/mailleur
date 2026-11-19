@@ -47,7 +47,7 @@
           <div class="section-title">Type de domaine <span class="step-label">01</span></div>
           <div class="segmented" id="mode-control" aria-label="Type de domaine"><button data-mode="planar" class="active">2D plane</button><button data-mode="surface">Surface</button><button data-mode="volume">Volume</button></div>
           <label class="field"><span>Géométrie</span><select id="geometry-kind"><option value="plate">Plaque paramétrique</option><option value="box">Bloc rectangulaire</option><option value="sphere">Sphère</option><option value="bracket">Équerre 3D</option><option value="polygon">Contour polygonal</option><option value="import">Importer une pièce CAO</option></select></label>
-          <div id="import-geometry" class="import-zone" hidden><svg><use href="#i-upload"/></svg><b>Votre géométrie, ici</b><span>CAO standard et maillages ; formats natifs avec convertisseur local</span><button class="button secondary small" id="choose-cad">Choisir un fichier</button><span id="source-file" class="source-file">Aucun fichier sélectionné</span></div>
+          <div id="import-geometry" class="import-zone" hidden><svg><use href="#i-upload"/></svg><b>Votre géométrie, ici</b><span>STEP, IGES, BREP ou STL</span><button class="button secondary small" id="choose-cad">Choisir un fichier</button><span id="source-file" class="source-file">Aucun fichier sélectionné</span></div>
           <div id="native-geometry">
             <div class="section-title separated">Dimensions <span class="unit-label">UNITÉS DU MODÈLE</span></div>
             <div class="field-grid">
@@ -78,9 +78,24 @@
           <label class="field"><span>Taille minimale</span><input id="mesh-min-size" type="number" min="0.000001" step="any" value="0.1"></label>
           <p class="field-hint">Une taille plus petite décrit mieux les détails et augmente le nombre d’éléments.</p>
           <div class="section-title separated">Construction</div>
+          <label class="field"><span>Forme des éléments</span><select id="mesh-element-shape"><option value="automatic">Automatique · quadrilatères / hexaèdres</option><option value="triangle">Triangles</option><option value="quadrilateral">Quadrilatères directs</option><option value="tetrahedron">Tétraèdres</option><option value="hexahedron">Hexaèdres directs</option><option value="prism">Prismes directs</option><option value="pyramid">Pyramides directes</option></select></label>
           <label class="field"><span>Algorithme</span><select id="mesh-algorithm"><option value="automatic">Automatique</option><option value="delaunay">Delaunay</option><option value="frontal">Frontal</option></select></label>
-          <label class="field"><span>Ordre des éléments</span><select id="mesh-order"><option value="1">Linéaire · ordre 1</option><option value="2">Quadratique · ordre 2</option></select></label>
-          <p class="field-hint" id="mesh-element-policy">Quadrilatères uniquement. Un résultat d’une autre forme est refusé.</p>
+          <label class="field"><span>Ordre des éléments</span><select id="mesh-order"><option value="1">Linéaire · ordre 1</option><option value="2" selected>Quadratique · ordre 2</option></select></label>
+          <label class="field"><span>Disposition d'ordre 2</span><select id="mesh-quadratic-layout"><option value="serendipity">Nœuds d'arêtes · QUAD8 / HEX20</option><option value="complete">Complet · QUAD9 / HEX27</option></select></label>
+          <label class="checkbox-field" hidden><input id="mesh-recombine" type="checkbox" disabled><span>Ancienne recombinaison retirée<small>Choisir une forme directe pour migrer ce projet.</small></span></label>
+          <div id="structured-settings">
+            <div class="section-title separated">Grille structurée directe</div>
+            <label class="checkbox-field"><input id="mesh-use-divisions" type="checkbox"><span>Fixer les divisions par direction<small>Sinon le noyau utilise la taille cible.</small></span></label>
+            <div class="field-grid">
+              <label class="field"><span>Divisions X</span><input id="mesh-divisions-x" type="number" min="1" max="2000" step="1" value="1"></label>
+              <label class="field"><span>Progression X</span><input id="mesh-grading-x" type="number" min="0.000001" step="any" value="1"></label>
+              <label class="field"><span>Divisions Y</span><input id="mesh-divisions-y" type="number" min="1" max="2000" step="1" value="1"></label>
+              <label class="field"><span>Progression Y</span><input id="mesh-grading-y" type="number" min="0.000001" step="any" value="1"></label>
+              <label class="field"><span>Divisions Z</span><input id="mesh-divisions-z" type="number" min="1" max="2000" step="1" value="1"></label>
+              <label class="field"><span>Progression Z</span><input id="mesh-grading-z" type="number" min="0.000001" step="any" value="1"></label>
+            </div>
+            <p class="field-hint">Une progression de 1 donne un espacement uniforme. La géométrie doit être compatible avec la forme demandée ; aucun repli vers une autre forme n'est effectué.</p>
+          </div>
           <div class="section-title separated">Ressources</div><div class="field-grid"><label class="field"><span>Fils de calcul</span><input id="mesh-threads" type="number" min="1" max="32" step="1" value="1"></label><label class="field"><span>Limite d’éléments</span><input id="mesh-max-elements" type="number" min="10" max="2000000" step="1000" value="200000"></label></div>
           <label class="checkbox-field advisor-use"><input id="use-advisor" type="checkbox"><span>Utiliser le guide appris<small>Propose un algorithme à partir d’essais comparés.</small></span></label>
         </section>
@@ -130,7 +145,7 @@
       <div id="selection-info" class="selection-info" hidden></div>
       <div id="warnings" class="warnings" hidden></div>
       <details class="diagnostics"><summary>Diagnostic détaillé <svg><use href="#i-chevron"/></svg></summary><pre id="diagnostic-content">Aucun diagnostic disponible.</pre></details>
-      <div class="export-area"><div class="section-title">Vers votre logiciel de calcul</div><label class="field"><span class="sr-only">Format d’export</span><select id="export-format"><option value="msh">Gmsh · MSH</option></select></label><button id="export-button" class="button secondary full" disabled><svg><use href="#i-download"/></svg> Exporter le maillage</button><button id="bundle-button" class="text-button full" disabled>Tous les formats disponibles <svg><use href="#i-download"/></svg></button><p class="field-hint">Les propriétés des matériaux et les chargements se définissent dans le solveur.</p></div>
+      <div class="export-area"><div class="section-title">Vers votre logiciel de calcul</div><label class="field"><span class="sr-only">Format d’export</span><select id="export-format"><option value="msh">Gmsh · MSH</option></select></label><button id="export-button" class="button secondary full" disabled><svg><use href="#i-download"/></svg> Exporter le maillage</button><button id="bundle-button" class="text-button full" disabled>Archive des formats par défaut <svg><use href="#i-download"/></svg></button><p class="field-hint">Les propriétés des matériaux et les chargements se définissent dans le solveur.</p></div>
     </aside>
   </main>
 

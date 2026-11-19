@@ -147,11 +147,10 @@ fn validate_signature(signature:&Value) -> Result<(),String> {
     positive(number_or(signature,"min_size",0.1)?,"min_size")?;
     boolean_or(signature,"recombine",false)?;
     boolean_or(signature,"repair_enabled",false)?;
-    if signature["element_policy"] != crate::dataset_model::ELEMENT_POLICY { return Err("Politique d'éléments du guide incompatible".into()); }
-    for key in ["order","threads","min_size","recombine","repair_enabled","element_policy"] {
+    for key in ["order","threads","min_size","recombine","repair_enabled"] {
         if signature.get(key).is_none() { return Err(format!("Paramètre {key} absent du guide")); }
     }
-    if signature.as_object().map(|x| x.len()) != Some(6) {
+    if signature.as_object().map(|x| x.len()) != Some(5) {
         return Err("Paramètres supplémentaires non reconnus dans la configuration du guide".to_string());
     }
     Ok(())
@@ -166,14 +165,13 @@ fn mesh_signature(project:&Value) -> Result<Value,String> {
     let min_size = positive(number_or(mesh,"min_size",0.1_f64.min(size))?,"min_size")?;
     if min_size > size { return Err("La taille minimale dépasse la taille cible".to_string()); }
     Ok(json!({"order":integer_or(mesh,"order",1,2)?,"threads":integer_or(mesh,"threads",1,64)?,
-              "min_size":min_size,"recombine":boolean_or(mesh,"recombine",false)?,"element_policy":crate::dataset_model::ELEMENT_POLICY,
+              "min_size":min_size,"recombine":boolean_or(mesh,"recombine",false)?,
               "repair_enabled":boolean_or(repair,"enabled",false)?}))
 }
 
 fn same_signature(a:&Value,b:&Value) -> bool {
     ["order","threads","min_size"].iter().all(|key| a[*key].as_f64()==b[*key].as_f64())
         && ["recombine","repair_enabled"].iter().all(|key| a[*key].as_bool()==b[*key].as_bool())
-        && a["element_policy"]==b["element_policy"]
 }
 
 fn ring(value:&Value) -> Result<Vec<[f64;2]>,String> {
@@ -313,10 +311,11 @@ pub fn choose(project:&Value,model:&Value) -> Result<Value,String> {
         else {None};
     if let Some(reason)=reason {result["reason"]=json!(reason);return Ok(result);}
     if model.is_null() {return Ok(result);}
-    if model["element_policy"] != crate::dataset_model::ELEMENT_POLICY {
-        result["reason"]=json!("element_policy_incompatible");return Ok(result);
-    }
     let checked=validate_model(model)?;
+    if crate::backend::requests_direct_cells(project)? || model["element_policy"] == "direct_quad_hex" {
+        result["reason"]=json!("gmsh_algorithm_guide_inapplicable_to_direct_cells");
+        return Ok(result);
+    }
     if let Some(unit)=model.get("input_unit") {
         let unit=unit.as_str().filter(|v|["m","cm","mm","in"].contains(v)).ok_or("Unité du guide invalide")?;
         if project["units"].get("input").and_then(Value::as_str).unwrap_or("mm")!=unit {
@@ -348,17 +347,17 @@ pub fn choose(project:&Value,model:&Value) -> Result<Value,String> {
 mod tests {
     use super::*;
     fn fixture()->Value {
-        json!({"schema":"atelier.advisor.v1","element_policy":crate::dataset_model::ELEMENT_POLICY,"schema_version":1,"algorithms":ALGORITHMS,"features":FEATURES,
+        json!({"schema":"atelier.advisor.v1","schema_version":1,"algorithms":ALGORITHMS,"features":FEATURES,
             "input_weights":vec![vec![0.1;8],vec![-0.2;8]],"hidden_bias":[0.05,-0.1],
             "output_weights":[[0.2,0.3],[-0.4,0.1],[0.1,-0.5]],"output_bias":[0.2,0.6,0.1],
             "feature_ranges":vec![[0.0,1.0];8],"baseline_algorithm":"delaunay","baseline_successful":true,"deploy_enabled":true,
-            "mesh_signature":{"order":1,"recombine":false,"element_policy":crate::dataset_model::ELEMENT_POLICY,"min_size":0.1,"threads":1,"repair_enabled":false},
+            "mesh_signature":{"order":1,"recombine":false,"min_size":0.1,"threads":1,"repair_enabled":false},
             "training_geometry_ids":["a".repeat(64)],"validation_geometry_ids":["b".repeat(64)],
             "training_families":["training"],"validation_families":["validation"],
             "validated_modes":["planar","surface","volume"],"trained_kinds":["plate","polygon","box","sphere","bracket"],
             "gmsh_version":"4.15.2","validation_guide_reward":0.8,"validation_fixed_reward":0.5,"improvement":0.3})
     }
-    fn project()->Value {json!({"mode":"planar","geometry":{"kind":"plate","width":4,"height":3,"corner_radius":0.5,"holes":[{"x":2,"y":1.5,"radius":0.4}]},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic"}})}
+    fn project()->Value {json!({"mode":"planar","geometry":{"kind":"plate","width":4,"height":3,"corner_radius":0.5,"holes":[{"x":2,"y":1.5,"radius":0.4}]},"mesh":{"size":0.8,"min_size":0.1,"algorithm":"automatic","element_shape":"triangle"}})}
     #[test]
     fn features_match_legacy_python_fixture() {
         let features=extract_features(&project()).unwrap();
@@ -380,15 +379,6 @@ mod tests {
         let mut p=project();p["mesh"]["algorithm"]=json!("delaunay");
         let result=choose(&p,&model).unwrap();assert_eq!(result["algorithm"],"delaunay");
         assert_eq!(result["use_model"],false);assert_eq!(result["reason"],"heldout_improvement_not_demonstrated");
-    }
-    #[test]
-    fn historical_guide_is_disabled_without_erasing_or_reusing_its_weights() {
-        let mut old=fixture();old.as_object_mut().unwrap().remove("element_policy");
-        let before=old.clone();
-        let result=choose(&project(),&old).unwrap();
-        assert_eq!(result["use_model"],false);
-        assert_eq!(result["reason"],"element_policy_incompatible");
-        assert_eq!(old,before);
     }
     #[test]
     fn imported_and_local_requests_keep_user_choice() {

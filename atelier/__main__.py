@@ -36,17 +36,20 @@ def main(argv=None):
     serve.add_argument("--timeout", type=positive_int, default=300)
     serve.add_argument("--no-browser", action="store_true")
     commands.add_parser("doctor", help="vérifier l'installation du moteur")
-    formats_command = commands.add_parser("formats", help="lister les lecteurs, passerelles conditionnelles et exports")
-    formats_command.add_argument("--json", action="store_true", help="sortie JSON (également utilisée par défaut)")
-    cadpack = commands.add_parser("pack-cad", help="emballer un dossier CAO et ses références dans un fichier .cadpack")
-    cadpack.add_argument("--directory", type=Path, required=True)
-    cadpack.add_argument("--source", type=Path, required=True, help="source principale dans le dossier choisi")
-    cadpack.add_argument("--output", type=Path, required=True)
+    capabilities = commands.add_parser("capabilities", help="décrire l'API et les capacités du noyau en JSON")
+    capabilities.add_argument("--workspace", type=Path, default=Path.home() / "AtelierMailleur")
+    adapt_plan = commands.add_parser("adapt-plan", help="préparer dans Rust une adaptation depuis un retour solveur JSON")
+    adapt_plan.add_argument("--previous", type=Path, required=True, help="dossier natif du maillage calculé par le solveur")
+    adapt_plan.add_argument("--indicators", type=Path, required=True)
+    adapt_plan.add_argument("--workspace", type=Path, default=Path.home() / "AtelierMailleur")
+    adapt_plan.add_argument("--tolerance", type=float, default=.05)
+    adapt_plan.add_argument("--max-regions", type=positive_int, default=256)
+    adapt_plan.add_argument("-o", "--output", type=Path, help="copie du plan JSON pour le script appelant")
     mesh = commands.add_parser("mesh", help="mailler un projet JSON ou portable .amp")
     mesh.add_argument("project", type=Path)
     mesh.add_argument("-o", "--output", type=Path, required=True)
-    mesh.add_argument("--source", type=Path, help="source CAO/maillage ; atelier formats décrit les formats intégrés et conditionnels")
-    mesh.add_argument("--formats", default="msh,med,inp,vtu,unv,ansys,cast3m,nastran,lsdyna,ansys_structural")
+    mesh.add_argument("--source", type=Path, help="source STEP, IGES, BREP ou STL pour un projet importé")
+    mesh.add_argument("--formats", help="formats séparés par des virgules (par exemple nastran ou msh,inp). Le choix par défaut dépend des cellules.")
     mesh.add_argument("--advisor", type=Path, help="guide préalablement entraîné")
     train = commands.add_parser("train", help="évaluer les stratégies et entraîner le guide expérimental")
     train.add_argument("-o", "--output", type=Path, default=Path("output/apprentissage"))
@@ -56,7 +59,7 @@ def main(argv=None):
     learn.add_argument("project", type=Path)
     learn.add_argument("-o", "--output", type=Path, required=True)
     learn.add_argument("--source", type=Path)
-    learn.add_argument("--memory", type=Path, help="mémoire partagée entre projets ; défaut : DOSSIER/experience")
+    learn.add_argument("--memory", type=Path, help="mémoire partagée entre projets ; défaut : DOSSIER/experience_quad_hex")
     learn.add_argument("--max-trials", type=positive_int, default=12)
     learn.add_argument("--epochs", type=positive_int, default=100)
     learn.add_argument("--seed", type=int, default=42)
@@ -77,6 +80,8 @@ def main(argv=None):
         command.add_argument("--directory", type=Path, required=True)
         command.add_argument("--workspace", type=Path, default=Path.home() / "AtelierMailleur")
         if name == "plan":
+            command.add_argument("--profile", choices=("direct_quad_hex",), default="direct_quad_hex",
+                                 help="corpus de quadrilatères et hexaèdres structurés directs d'ordre 2")
             command.add_argument("--structured", type=nonnegative_int, default=250000)
             command.add_argument("--random", type=nonnegative_int, default=750000)
             command.add_argument("--seed", type=nonnegative_int, default=42)
@@ -85,9 +90,6 @@ def main(argv=None):
         elif name == "preview":
             command.add_argument("--start-index", type=nonnegative_int, default=0)
             command.add_argument("--limit", type=positive_int, default=20)
-        elif name == "status":
-            command.add_argument("--adopt-legacy-integrity", action="store_true",
-                                 help="après sauvegarde, adopter les octets actuels d'un ancien corpus sans prouver son intégrité passée")
         elif name == "run":
             command.add_argument("--limit", type=positive_int, default=20)
             command.add_argument("--max-seconds", type=positive_int, default=240)
@@ -100,18 +102,23 @@ def main(argv=None):
             command.add_argument("--max-seconds", type=positive_int, default=240)
     args = parser.parse_args(argv)
     try:
-        if args.command == "formats":
-            from .imports import import_capabilities
-            from .formats import FORMATS
-            print(json.dumps({"version": __version__, "imports": import_capabilities(), "exports": FORMATS}, ensure_ascii=False, indent=2))
-            return 0
-        if args.command == "pack-cad":
-            from .imports import create_cadpack
-            print(json.dumps(create_cadpack(args.source, args.directory, args.output), ensure_ascii=False, indent=2))
-            return 0
         if args.command == "desktop":
             from .desktop import main as desktop_main
             return desktop_main([])
+        if args.command in ("capabilities", "adapt-plan"):
+            from .api import MeshingClient, load_result
+            from mailleur.io import write_json
+            client = MeshingClient(args.workspace)
+            if args.command == "capabilities":
+                report = client.capabilities()
+            else:
+                indicators = strict_json(args.indicators.read_bytes())
+                report = client.plan_adaptation(load_result(args.previous), indicators,
+                                                tolerance=args.tolerance, max_regions=args.max_regions)
+                if args.output is not None:
+                    write_json(args.output.expanduser().resolve(), report)
+            print(json.dumps(report, ensure_ascii=False, allow_nan=False, indent=2))
+            return 0
         if args.command == "doctor":
             from .server import backend_info
             from .native import core_path, gmsh_library
@@ -123,9 +130,7 @@ def main(argv=None):
                 native = {"available": True, "path": str(binary), "version": version.stdout.strip(), "gmsh_library": str(gmsh_library())}
             except (OSError, RuntimeError, subprocess.SubprocessError) as error:
                 native["error"] = str(error)
-            from .imports import import_capabilities
-            report = {"atelier": __version__, "python": sys.version.split()[0], "native_kernel": native,
-                      "backend": backend_info(), "import_formats": import_capabilities()}
+            report = {"atelier": __version__, "python": sys.version.split()[0], "native_kernel": native, "backend": backend_info()}
             print(json.dumps(report, ensure_ascii=False, indent=2))
             return 0 if native["available"] and report["backend"]["available"] else 2
         if args.command == "serve":
@@ -159,9 +164,10 @@ def main(argv=None):
             session = NativeSession(args.workspace, timeout=max(300, getattr(args, "max_seconds", 240) + 30))
             if args.corpus_command == "plan":
                 report = session.corpus_plan(args.directory, structured=args.structured, random=args.random,
-                                            seed=args.seed, strategies=args.strategies, shard_size=args.shard_size)
+                                            seed=args.seed, strategies=args.strategies, shard_size=args.shard_size,
+                                            profile=args.profile)
             elif args.corpus_command == "status":
-                report = session.corpus_status(args.directory,adopt_legacy_integrity=args.adopt_legacy_integrity)
+                report = session.corpus_status(args.directory)
             elif args.corpus_command == "preview":
                 report = session.corpus_preview(args.directory, start_index=args.start_index, limit=args.limit)
             elif args.corpus_command == "run":
@@ -183,7 +189,8 @@ def main(argv=None):
             project, source = loaded["project"], loaded["source"]
         else:
             project = normalize_project(strict_json(args.project.read_bytes()))
-        formats = [name.strip() for name in args.formats.split(",") if name.strip()]
+        from .formats import default_export_formats, read_mesh
+        formats = [name.strip() for name in args.formats.split(",") if name.strip()] if args.formats is not None else None
         session = NativeSession(directory, timeout=max(300, args.max_seconds + 30) if args.command == "learn" else 300)
         if getattr(args, "advisor", None):
             import shutil
@@ -197,6 +204,9 @@ def main(argv=None):
             project = result["report"]["selected_project"]
         else:
             result = session.generate(project, source=source, use_advisor=bool(args.advisor))
+        if formats is None:
+            mesh_file = Path(result["directory"]) / "mesh.msh"
+            formats = default_export_formats(c.type for c in read_mesh(mesh_file).cells)
         outputs = []
         unit = project.get("units", {}).get("input", "mm")
         for format_name in formats:

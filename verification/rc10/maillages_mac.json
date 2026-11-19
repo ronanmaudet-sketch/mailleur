@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0rc10",
+  "cases": [
+    {
+      "geometry": "quad",
+      "order": 1,
+      "domain_type": "quad",
+      "domain_cells": 48,
+      "nodes": 63,
+      "generation_method": "rust_direct_structured",
+      "direct_high_order_nodes": false,
+      "minimum_quality": 1.0,
+      "cell_counts": {
+        "line": 28,
+        "quad": 48
+      },
+      "generation_api_seconds": 0.05673037500037026,
+      "kernel_seconds": 0.002446792
+    },
+    {
+      "geometry": "quad",
+      "order": 2,
+      "domain_type": "quad8",
+      "domain_cells": 48,
+      "nodes": 173,
+      "generation_method": "rust_direct_structured",
+      "direct_high_order_nodes": true,
+      "minimum_quality": 1.0,
+      "cell_counts": {
+        "line3": 28,
+        "quad8": 48
+      },
+      "generation_api_seconds": 0.05333495899958507,
+      "kernel_seconds": 0.002478416
+    },
+    {
+      "geometry": "hex",
+      "order": 1,
+      "domain_type": "hexahedron",
+      "domain_cells": 72,
+      "nodes": 140,
+      "generation_method": "rust_direct_structured",
+      "direct_high_order_nodes": false,
+      "minimum_quality": 1.0,
+      "cell_counts": {
+        "line": 52,
+        "quad": 108,
+        "hexahedron": 72
+      },
+      "generation_api_seconds": 0.06357704099991679,
+      "kernel_seconds": 0.006517833
+    },
+    {
+      "geometry": "hex",
+      "order": 2,
+      "domain_type": "hexahedron20",
+      "domain_cells": 72,
+      "nodes": 477,
+      "generation_method": "rust_direct_structured",
+      "direct_high_order_nodes": true,
+      "minimum_quality": 0.9999999999999999,
+      "cell_counts": {
+        "line3": 52,
+        "quad8": 108,
+        "hexahedron20": 72
+      },
+      "generation_api_seconds": 0.0797842080000919,
+      "kernel_seconds": 0.008739333
+    }
+  ],
+  "passed": true
+}

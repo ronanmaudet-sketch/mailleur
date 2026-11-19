@@ -14,7 +14,8 @@ def plate(mode="planar", **geometry):
     return {"version": 1, "name": "Plaque test", "mode": mode,
             "geometry": {"kind": "plate", "width": 6, "height": 4,
                          "holes": [{"x": 3, "y": 2, "radius": .6}], **geometry},
-            "mesh": {"size": .8, "min_size": .2, "threads": 1}}
+            "mesh": {"size": .8, "min_size": .2, "threads": 1,
+                     "element_shape": "tetrahedron" if mode == "volume" else "triangle"}}
 
 
 class ProjectValidation(unittest.TestCase):
@@ -23,20 +24,18 @@ class ProjectValidation(unittest.TestCase):
         value = normalize_project(source)
         self.assertEqual(value["mode"], "planar")
         self.assertEqual(value["mesh"]["threads"], 1)
-        self.assertEqual(value["mesh"]["element_policy"], "quad_hex_only")
         self.assertNotIn("mesh", source)
 
     def test_invalid_controls(self):
         for mesh in ({"size": float("nan")}, {"size": 0}, {"size": True},
                      {"threads": 0}, {"threads": 65}, {"order": 3},
-                     {"size": .1, "min_size": .5}, {"algorithm": "script"},
-                     {"element_policy": "tetra"}, {"element_policy": None}):
+                     {"size": .1, "min_size": .5}, {"algorithm": "script"}):
             with self.subTest(mesh=mesh), self.assertRaises(ValueError):
                 normalize_project({"geometry": {"kind": "plate"}, "mesh": mesh})
         with self.assertRaises(ValueError):
             normalize_project({"geometry": {"kind": "box"}, "mode": "planar"})
-        volume = normalize_project({"geometry": {"kind": "box"}, "mode": "volume", "mesh": {"recombine": True}})
-        self.assertEqual(volume["mesh"]["element_policy"], "quad_hex_only")
+        with self.assertRaises(ValueError):
+            normalize_project({"geometry": {"kind": "box"}, "mode": "volume", "mesh": {"recombine": True}})
         for bad in ({"mode": []}, {"geometry": {"kind": []}}, {"mesh": {"algorithm": {}}}):
             with self.assertRaises(ValueError):
                 normalize_project(bad)
@@ -84,16 +83,14 @@ class GmshIntegration(unittest.TestCase):
                 p = plate(**geometry)
                 p["mesh"]["order"] = 2
                 report, preview = self.run_case(p)
-                self.assertIn("Quadrilateral 8", report["cell_counts"])
-                self.assertFalse(any("Triangle" in kind for kind in report["cell_counts"]))
+                self.assertIn("Triangle 6", report["cell_counts"])
                 self.assertEqual(report["mesh_settings"]["order"], 2)
                 self.assertTrue(any(c["order"] == 2 for c in preview["cells"]))
 
     def test_extruded_holes_make_positive_volume(self):
         report, preview = self.run_case(plate("volume", corner_radius=.4, thickness=1.2))
         self.assertEqual(report["dimension"], 3)
-        self.assertTrue(any(c["type"] == "hexa" for c in preview["cells"]))
-        self.assertFalse(any(c["type"] == "tetra" for c in preview["cells"]))
+        self.assertTrue(any(c["type"] == "tetra" for c in preview["cells"]))
         self.assertTrue(preview["surface_triangles"])
         self.assertGreaterEqual(report["geometry_diagnostics"]["volumes"], 1)
 
@@ -108,12 +105,14 @@ class GmshIntegration(unittest.TestCase):
     def test_surface_of_box_sphere_and_bracket(self):
         for kind, mode in [("box", "surface"), ("sphere", "volume"), ("bracket", "volume")]:
             with self.subTest(kind=kind):
-                report, _ = self.run_case({"mode": mode, "geometry": {"kind": kind}, "mesh": {"size": 1.2}})
+                shape = "tetrahedron" if mode == "volume" else "triangle"
+                report, _ = self.run_case({"mode": mode, "geometry": {"kind": kind},
+                                           "mesh": {"size": 1.2, "element_shape": shape}})
                 self.assertEqual(report["dimension"], 2 if mode == "surface" else 3)
 
     def test_polygon_holes(self):
         p = {"geometry": {"kind": "polygon", "outer": [[0, 0], [5, 0], [5, 4], [0, 4]],
-                          "holes": [[[1, 1], [2, 1], [2, 2], [1, 2]]]}, "mesh": {"size": .6}}
+                          "holes": [[[1, 1], [2, 1], [2, 2], [1, 2]]]}, "mesh": {"size": .6, "element_shape": "triangle"}}
         report, preview = self.run_case(p)
         self.assertGreater(report["elements"], 0)
         bad = copy.deepcopy(p)
@@ -146,12 +145,14 @@ class GmshIntegration(unittest.TestCase):
             gmsh.write(str(open_source))
         finally:
             gmsh.finalize()
-        p = {"mode": "volume", "geometry": {"kind": "import"}, "mesh": {"size": .5}}
+        p = {"mode": "volume", "geometry": {"kind": "import"},
+             "mesh": {"size": .5, "element_shape": "tetrahedron"}}
         report, _ = self.run_case(p, source)
         self.assertEqual(report["geometry_diagnostics"]["source_format"], ".step")
         with self.assertRaisesRegex(ValueError, "volume fermé"):
             run_project(p, self.directory / "open", open_source)
         p["mode"] = "surface"
+        p["mesh"]["element_shape"] = "triangle"
         self.run_case(p, open_source)
 
     def test_closed_brep_faces_can_be_sewn_without_filling_hole(self):
@@ -167,7 +168,8 @@ class GmshIntegration(unittest.TestCase):
             gmsh.write(str(source))
         finally:
             gmsh.finalize()
-        p = {"mode": "volume", "geometry": {"kind": "import"}, "mesh": {"size": .6}}
+        p = {"mode": "volume", "geometry": {"kind": "import"},
+             "mesh": {"size": .6, "element_shape": "tetrahedron"}}
         with self.assertRaises(ValueError):
             run_project(p, self.directory / "unsewn", source)
         p["repair"] = {"enabled": True, "make_solids": True, "sew": True}
@@ -195,11 +197,13 @@ endloop
 endfacet
 endsolid open
 """)
-        p = {"mode": "surface", "geometry": {"kind": "import"}, "mesh": {"size": .6}}
+        p = {"mode": "surface", "geometry": {"kind": "import"},
+             "mesh": {"size": .6, "element_shape": "triangle"}}
         report, _ = self.run_case(p, source)
         self.assertEqual(report["geometry_diagnostics"]["source_format"], ".stl")
         self.assertGreater(report["rust_metrics"]["topology"]["open_surface_edges"], 0)
         p["mode"] = "volume"
+        p["mesh"]["element_shape"] = "tetrahedron"
         with self.assertRaisesRegex(ValueError, "ouvert"):
             run_project(p, self.directory / "openvolume", source)
 
@@ -216,7 +220,7 @@ endsolid open
                 "vertex " + " ".join(str(v) for v in point) + "\n" for point in triangle)
             + "endloop\nendfacet\n" for triangle in triangles) + "endsolid tetra\n")
         report, _ = self.run_case({"mode": "volume", "geometry": {"kind": "import"},
-                                   "mesh": {"size": .3}}, source)
+                                   "mesh": {"size": .3, "element_shape": "tetrahedron"}}, source)
         self.assertEqual(report["geometry_diagnostics"]["source_format"], ".stl")
         self.assertEqual(report["rust_metrics"]["top_dimension"], 3)
         self.assertEqual(report["rust_metrics"]["topology"]["nonmanifold_volume_faces"], 0)

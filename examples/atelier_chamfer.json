@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "name": "Plaque chanfreinée",
+  "name": "Plaque chanfreinée · triangles",
   "mode": "planar",
   "geometry": {
     "kind": "plate",
@@ -25,12 +25,13 @@
   "mesh": {
     "size": 0.65,
     "min_size": 0.18,
-    "order": 1,
+    "order": 2,
     "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
     "max_elements": 200000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "triangle",
+    "quadratic_layout": "serendipity"
   },
   "repair": {
     "enabled": false,

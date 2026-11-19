@@ -4,7 +4,7 @@
 #[path = "corpus_generator.rs"]
 pub mod generator;
 
-use generator::{case_at, hash_json, Plan, FAMILIES, GENERATOR_VERSION};
+use generator::{case_at, hash_json, Plan, GENERATOR_VERSION};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
@@ -14,7 +14,6 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 type R<T> = Result<T, String>;
 const SCHEMA: &str = "atelier.corpus.v1";
-const NUMERICS_VERSION: &str = "atelier.corpus.numerics.rc9_quad_hex_only";
 const MAX_LINE: usize = 8 * 1024 * 1024;
 
 fn now() -> u64 {
@@ -145,13 +144,16 @@ fn load_manifest(root: &Path) -> R<(Value, Plan)> {
     if value["schema"] != SCHEMA
         || value["generator_version"] != GENERATOR_VERSION
         || value["feature_schema"] != crate::representation::SCHEMA
-        || value["element_policy"] != crate::dataset_model::ELEMENT_POLICY
     {
         return Err(
             "Version de corpus incompatible ; les données existantes sont conservées".into(),
         );
     }
-    let plan = Plan::parse(&value["plan"])?;
+    let mut stored = value["plan"].clone();
+    if stored.is_object() && stored.get("profile").is_none() {
+        stored["profile"] = json!("general");
+    }
+    let plan = Plan::parse(&stored)?;
     if value["planned_total"].as_u64() != Some(plan.total()) {
         return Err("Nombre de configurations du manifeste incohérent".into());
     }
@@ -161,16 +163,11 @@ fn load_manifest(root: &Path) -> R<(Value, Plan)> {
     Ok((value, plan))
 }
 fn fresh_checkpoint() -> Value {
-    json!({"schema":"atelier.corpus.checkpoint.v1","next_index":0,"completed_cases":0,"generated_cases":0,"meshed_cases":0,"admissible_cases":0,"accepted_actions":0,"failed_actions":0,"backend_evaluations":0,"split_counts":{"train":0,"validation":0,"test":0},"origin_counts":{"structured":0,"random":0},"family_counts":{},"updated_at":now(),
-        "integrity":{"schema":"atelier.corpus.integrity.v1","adopted_legacy_integrity":false,"historical_integrity_proven":true}})
+    json!({"schema":"atelier.corpus.checkpoint.v1","next_index":0,"completed_cases":0,"generated_cases":0,"meshed_cases":0,"admissible_cases":0,"accepted_actions":0,"failed_actions":0,"backend_evaluations":0,"split_counts":{"train":0,"validation":0,"test":0},"origin_counts":{"structured":0,"random":0},"family_counts":{},"updated_at":now()})
 }
 fn checkpoint(root: &Path, plan: &Plan) -> R<Value> {
     let path = root.join("checkpoint.json");
     if !path.exists() {
-        if path.is_symlink() || root.join(LEDGER_NAME).exists()
-            || (root.join("shards").exists() && fs::read_dir(root.join("shards")).map_err(|e|e.to_string())?.next().is_some()) {
-            return Err("Corpus natif sans checkpoint : les anciennes empreintes ont disparu ; aucune reconstruction implicite n'est effectuée".into());
-        }
         return Ok(fresh_checkpoint());
     }
     let value = read_json(&path)?;
@@ -250,153 +247,6 @@ fn shard(root: &Path, index: u64, plan: &Plan) -> PathBuf {
         .join(format!("cases-{:06}.jsonl", index / plan.shard_size))
 }
 
-// One fixed-size external entry per closed shard: number, bytes, records (u64
-// little endian), SHA256 (32 bytes). This is streamed, never placed in the
-// 4-MiB checkpoint. Even shard_size=1 cannot make checkpoint RAM grow with N.
-const LEDGER_ENTRY_BYTES: u64 = 56;
-const LEDGER_NAME: &str = "journal.integrity";
-#[derive(Clone)]
-struct LedgerState {
-    entries: u64,
-    digest: Sha256,
-}
-impl LedgerState {
-    fn new() -> Self { Self { entries: 0, digest: Sha256::new() } }
-    fn value(&self) -> Value {
-        json!({"schema":"atelier.corpus.ledger.v1","entries":self.entries,
-            "offset":self.entries * LEDGER_ENTRY_BYTES,
-            "prefix_sha256":format!("{:x}",self.digest.clone().finalize())})
-    }
-}
-fn valid_digest(value: &Value) -> R<&str> {
-    value.as_str().filter(|s| s.len()==64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
-        .ok_or_else(|| "Empreinte du journal invalide".into())
-}
-fn shard_inventory(root: &Path, plan: &Plan) -> R<u64> {
-    let directory=root.join("shards");
-    if directory.is_symlink() { return Err("Le dossier des segments ne doit pas être un lien symbolique".into()); }
-    if !directory.exists() { return Ok(0); }
-    let mut count=0u64;
-    let mut maximum=0u64;
-    for entry in fs::read_dir(directory).map_err(|e|e.to_string())? {
-        let entry=entry.map_err(|e|e.to_string())?;
-        if !entry.file_type().map_err(|e|e.to_string())?.is_file() {
-            return Err("Un segment du corpus n'est pas un fichier régulier (lien interdit)".into());
-        }
-        let name=entry.file_name().into_string().map_err(|_|"Nom de segment invalide")?;
-        let number=name.strip_prefix("cases-").and_then(|s|s.strip_suffix(".jsonl"))
-            .and_then(|s|s.parse::<u64>().ok()).ok_or("Nom de segment inconnu")?;
-        if name!=format!("cases-{number:06}.jsonl") || number >= plan.total().div_ceil(plan.shard_size) {
-            return Err("Numéro de segment hors du plan ou non canonique".into());
-        }
-        count+=1; maximum=maximum.max(number);
-    }
-    if count>0 && maximum+1!=count { return Err("Trou dans les segments du corpus ; aucun résultat n'est supprimé".into()); }
-    Ok(count)
-}
-fn hash_exact_prefix(path: &Path, bytes: u64, exact: bool) -> R<Sha256> {
-    if path.is_symlink() { return Err("Un segment du corpus est un lien symbolique".into()); }
-    let mut file=File::open(path).map_err(|e|format!("Segment absent : {e}"))?;
-    let size=file.metadata().map_err(|e|e.to_string())?.len();
-    if size<bytes || (exact && size!=bytes) { return Err("La longueur d'un segment durable a changé".into()); }
-    let mut digest=Sha256::new(); let mut remaining=bytes; let mut buffer=[0u8;65536]; let mut last=0;
-    while remaining>0 {
-        let take=remaining.min(buffer.len() as u64) as usize;
-        file.read_exact(&mut buffer[..take]).map_err(|e|e.to_string())?;
-        digest.update(&buffer[..take]);last=buffer[take-1];remaining-=take as u64;
-    }
-    if bytes==0 || last!=b'\n' { return Err("Un segment durable ne se termine pas par une ligne complète".into()); }
-    Ok(digest)
-}
-fn ledger_entry(cursor: &JournalCursor) -> [u8;56] {
-    let mut raw=[0u8;56];
-    raw[..8].copy_from_slice(&cursor.number.to_le_bytes());
-    raw[8..16].copy_from_slice(&cursor.bytes.to_le_bytes());
-    raw[16..24].copy_from_slice(&cursor.records.to_le_bytes());
-    raw[24..].copy_from_slice(&cursor.digest.clone().finalize());raw
-}
-fn ledger_number(raw: &[u8], at: usize) -> u64 {
-    u64::from_le_bytes(raw[at..at+8].try_into().unwrap())
-}
-fn verify_closed_shards(root: &Path, plan: &Plan, raw: &Value, number: u64) -> R<(LedgerState,u64)> {
-    if raw["schema"]!="atelier.corpus.ledger.v1" || raw["entries"].as_u64()!=Some(number)
-        || raw["offset"].as_u64()!=Some(number*LEDGER_ENTRY_BYTES) {
-        return Err("Ancrage des segments fermés incohérent".into());
-    }
-    let expected=valid_digest(&raw["prefix_sha256"])?;
-    let path=root.join(LEDGER_NAME);
-    if path.is_symlink() { return Err("Le registre d'intégrité ne doit pas être un lien symbolique".into()); }
-    if path.exists() && !path.is_file() { return Err("Le registre d'intégrité n'est pas un fichier régulier".into()); }
-    let mut state=LedgerState::new();let mut verified=0;
-    if number>0 {
-        let mut file=File::open(&path).map_err(|e|format!("Registre d'intégrité absent : {e}"))?;
-        if file.metadata().map_err(|e|e.to_string())?.len()<number*LEDGER_ENTRY_BYTES {
-            return Err("Le registre d'intégrité durable a été tronqué".into());
-        }
-        let mut entry=[0u8;56];
-        for index in 0..number {
-            file.read_exact(&mut entry).map_err(|e|e.to_string())?;
-            let bytes=ledger_number(&entry,8);
-            if ledger_number(&entry,0)!=index || ledger_number(&entry,16)!=plan.shard_size
-                || bytes==0 || bytes>plan.shard_size.saturating_mul(MAX_LINE as u64) {
-                return Err("Entrée d'intégrité de segment incohérente".into());
-            }
-            let digest=hash_exact_prefix(&shard(root,index*plan.shard_size,plan),bytes,true)?;
-            if digest.finalize()[..]!=entry[24..] {
-                return Err(format!("Le segment fermé {index} a été modifié ; reprise refusée sans suppression"));
-            }
-            state.digest.update(entry);state.entries+=1;verified+=bytes;
-        }
-    }
-    if format!("{:x}",state.digest.clone().finalize())!=expected {
-        return Err("Le registre d'intégrité durable a été modifié".into());
-    }
-    Ok((state,verified))
-}
-// A crash may leave an entry after the checkpoint's anchored prefix. It is
-// accepted only if its complete bytes equal the independently recovered shard.
-// A partial uncommitted entry can be replaced; committed bytes never can.
-fn close_shard(path: &Path, plan: &Plan, cursor: &JournalCursor) -> R<LedgerState> {
-    if cursor.records!=plan.shard_size || cursor.ledger.entries!=cursor.number {
-        return Err("Fermeture d'un segment incomplet ou registre non contigu".into());
-    }
-    if path.is_symlink() { return Err("Le registre d'intégrité est un lien symbolique".into()); }
-    if path.exists() && !path.is_file() { return Err("Le registre d'intégrité n'est pas un fichier régulier".into()); }
-    let mut file=OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).map_err(|e|e.to_string())?;
-    let offset=cursor.ledger.entries*LEDGER_ENTRY_BYTES;
-    let size=file.metadata().map_err(|e|e.to_string())?.len();
-    if size<offset { return Err("Le registre d'intégrité durable a été tronqué".into()); }
-    let entry=ledger_entry(cursor);
-    file.seek(SeekFrom::Start(offset)).map_err(|e|e.to_string())?;
-    if size>=offset+LEDGER_ENTRY_BYTES {
-        let mut existing=[0u8;56];file.read_exact(&mut existing).map_err(|e|e.to_string())?;
-        if existing!=entry { return Err("Une entrée d'intégrité non publiée ne correspond plus au segment".into()); }
-    } else {
-        file.set_len(offset).map_err(|e|e.to_string())?;
-        file.write_all(&entry).map_err(|e|e.to_string())?;
-        file.sync_all().map_err(|e|e.to_string())?;
-    }
-    let mut state=cursor.ledger.clone();state.digest.update(entry);state.entries+=1;Ok(state)
-}
-fn verify_ledger_tail(path: &Path, plan: &Plan, cursor: Option<&JournalCursor>) -> R<()> {
-    if path.is_symlink() { return Err("Le registre d'intégrité est un lien symbolique".into()); }
-    if path.exists() && !path.is_file() { return Err("Le registre d'intégrité n'est pas un fichier régulier".into()); }
-    if !path.exists() { return Ok(()); }
-    let size=fs::metadata(path).map_err(|e|e.to_string())?.len();
-    let offset=cursor.map_or(0,|c|c.ledger.entries*LEDGER_ENTRY_BYTES);
-    if size<offset { return Err("Le registre d'intégrité durable a été tronqué".into()); }
-    if size==offset { return Ok(()); }
-    let cursor=cursor.filter(|c|c.records==plan.shard_size).ok_or("Entrée d'intégrité sans segment fermé correspondant")?;
-    if size>offset+LEDGER_ENTRY_BYTES { return Err("Le registre d'intégrité dépasse les segments existants".into()); }
-    if size==offset+LEDGER_ENTRY_BYTES {
-        let mut file=File::open(path).map_err(|e|e.to_string())?;
-        file.seek(SeekFrom::Start(offset)).map_err(|e|e.to_string())?;
-        let mut entry=[0u8;56];file.read_exact(&mut entry).map_err(|e|e.to_string())?;
-        if entry!=ledger_entry(cursor) { return Err("Entrée d'intégrité non publiée altérée".into()); }
-    }
-    Ok(())
-}
-
 /// A cursor never substitutes an unchecked byte offset for journal validation.
 /// Its prefix digest is checked before any new row is decoded or any partial
 /// tail is truncated. Compared with rc4 this avoids rebuilding every JSON Value
@@ -406,14 +256,13 @@ struct JournalCursor {
     bytes: u64,
     records: u64,
     digest: Sha256,
-    ledger: LedgerState,
 }
 impl JournalCursor {
     fn value(&self, last_case_id: &Value) -> Value {
-        json!({"schema":"atelier.corpus.cursor.v2","shard":self.number,
+        json!({"schema":"atelier.corpus.cursor.v1","shard":self.number,
             "offset":self.bytes,"records":self.records,
             "prefix_sha256":format!("{:x}",self.digest.clone().finalize()),
-            "last_case_id":last_case_id,"closed_shards":self.ledger.value()})
+            "last_case_id":last_case_id})
     }
     fn stamp(&self, cp: &mut Value) {
         cp["journal_cursor"] = self.value(&cp["last_case_id"]);
@@ -425,21 +274,16 @@ struct Recovery {
     verified_bytes: u64,
     upgraded: bool,
     cursor: Option<JournalCursor>,
-    closed_shards: u64,
-    adopted_legacy: bool,
 }
 impl Recovery {
     fn value(&self) -> Value {
         json!({"recovered_cases":self.cases,"decoded_records":self.decoded_records,
             "verified_bytes":self.verified_bytes,"legacy_checkpoint_upgraded":self.upgraded,
-            "verified_closed_shards":self.closed_shards,
-            "adopted_legacy_integrity_this_call":self.adopted_legacy,
-            "validation":"sha256_all_closed_shards_and_active_prefix_then_decode_uncommitted_tail",
-            "cost":"Chaque ouverture/status relit les octets durables en mémoire bornée ; aucun rehash par cas pendant un lot"})
+            "validation":"sha256_durable_prefix_then_decode_uncommitted_tail"})
     }
 }
 
-fn cursor_prefix(root: &Path, plan: &Plan, cp: &Value, legacy: bool) -> R<Option<JournalCursor>> {
+fn cursor_prefix(root: &Path, plan: &Plan, cp: &Value) -> R<Option<JournalCursor>> {
     let Some(raw) = cp.get("journal_cursor") else {
         return Ok(None);
     };
@@ -447,7 +291,7 @@ fn cursor_prefix(root: &Path, plan: &Plan, cp: &Value, legacy: bool) -> R<Option
         .as_u64()
         .ok_or("Indice de reprise absent")?;
     if next == 0
-        || raw["schema"] != if legacy {"atelier.corpus.cursor.v1"} else {"atelier.corpus.cursor.v2"}
+        || raw["schema"] != "atelier.corpus.cursor.v1"
         || raw["shard"].as_u64() != Some((next - 1) / plan.shard_size)
         || raw["records"].as_u64() != Some((next - 1) % plan.shard_size + 1)
         || raw["last_case_id"] != cp["last_case_id"]
@@ -462,7 +306,14 @@ fn cursor_prefix(root: &Path, plan: &Plan, cp: &Value, legacy: bool) -> R<Option
     if bytes > records.saturating_mul(MAX_LINE as u64) {
         return Err("Offset du curseur hors du segment borné".into());
     }
-    let expected = valid_digest(&raw["prefix_sha256"])?;
+    let expected = raw["prefix_sha256"]
+        .as_str()
+        .filter(|s| {
+            s.len() == 64
+                && s.bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        })
+        .ok_or("Empreinte du curseur de reprise invalide")?;
     let number = raw["shard"].as_u64().unwrap();
     let path = shard(root, next - 1, plan);
     if path.is_symlink() {
@@ -494,128 +345,122 @@ fn cursor_prefix(root: &Path, plan: &Plan, cp: &Value, legacy: bool) -> R<Option
         bytes,
         records,
         digest,
-        ledger: LedgerState::new(),
     }))
 }
 
-/// A v1 checkpoint has no anchors for its earlier shards. Adopting its current
-/// bytes is explicit, never claimed to prove their earlier integrity. The
-/// derived ledger is staged and published before the checkpoint. A crash in
-/// between leaves the old checkpoint requiring the same explicit adoption.
-struct MigrationLedger(PathBuf);
-impl Drop for MigrationLedger {
-    fn drop(&mut self) { let _=fs::remove_file(&self.0); }
-}
+/// Existing v1 checkpoints are upgraded after one ordinary rc4 scan. A crash
+/// can leave durable rows after the saved cursor; only those rows are decoded.
 fn recover(root: &Path, plan: &Plan, cp: &mut Value) -> R<Recovery> {
-    recover_with_adoption(root,plan,cp,false)
-}
-fn recover_with_adoption(root: &Path, plan: &Plan, cp: &mut Value, adopt: bool) -> R<Recovery> {
-    let shard_count=shard_inventory(root,plan)?;
-    let saved_next=cp["next_index"].as_u64().ok_or("Indice de reprise absent")?;
-    let legacy=cp["integrity"]["schema"]!="atelier.corpus.integrity.v1"
-        || (saved_next>0 && cp["journal_cursor"]["schema"]!="atelier.corpus.cursor.v2");
-    if legacy && !adopt {
-        return Err("Ancien corpus sans empreintes de tous ses segments : sauvegarder le dossier puis exécuter `python -m atelier corpus status --directory DOSSIER --adopt-legacy-integrity`. Cette adoption établit seulement une référence des octets actuels, sans prouver leur intégrité passée.".into());
+    if root.join("shards").is_symlink() {
+        return Err("Le dossier des segments ne doit pas être un lien symbolique".into());
     }
-    if legacy && cp.get("journal_cursor").is_some() {
-        match cp["journal_cursor"]["schema"].as_str() {
-            Some("atelier.corpus.cursor.v1") => { cursor_prefix(root,plan,cp,true)?; },
-            Some("atelier.corpus.cursor.v2") => { cursor_prefix(root,plan,cp,false)?; },
-            _ => return Err("Version du curseur inconnue ; adoption refusée".into()),
+    let saved = cursor_prefix(root, plan, cp)?;
+    let upgraded = saved.is_none() && cp["next_index"].as_u64().unwrap_or(0) > 0;
+    let mut verified_bytes = saved.as_ref().map_or(0, |c| c.bytes);
+    let mut number = saved.as_ref().map_or_else(
+        || cp["next_index"].as_u64().unwrap_or(0).saturating_sub(1) / plan.shard_size,
+        |c| c.number,
+    );
+    let mut first = saved;
+    let mut latest = None;
+    let mut recovered = 0;
+    let mut decoded_records = 0;
+    loop {
+        let path = root.join("shards").join(format!("cases-{number:06}.jsonl"));
+        if !path.exists() {
+            if recovered == 0 && cp["next_index"].as_u64().unwrap_or(0) > number * plan.shard_size {
+                return Err("Le segment attendu par le point de reprise a disparu ; le corpus est conservé sans ajouter de trou".into());
+            }
+            break;
         }
-    }
-    if saved_next>0 && shard_count==0 { return Err("Les segments durables ont disparu".into()); }
-    let stage=if legacy {
-        let path=root.join(format!(".journal.integrity.{}-{}.tmp",std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()));
-        OpenOptions::new().write(true).create_new(true).open(&path).map_err(|e|e.to_string())?;
-        Some(MigrationLedger(path))
-    } else { None };
-    let ledger_path=stage.as_ref().map_or_else(||root.join(LEDGER_NAME),|s|s.0.clone());
-    let mut working=cp.clone();
-    let mut first=if legacy { None } else { cursor_prefix(root,plan,cp,false)? };
-    let mut verified_bytes=first.as_ref().map_or(0,|c|c.bytes);
-    if let Some(cursor)=first.as_mut() {
-        let (state,bytes)=verify_closed_shards(root,plan,&cp["journal_cursor"]["closed_shards"],cursor.number)?;
-        cursor.ledger=state;verified_bytes+=bytes;
-    }
-    let mut number=first.as_ref().map_or(0,|c|c.number);
-    let mut ledger=first.as_ref().map_or_else(LedgerState::new,|c|c.ledger.clone());
-    let mut latest=None;
-    let mut recovered=0;
-    let mut decoded_records=0;
-    while number<shard_count {
-        let path=root.join("shards").join(format!("cases-{number:06}.jsonl"));
-        let mut file=OpenOptions::new().read(true).write(true).open(&path).map_err(|e|e.to_string())?;
-        let mut cursor=first.take().unwrap_or_else(||JournalCursor {
-            number,bytes:0,records:0,digest:Sha256::new(),ledger:ledger.clone(),
+        if path.is_symlink() {
+            return Err("Un segment du corpus est un lien symbolique".into());
+        }
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(|e| e.to_string())?;
+        let mut cursor = first.take().unwrap_or_else(|| JournalCursor {
+            number,
+            bytes: 0,
+            records: 0,
+            digest: Sha256::new(),
         });
-        file.seek(SeekFrom::Start(cursor.bytes)).map_err(|e|e.to_string())?;
-        let mut reader=BufReader::new(file.try_clone().map_err(|e|e.to_string())?);
-        let mut bytes=Vec::new();
-        let mut valid=cursor.bytes;
-        let mut count=cursor.records;
+        file.seek(SeekFrom::Start(cursor.bytes))
+            .map_err(|e| e.to_string())?;
+        let mut reader = BufReader::new(file.try_clone().map_err(|e| e.to_string())?);
+        let mut bytes = Vec::new();
+        let mut valid = cursor.bytes;
+        let mut count = cursor.records;
         loop {
             bytes.clear();
-            let n=reader.by_ref().take((MAX_LINE+1) as u64).read_until(b'\n',&mut bytes).map_err(|e|e.to_string())?;
-            if n==0 { break; }
-            if bytes.len()>MAX_LINE { return Err("Une ligne de corpus dépasse 8 Mio".into()); }
-            let expected=number*plan.shard_size+count;
-            if bytes.last()!=Some(&b'\n') {
-                if number+1<shard_count || expected<saved_next {
-                    return Err("Ligne durable ou segment fermé tronqué ; aucune donnée n'est supprimée".into());
-                }
-                file.set_len(valid).map_err(|e|e.to_string())?;
-                file.seek(SeekFrom::Start(valid)).map_err(|e|e.to_string())?;
-                file.sync_all().map_err(|e|e.to_string())?;
+            let n = reader
+                .by_ref()
+                .take((MAX_LINE + 1) as u64)
+                .read_until(b'\n', &mut bytes)
+                .map_err(|e| e.to_string())?;
+            if n == 0 {
                 break;
             }
-            let row:Value=serde_json::from_slice(&bytes).map_err(|e|format!("Segment {} invalide : {e}",path.display()))?;
-            decoded_records+=1;
-            if row["schema"]!="atelier.corpus.case.v1" || row["index"].as_u64()!=Some(expected) || expected>=plan.total() {
+            if bytes.len() > MAX_LINE {
+                return Err("Une ligne de corpus dépasse 8 Mio".into());
+            }
+            if bytes.last() != Some(&b'\n') {
+                file.set_len(valid).map_err(|e| e.to_string())?;
+                file.seek(SeekFrom::Start(valid))
+                    .map_err(|e| e.to_string())?;
+                file.sync_all().map_err(|e| e.to_string())?;
+                break;
+            }
+            let row: Value = serde_json::from_slice(&bytes)
+                .map_err(|e| format!("Segment {} invalide : {e}", path.display()))?;
+            decoded_records += 1;
+            let expected = number * plan.shard_size + count;
+            if row["schema"] != "atelier.corpus.case.v1"
+                || row["index"].as_u64() != Some(expected)
+                || expected >= plan.total()
+            {
                 return Err("Segment du corpus non contigu ou incompatible".into());
             }
-            if expected+1==saved_next && cp.get("last_case_id").is_some() && row["case_id"]!=cp["last_case_id"] {
-                return Err("Le dernier cas durable ne correspond plus au point de reprise".into());
+            if expected >= cp["next_index"].as_u64().unwrap_or(0) {
+                apply_record(cp, &row)?;
+                recovered += 1;
             }
-            if expected>=working["next_index"].as_u64().unwrap_or(0) {
-                apply_record(&mut working,&row)?;recovered+=1;
+            count += 1;
+            if count > plan.shard_size {
+                return Err("Un segment contient trop de configurations".into());
             }
-            count+=1;
-            if count>plan.shard_size { return Err("Un segment contient trop de configurations".into()); }
-            valid+=n as u64;verified_bytes+=n as u64;cursor.digest.update(&bytes);
+            valid += n as u64;
+            verified_bytes += n as u64;
+            cursor.digest.update(&bytes);
         }
-        if saved_next>number*plan.shard_size+count && number+1==shard_count {
+        if cp["next_index"].as_u64().unwrap_or(0) > number * plan.shard_size + count {
             return Err("Le point de reprise dépasse les données durables du segment".into());
         }
-        cursor.bytes=valid;cursor.records=count;
-        if number+1<shard_count {
-            if count!=plan.shard_size { return Err("Un segment non final est incomplet".into()); }
-            ledger=close_shard(&ledger_path,plan,&cursor)?;
+        cursor.bytes = valid;
+        cursor.records = count;
+        if count > 0 {
+            latest = Some(cursor);
         }
-        if count>0 { latest=Some(cursor); }
-        number+=1;
+        if count < plan.shard_size {
+            break;
+        }
+        number += 1;
     }
-    verify_ledger_tail(&ledger_path,plan,latest.as_ref())?;
-    if legacy {
-        if root.join(LEDGER_NAME).is_symlink() { return Err("Le registre d'intégrité est un lien symbolique".into()); }
-        // Windows FlushFileBuffers requires write access; File::open only
-        // grants read access. Preserve every staged byte and close this handle
-        // before publishing the ledger under its final name.
-        let ledger_file=OpenOptions::new().write(true).truncate(false).open(&ledger_path)
-            .map_err(|e|format!("Ouverture du registre d'intégrité à synchroniser : {e}"))?;
-        ledger_file.sync_all().map_err(|e|format!("Synchronisation du registre d'intégrité : {e}"))?;
-        drop(ledger_file);
-        fs::rename(&ledger_path,root.join(LEDGER_NAME)).map_err(|e|e.to_string())?;
-        working["integrity"]=json!({"schema":"atelier.corpus.integrity.v1",
-            "adopted_legacy_integrity":true,"historical_integrity_proven":false,"adopted_at":now(),
-            "warning":"Adoption explicite des octets présents ; aucune preuve de leur intégrité avant cette date"});
+    if let Some(cursor) = &latest {
+        cursor.stamp(cp);
     }
-    if let Some(cursor)=&latest { cursor.stamp(&mut working); }
-    if recovered>0 || legacy { atomic_json(&root.join("checkpoint.json"),&working)?; }
-    *cp=working;
-    Ok(Recovery {cases:recovered,decoded_records,verified_bytes,upgraded:legacy,
-        closed_shards:latest.as_ref().map_or(0,|c|c.ledger.entries),adopted_legacy:legacy,cursor:latest})
+    if recovered > 0 || upgraded {
+        atomic_json(&root.join("checkpoint.json"), cp)?;
+    }
+    Ok(Recovery {
+        cases: recovered,
+        decoded_records,
+        verified_bytes,
+        upgraded,
+        cursor: latest,
+    })
 }
 
 /// Keep one append handle and digest state during a batch. Every case still
@@ -636,9 +481,7 @@ impl JournalWriter {
     fn append(&mut self, root: &Path, plan: &Plan, record: &Value) -> R<()> {
         let index = record["index"].as_u64().ok_or("Indice de cas absent")?;
         let number = index / plan.shard_size;
-        let mut ledger=self.cursor.as_ref().map_or_else(LedgerState::new,|c|c.ledger.clone());
         if self.cursor.as_ref().is_some_and(|c| c.number != number) {
-            ledger=close_shard(&root.join(LEDGER_NAME),plan,self.cursor.as_ref().unwrap())?;
             self.cursor = None;
             self.file = None;
         }
@@ -647,7 +490,6 @@ impl JournalWriter {
             bytes: 0,
             records: 0,
             digest: Sha256::new(),
-            ledger,
         });
         if cursor.records != index % plan.shard_size {
             return Err("Le curseur d'écriture ne correspond pas au prochain cas".into());
@@ -728,7 +570,8 @@ fn report(root: &Path, manifest: &Value, plan: &Plan, cp: &Value, operation: &st
     value["random"] = json!(plan.random);
     value["strategies"] = json!(plan.strategies);
     value["shard_size"] = json!(plan.shard_size);
-    value["family_count"] = json!(FAMILIES.len());
+    value["family_count"] = json!(generator::families(plan).len());
+    value["profile"] = json!(plan.profile);
     value["remaining_cases"] = json!(plan.total() - next);
     value["done"] = json!(next == plan.total());
     value["manifest_path"] = json!(root.join("manifest.json"));
@@ -737,48 +580,51 @@ fn report(root: &Path, manifest: &Value, plan: &Plan, cp: &Value, operation: &st
     value["computation_backend"] = json!("rust");
     value["generator_version"] = json!(GENERATOR_VERSION);
     value["feature_schema"] = json!(crate::representation::SCHEMA);
-    value["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
     value["planned_split_counts"] = manifest["planned_split_counts"].clone();
     value["planned_mesh_evaluations"] = json!(plan.total() * plan.strategies);
-    value["source_core_version"] = manifest["core_version"].clone();
-    value["source_numerics_version"] = manifest["numerics_version"].clone();
-    value["current_numerics_version"] = json!(NUMERICS_VERSION);
-    value["can_resume_generation"] = json!(manifest["numerics_version"]==NUMERICS_VERSION);
     value
 }
 
 fn status_report(root: &Path, manifest: &Value, plan: &Plan, operation: &str) -> R<Value> {
-    status_report_with_adoption(root,manifest,plan,operation,false)
-}
-fn status_report_with_adoption(root: &Path, manifest: &Value, plan: &Plan, operation: &str, adopt: bool) -> R<Value> {
     let lock = Lock::try_acquire(root)?;
     let mut cp = checkpoint(root, plan)?;
     let mut value;
     if lock.is_some() {
-        let recovered = recover_with_adoption(root, plan, &mut cp,adopt)?;
+        let recovered = recover(root, plan, &mut cp)?;
         value = report(root, manifest, plan, &cp, operation);
         value["recovered_cases"] = json!(recovered.cases);
         value["recovery"] = recovered.value();
         value["in_progress"] = json!(false);
         value["checkpoint_may_lag"] = json!(false);
     } else {
-        if adopt { return Err("Un lot est actif ; arrêter le lot avant d'adopter l'intégrité historique".into()); }
-        if cp["integrity"]["schema"]!="atelier.corpus.integrity.v1" {
-            return Err("Ancien corpus : attendre la fin du lot puis adopter explicitement son intégrité avec --adopt-legacy-integrity".into());
-        }
         value = report(root, manifest, plan, &cp, operation);
         value["in_progress"] = json!(true);
         value["checkpoint_may_lag"] = json!(true);
         value["status_note"] =
             json!("Un lot est actif ; les compteurs affichent son dernier point de reprise publié");
-        value["integrity_check_deferred"] = json!(true);
     }
     Ok(value)
+}
+
+fn require_quad_hex(plan: &Plan) -> R<()> {
+    if plan.profile != generator::QUAD_HEX {
+        return Err("Ce profil historique est consultable. Pour générer ou entraîner, créer un corpus direct_quad_hex dans un nouveau dossier.".into());
+    }
+    Ok(())
+}
+
+fn check_training_manifest(root: &Path) -> R<()> {
+    if root.join("manifest.json").exists() {
+        let (_, plan) = load_manifest(root)?;
+        require_quad_hex(&plan)?;
+    }
+    Ok(())
 }
 
 fn create_plan(root: &Path, request: &Value) -> R<Value> {
     let _lock = Lock::acquire(root)?;
     let plan = Plan::parse(request.get("plan").unwrap_or(&Value::Null))?;
+    require_quad_hex(&plan)?;
     if root.join("manifest.json").exists() {
         let (m, p) = load_manifest(root)?;
         if p != plan {
@@ -797,20 +643,18 @@ fn create_plan(root: &Path, request: &Value) -> R<Value> {
         return Err("Des segments existent sans manifeste ; aucun plan n'est écrasé".into());
     }
     let mut planned_splits = json!({"train":0,"validation":0,"test":0});
-    let families: Vec<Value> = FAMILIES
+    let family_names = generator::families(&plan);
+    let families: Vec<Value> = family_names
         .iter()
         .enumerate()
         .map(|(i, f)| {
-            let structured=plan.structured.saturating_sub(i as u64).div_ceil(FAMILIES.len() as u64);
-            let random=plan.random.saturating_sub(i as u64).div_ceil(FAMILIES.len() as u64);
-            increment(&mut planned_splits,generator::split_for_family(i),structured+random);
-            json!({"name":f,"split":generator::split_for_family(i),"structured":structured,"random":random,"total":structured+random})
+            let structured=plan.structured.saturating_sub(i as u64).div_ceil(family_names.len() as u64);
+            let random=plan.random.saturating_sub(i as u64).div_ceil(family_names.len() as u64);
+            increment(&mut planned_splits,generator::split_for_plan(&plan,i),structured+random);
+            json!({"name":f,"split":generator::split_for_plan(&plan,i),"structured":structured,"random":random,"total":structured+random})
         })
         .collect();
     let manifest = json!({"schema":SCHEMA,"generator_version":GENERATOR_VERSION,"feature_schema":crate::representation::SCHEMA,"core_version":env!("CARGO_PKG_VERSION"),"gmsh_version":"4.15.2","plan":plan,"planned_total":plan.total(),"families":families,"planned_split_counts":planned_splits,"plan_id":hash_json(&json!({"generator":GENERATOR_VERSION,"plan":plan})),"created_at":now(),"sampling":{"structured":"mixed-radix deterministic parameter grid with unique resolution coordinate","random":"family-stratified reproducible Latin hypercube with coprime affine permutations","split":"whole geometry families assigned before all parameter and meshing variations"},"notes":["Créer ce plan ne génère ni un million de fichiers ni un million de maillages","Les défauts synthétiques contrôlés ne couvrent pas toute la diversité des CAO industrielles","Les configurations de test sont séparées des familles d'apprentissage"]});
-    let mut manifest=manifest;
-    manifest["numerics_version"]=json!(NUMERICS_VERSION);
-    manifest["element_policy"]=json!(crate::dataset_model::ELEMENT_POLICY);
     atomic_json(&root.join("manifest.json"), &manifest)?;
     let cp = fresh_checkpoint();
     atomic_json(&root.join("checkpoint.json"), &cp)?;
@@ -965,7 +809,7 @@ fn evaluate_case(
         if features.iter().any(|v| !v.is_finite()) {
             return Err("La représentation du corpus contient une valeur non finie".into());
         }
-        let mut action = json!({"strategy_id":strategy_id,"mesh_settings":project["mesh"],"element_policy":{"requested":crate::dataset_model::ELEMENT_POLICY,"verified":false},"features":features.to_vec(),"target":0.,"success":false,"accepted":false});
+        let mut action = json!({"strategy_id":strategy_id,"mesh_settings":project["mesh"],"features":features.to_vec(),"target":0.,"success":false,"accepted":false});
         let action_started = Instant::now();
         let evaluated = if let Some(error) = &geometry_error {
             Err(error.clone())
@@ -977,9 +821,16 @@ fn evaluate_case(
         };
         match evaluated {
             Ok(report) => {
-                crate::dataset_model::validate_element_evidence(&report["element_policy"])?;
+                let g = &report["generation"];
+                if g["method"] != "rust_direct_structured"
+                    || g["element_shape"] != project["mesh"]["element_shape"]
+                    || g["intermediate_mesh_generated"] != false
+                    || g["recombination_used"] != false
+                {
+                    return Err("Le noyau n’a pas confirmé la génération directe quad/hex du corpus".into());
+                }
+                action["generator"] = g["method"].clone();
                 let accepted = report["quality"]["accepted"] == true;
-                action["element_policy"] = report["element_policy"].clone();
                 action["success"] = json!(true);
                 action["accepted"] = json!(accepted);
                 action["target"] = json!(crate::quality::score(&report)?);
@@ -1006,11 +857,9 @@ fn evaluate_case(
         actions.push(action);
     }
     case["schema"] = json!("atelier.corpus.case.v1");
-    case["core_version"] = json!(env!("CARGO_PKG_VERSION"));
-    case["numerics_version"] = json!(NUMERICS_VERSION);
     case["actions"] = json!(actions);
+    case["element_policy"] = json!(generator::QUAD_HEX);
     case["feature_schema"] = json!(crate::representation::SCHEMA);
-    case["element_policy"] = json!(crate::dataset_model::ELEMENT_POLICY);
     case["feature_count"] = json!(crate::representation::INPUTS);
     case["geometry_descriptor"] = descriptor;
     case["reference_inspection_success"] = json!(reference.is_some());
@@ -1069,9 +918,7 @@ fn owned_work(root: &Path, manifest: &Value) -> R<PathBuf> {
 fn run(root: &Path, request: &Value) -> R<Value> {
     let _lock = Lock::acquire(root)?;
     let (manifest, plan) = load_manifest(root)?;
-    if manifest["numerics_version"]!=NUMERICS_VERSION {
-        return Err("Provenance numérique du corpus antérieure ou incompatible : l'adoption d'intégrité ne convertit pas les anciens calculs en calculs rc7. Conserver ce corpus pour lecture/entraînement et créer un nouveau dossier pour produire des cas avec le noyau courant.".into());
-    }
+    require_quad_hex(&plan)?;
     let mut cp = checkpoint(root, &plan)?;
     let recovered = recover(root, &plan, &mut cp)?;
     let recovery_stats = recovered.value();
@@ -1151,41 +998,6 @@ fn run(root: &Path, request: &Value) -> R<Value> {
     Ok(result)
 }
 
-/// Keep the native corpus locked while training consumes the verified prefix.
-/// Hand-written streaming fixtures without any native plan/checkpoint are a
-/// separate, explicitly unanchored input and must not claim this guarantee.
-pub struct TrainingIntegrity {
-    _lock: Option<Lock>,
-    pub report: Value,
-}
-pub fn training_integrity(request: &Value) -> R<TrainingIntegrity> {
-    let root=PathBuf::from(request["corpus_dir"].as_str().ok_or("Dossier de corpus absent")?);
-    if root.is_symlink() { return Err("Le dossier de corpus ne doit pas être un lien symbolique".into()); }
-    let has_native_state=["checkpoint.json",LEDGER_NAME].iter()
-        .any(|name|root.join(name).exists() || root.join(name).is_symlink());
-    let native_manifest=if root.join("manifest.json").exists() || root.join("manifest.json").is_symlink() {
-        let manifest=read_json(&root.join("manifest.json"))?;
-        manifest["schema"]==SCHEMA || manifest.get("plan").is_some() || manifest.get("plan_id").is_some()
-    } else { false };
-    let native=has_native_state || native_manifest;
-    if !native {
-        return Ok(TrainingIntegrity {_lock:None,report:json!({"scope":"external_streaming_fixture",
-            "native_campaign_integrity_verified":false,
-            "note":"Entrée sans plan/checkpoint natif ; aucune garantie d'intégrité de campagne native n'est revendiquée"})});
-    }
-    let lock=Lock::acquire(&root)?;
-    if !root.join("checkpoint.json").is_file() {
-        return Err("Corpus natif sans checkpoint : intégrité non prouvable ; entraînement refusé sans supprimer les données".into());
-    }
-    let (manifest,plan)=load_manifest(&root)?;
-    let mut cp=checkpoint(&root,&plan)?;
-    let recovery=recover(&root,&plan,&mut cp)?;
-    Ok(TrainingIntegrity {_lock:Some(lock),report:json!({"scope":"native_campaign",
-        "native_campaign_integrity_verified":true,"integrity":cp["integrity"],
-        "recovery":recovery.value(),"source_core_version":manifest["core_version"],
-        "source_numerics_version":manifest["numerics_version"],"plan_id":manifest["plan_id"]})})
-}
-
 pub fn process(request: &Value) -> R<Value> {
     let root = PathBuf::from(
         request["corpus_dir"]
@@ -1197,10 +1009,13 @@ pub fn process(request: &Value) -> R<Value> {
     }
     match request["operation"].as_str().unwrap_or("") {
         "corpus_plan" => create_plan(&root, request),
+        "corpus_train" => {
+            check_training_manifest(&root)?;
+            crate::dataset_model::train(request)
+        }
         "corpus_status" => {
             let (m, p) = load_manifest(&root)?;
-            let adopt=boolean(request,"adopt_legacy_integrity",false)?;
-            status_report_with_adoption(&root, &m, &p, "corpus_status",adopt)
+            status_report(&root, &m, &p, "corpus_status")
         }
         "corpus_preview" => {
             let (m, p) = load_manifest(&root)?;
@@ -1236,6 +1051,23 @@ mod tests {
     fn row(i: u64) -> Value {
         json!({"schema":"atelier.corpus.case.v1","case_id":format!("case{i}"),"index":i,"family":"plate_hole_2d","split":"train","origin":"structured","backend_evaluations":3,"actions":[{"accepted":true},{"accepted":false}]})
     }
+    #[test]
+    fn legacy_profiles_keep_their_original_preview_and_refuse_new_observations() {
+        let root = temp("historical-profile");
+        let request = json!({"operation":"corpus_plan","corpus_dir":root,"plan":{"structured":8,"random":0}});
+        process(&request).unwrap();
+        let mut manifest = read_json(&root.join("manifest.json")).unwrap();
+        manifest["plan"]["profile"] = json!("structured_direct");
+        manifest["plan_id"] = json!(hash_json(&json!({"generator":GENERATOR_VERSION,"plan":manifest["plan"]})));
+        atomic_json(&root.join("manifest.json"), &manifest).unwrap();
+        let preview = process(&json!({"operation":"corpus_preview","corpus_dir":root,"start_index":4,"limit":1})).unwrap();
+        assert_eq!(preview["cases"][0]["project"]["mesh"]["element_shape"], "prism");
+        assert!(check_training_manifest(&root).is_err());
+        assert!(process(&json!({"operation":"corpus_run","corpus_dir":root})).is_err());
+        assert!(!root.join("shards").exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn planning_million_allocates_no_case_files() {
         let root = temp("plan");
@@ -1377,16 +1209,12 @@ mod tests {
         let plan = Plan::parse(&json!({"structured":10,"random":0})).unwrap();
         let mut cp = committed_rows(&root, &plan, 3);
         cp.as_object_mut().unwrap().remove("journal_cursor");
-        cp.as_object_mut().unwrap().remove("integrity");
-        assert!(recover(&root, &plan, &mut cp).is_err());
-        let recovered = recover_with_adoption(&root, &plan, &mut cp,true).unwrap();
+        let recovered = recover(&root, &plan, &mut cp).unwrap();
         assert!(recovered.upgraded);
         assert_eq!(recovered.decoded_records, 3);
         assert_eq!(recovered.cases, 0);
         assert_eq!(cp["next_index"], 3);
         assert_eq!(cp["accepted_actions"], 3);
-        assert_eq!(cp["integrity"]["historical_integrity_proven"],false);
-        assert_eq!(cp["integrity"]["adopted_legacy_integrity"],true);
         assert!(root.join("checkpoint.json").is_file());
         assert_eq!(recover(&root, &plan, &mut cp).unwrap().decoded_records, 0);
         let _ = fs::remove_dir_all(root);
@@ -1452,200 +1280,6 @@ mod tests {
         assert_eq!(recover(&root, &plan, &mut cp).unwrap().decoded_records, 0);
         assert_eq!(cp["next_index"], 4);
         let _ = fs::remove_dir_all(root);
-    }
-    #[test]
-    fn every_closed_shard_and_the_active_last_case_are_checked_without_purging() {
-        let plan=Plan::parse(&json!({"structured":12,"random":0,"shard_size":2})).unwrap();
-        for index in [0u64,4,8] {
-            let root=temp("all-shard-integrity");
-            let mut cp=committed_rows(&root,&plan,9);
-            let path=shard(&root,index,&plan);
-            let before=fs::read_to_string(&path).unwrap();
-            let modified=before.replacen(&format!("case{index}"),&format!("case{}",index+1),1);
-            assert_ne!(before,modified);assert_eq!(before.len(),modified.len());
-            for line in modified.lines() { serde_json::from_str::<Value>(line).unwrap(); }
-            fs::write(&path,&modified).unwrap();
-            let original=cp.clone();
-            assert!(recover(&root,&plan,&mut cp).is_err());
-            assert_eq!(cp,original);assert_eq!(fs::read_to_string(&path).unwrap(),modified);
-            let _=fs::remove_dir_all(root);
-        }
-    }
-    #[test]
-    fn ledger_corruption_truncation_and_missing_closed_shards_are_not_repaired() {
-        let plan=Plan::parse(&json!({"structured":12,"random":0,"shard_size":2})).unwrap();
-        for action in ["digest","truncate","remove_shard","append_shard"] {
-            let root=temp(action);let mut cp=committed_rows(&root,&plan,7);
-            let ledger=root.join(LEDGER_NAME);let before=fs::read(&ledger).unwrap();
-            match action {
-                "digest" => { let mut bytes=before.clone();bytes[24]^=1;fs::write(&ledger,bytes).unwrap(); },
-                "truncate" => { fs::write(&ledger,&before[..before.len()-1]).unwrap(); },
-                "remove_shard" => { fs::remove_file(shard(&root,2,&plan)).unwrap(); },
-                _ => { OpenOptions::new().append(true).open(shard(&root,0,&plan)).unwrap().write_all(b"x").unwrap(); },
-            }
-            let actual_ledger=fs::read(&ledger).unwrap();let original=cp.clone();
-            assert!(recover(&root,&plan,&mut cp).is_err(),"{action}");
-            assert_eq!(cp,original);assert_eq!(fs::read(&ledger).unwrap(),actual_ledger);
-            let _=fs::remove_dir_all(root);
-        }
-    }
-    #[test]
-    fn uncommitted_ledger_entry_recovers_after_crash_before_checkpoint_publication() {
-        let root=temp("ledger-crash");
-        let plan=Plan::parse(&json!({"structured":9,"random":0,"shard_size":1})).unwrap();
-        let mut cp=committed_rows(&root,&plan,1);
-        let recovery=recover(&root,&plan,&mut cp).unwrap();
-        let mut writer=JournalWriter::new(recovery.cursor);
-        for index in 1..6 { writer.append(&root,&plan,&row(index)).unwrap(); }
-        drop(writer); // data + ledger synced, checkpoint still at its first row
-        let recovery=recover(&root,&plan,&mut cp).unwrap();
-        assert_eq!(recovery.cases,5);assert_eq!(recovery.decoded_records,5);
-        assert_eq!(cp["next_index"],6);assert_eq!(recovery.closed_shards,5);
-        assert_eq!(fs::metadata(root.join(LEDGER_NAME)).unwrap().len(),5*LEDGER_ENTRY_BYTES);
-        assert_eq!(recover(&root,&plan,&mut cp).unwrap().decoded_records,0);
-        let _=fs::remove_dir_all(root);
-    }
-    #[test]
-    fn partial_uncommitted_ledger_entry_can_resume_but_a_wrong_complete_entry_cannot() {
-        let plan=Plan::parse(&json!({"structured":4,"random":0,"shard_size":1})).unwrap();
-        for complete in [false,true] {
-            let root=temp("ledger-torn");let mut cp=committed_rows(&root,&plan,1);
-            let cursor=recover(&root,&plan,&mut cp).unwrap().cursor.unwrap();
-            let mut entry=ledger_entry(&cursor);entry[24]^=1;
-            fs::write(root.join(LEDGER_NAME),if complete {&entry[..]} else {&entry[..13]}).unwrap();
-            append_case(&root,&plan,&row(1)).unwrap();
-            if complete { assert!(recover(&root,&plan,&mut cp).is_err()); }
-            else {
-                assert_eq!(recover(&root,&plan,&mut cp).unwrap().cases,1);
-                assert_eq!(fs::read(root.join(LEDGER_NAME)).unwrap(),ledger_entry(&cursor));
-            }
-            let _=fs::remove_dir_all(root);
-        }
-    }
-    #[test]
-    fn explicit_legacy_adoption_preserves_provenance_and_never_relabels_old_computations() {
-        let root=temp("ledger-adopt");
-        process(&json!({"operation":"corpus_plan","corpus_dir":root,"plan":{"structured":8,"random":0,"shard_size":2}})).unwrap();
-        let (mut manifest,plan)=load_manifest(&root).unwrap();
-        manifest["core_version"]=json!("1.0.0-rc.6");manifest.as_object_mut().unwrap().remove("numerics_version");
-        atomic_json(&root.join("manifest.json"),&manifest).unwrap();
-        let mut cp=committed_rows(&root,&plan,5);
-        cp.as_object_mut().unwrap().remove("integrity");cp["journal_cursor"]["schema"]=json!("atelier.corpus.cursor.v1");
-        cp["journal_cursor"].as_object_mut().unwrap().remove("closed_shards");
-        atomic_json(&root.join("checkpoint.json"),&cp).unwrap();fs::remove_file(root.join(LEDGER_NAME)).unwrap();
-        let before=fs::read(root.join("checkpoint.json")).unwrap();let original_manifest=fs::read(root.join("manifest.json")).unwrap();
-        let durable_shards=(0..3).map(|number| {
-            let path=shard(&root,number*plan.shard_size,&plan);
-            let bytes=fs::read(&path).unwrap();(path,bytes)
-        }).collect::<Vec<_>>();
-        assert!(process(&json!({"operation":"corpus_status","corpus_dir":root})).err().unwrap().contains("--adopt-legacy-integrity"));
-        assert_eq!(fs::read(root.join("checkpoint.json")).unwrap(),before);assert!(!root.join(LEDGER_NAME).exists());
-        let adopted=process(&json!({"operation":"corpus_status","corpus_dir":root,"adopt_legacy_integrity":true})).unwrap();
-        assert_eq!(adopted["integrity"]["adopted_legacy_integrity"],true);
-        assert_eq!(adopted["integrity"]["historical_integrity_proven"],false);
-        assert_eq!(adopted["source_core_version"],"1.0.0-rc.6");assert_eq!(adopted["can_resume_generation"],false);
-        assert_eq!(fs::read(root.join("manifest.json")).unwrap(),original_manifest);
-        for (path,bytes) in &durable_shards { assert_eq!(fs::read(path).unwrap(),*bytes); }
-        let published_ledger=fs::read(root.join(LEDGER_NAME)).unwrap();
-        let again=process(&json!({"operation":"corpus_status","corpus_dir":root})).unwrap();
-        assert_eq!(again["integrity"],adopted["integrity"]);
-        assert_eq!(fs::read(root.join(LEDGER_NAME)).unwrap(),published_ledger);
-        for (path,bytes) in &durable_shards { assert_eq!(fs::read(path).unwrap(),*bytes); }
-        assert!(run(&root,&json!({})).err().unwrap().contains("Provenance numérique"));
-        let _=fs::remove_dir_all(root);
-    }
-    #[test]
-    fn failed_legacy_adoption_does_not_publish_a_partial_ledger_or_change_data() {
-        let root=temp("ledger-adopt-error");
-        let plan=Plan::parse(&json!({"structured":8,"random":0,"shard_size":2})).unwrap();
-        let mut cp=committed_rows(&root,&plan,5);
-        cp.as_object_mut().unwrap().remove("integrity");cp.as_object_mut().unwrap().remove("journal_cursor");
-        fs::remove_file(root.join(LEDGER_NAME)).unwrap();
-        fs::write(shard(&root,4,&plan),b"{broken}\\n").unwrap();let original=cp.clone();
-        assert!(recover_with_adoption(&root,&plan,&mut cp,true).is_err());
-        assert_eq!(cp,original);assert!(!root.join(LEDGER_NAME).exists());
-        assert_eq!(fs::read(shard(&root,4,&plan)).unwrap(),b"{broken}\\n");
-        assert!(fs::read_dir(&root).unwrap().all(|e|!e.unwrap().file_name().to_string_lossy().ends_with(".tmp")));
-        let _=fs::remove_dir_all(root);
-    }
-    #[test]
-    fn ledger_checkpoint_stays_bounded_and_reopening_does_not_decode_committed_cases() {
-        let root=temp("ledger-bounded");
-        let plan=Plan::parse(&json!({"structured":10_000_000,"random":0,"shard_size":1})).unwrap();
-        let mut cp=committed_rows(&root,&plan,32);
-        let recovered=recover(&root,&plan,&mut cp).unwrap();
-        assert_eq!(recovered.closed_shards,31);assert_eq!(recovered.decoded_records,0);
-        assert_eq!(fs::metadata(root.join(LEDGER_NAME)).unwrap().len(),31*LEDGER_ENTRY_BYTES);
-        assert!(serde_json::to_vec(&cp).unwrap().len()<2048);
-        let mut virtual_cursor=recovered.cursor.unwrap();
-        virtual_cursor.number=9_999_999;virtual_cursor.ledger.entries=9_999_999;
-        virtual_cursor.stamp(&mut cp); // size-only bound; no claim of 10M evaluated rows
-        assert!(serde_json::to_vec(&cp).unwrap().len()<2048);
-        let _=fs::remove_dir_all(root);
-    }
-    #[test]
-    fn native_training_rejects_corruption_or_missing_checkpoint_and_holds_the_lock() {
-        let root=temp("ledger-training");
-        process(&json!({"operation":"corpus_plan","corpus_dir":root,"plan":{"structured":8,"random":0,"shard_size":2}})).unwrap();
-        let (_,plan)=load_manifest(&root).unwrap();let cp=committed_rows(&root,&plan,5);
-        atomic_json(&root.join("checkpoint.json"),&cp).unwrap();
-        let request=json!({"corpus_dir":root});
-        let guard=training_integrity(&request).unwrap();
-        assert_eq!(guard.report["native_campaign_integrity_verified"],true);
-        assert!(Lock::acquire(&root).is_err());drop(guard);assert!(Lock::acquire(&root).is_ok());
-        let path=shard(&root,0,&plan);let raw=fs::read_to_string(&path).unwrap();
-        fs::write(&path,raw.replacen("case0","case1",1)).unwrap();
-        assert!(training_integrity(&request).is_err());
-        fs::write(&path,raw).unwrap();fs::remove_file(root.join("checkpoint.json")).unwrap();
-        assert!(training_integrity(&request).err().unwrap().contains("sans checkpoint"));
-        let fixture=temp("ledger-external");fs::create_dir_all(&fixture).unwrap();
-        assert_eq!(training_integrity(&json!({"corpus_dir":fixture})).unwrap().report["native_campaign_integrity_verified"],false);
-        let _=fs::remove_dir_all(root);let _=fs::remove_dir_all(fixture);
-    }
-    #[test]
-    fn missing_native_checkpoint_is_refused_by_status_plan_run_and_adoption_without_reanchoring() {
-        let root=temp("ledger-missing-cp");
-        let options=json!({"structured":8,"random":0,"shard_size":2});
-        process(&json!({"operation":"corpus_plan","corpus_dir":root,"plan":options})).unwrap();
-        let (_,plan)=load_manifest(&root).unwrap();let cp=committed_rows(&root,&plan,5);
-        atomic_json(&root.join("checkpoint.json"),&cp).unwrap();fs::remove_file(root.join("checkpoint.json")).unwrap();
-        let ledger=fs::read(root.join(LEDGER_NAME)).unwrap();
-        let rows:Vec<_>=(0..3).map(|i|fs::read(shard(&root,i*2,&plan)).unwrap()).collect();
-        for operation in ["corpus_status","corpus_plan","corpus_run"] {
-            let error=process(&json!({"operation":operation,"corpus_dir":root,"plan":options,
-                "adopt_legacy_integrity":true})).err().unwrap();
-            assert!(error.contains("sans checkpoint"),"{operation}: {error}");
-            assert!(!root.join("checkpoint.json").exists());
-            assert_eq!(fs::read(root.join(LEDGER_NAME)).unwrap(),ledger);
-            for i in 0..3 { assert_eq!(fs::read(shard(&root,i*2,&plan)).unwrap(),rows[i as usize]); }
-        }
-        let _=fs::remove_dir_all(root);
-    }
-    #[test]
-    fn external_manifest_cannot_hide_native_checkpoint_or_ledger_from_training_checks() {
-        for keep_checkpoint in [false,true] {
-            let root=temp("ledger-disguised-native");
-            process(&json!({"operation":"corpus_plan","corpus_dir":root,"plan":{"structured":8,"random":0,"shard_size":2}})).unwrap();
-            let (_,plan)=load_manifest(&root).unwrap();let cp=committed_rows(&root,&plan,5);
-            atomic_json(&root.join("checkpoint.json"),&cp).unwrap();
-            if !keep_checkpoint { fs::remove_file(root.join("checkpoint.json")).unwrap(); }
-            atomic_json(&root.join("manifest.json"),&json!({"schema":"external.fixture"})).unwrap();
-            assert!(training_integrity(&json!({"corpus_dir":root})).is_err());
-            assert!(!root.join("models").exists());let _=fs::remove_dir_all(root);
-        }
-    }
-    #[cfg(unix)]
-    #[test]
-    fn closed_shard_and_ledger_symbolic_links_are_rejected() {
-        use std::os::unix::fs::symlink;
-        let plan=Plan::parse(&json!({"structured":8,"random":0,"shard_size":2})).unwrap();
-        for file in ["cases-000000.jsonl",LEDGER_NAME] {
-            let root=temp("ledger-symlink");let mut cp=committed_rows(&root,&plan,5);
-            let path=if file==LEDGER_NAME {root.join(file)} else {root.join("shards").join(file)};
-            let external=root.join("untouched");fs::rename(&path,&external).unwrap();let bytes=fs::read(&external).unwrap();
-            symlink(&external,&path).unwrap();assert!(recover(&root,&plan,&mut cp).is_err());
-            assert_eq!(fs::read(external).unwrap(),bytes);let _=fs::remove_dir_all(root);
-        }
     }
     #[test]
     fn status_reconciles_a_killed_checkpoint_interval_without_starting_another_run() {
@@ -1746,7 +1380,7 @@ mod tests {
         }
         file.sync_all().unwrap();
         drop(file);
-        let upgrade = recover_with_adoption(&root, &plan, &mut cp,true).unwrap();
+        let upgrade = recover(&root, &plan, &mut cp).unwrap();
         assert_eq!(upgrade.decoded_records, count);
         let expected = cp.clone();
         let mut legacy = Vec::new();

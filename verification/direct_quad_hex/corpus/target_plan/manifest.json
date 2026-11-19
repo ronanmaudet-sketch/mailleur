@@ -1,0 +1,77 @@
+{
+  "core_version": "1.0.0-rc.10",
+  "created_at": 1795113890,
+  "families": [
+    {
+      "name": "direct_quad_rectangle",
+      "random": 125000,
+      "split": "train",
+      "structured": 41667,
+      "total": 166667
+    },
+    {
+      "name": "direct_quad_one_hole",
+      "random": 125000,
+      "split": "validation",
+      "structured": 41667,
+      "total": 166667
+    },
+    {
+      "name": "direct_hex_box",
+      "random": 125000,
+      "split": "train",
+      "structured": 41667,
+      "total": 166667
+    },
+    {
+      "name": "direct_hex_one_hole",
+      "random": 125000,
+      "split": "test",
+      "structured": 41667,
+      "total": 166667
+    },
+    {
+      "name": "direct_hex_thin_box",
+      "random": 125000,
+      "split": "train",
+      "structured": 41666,
+      "total": 166666
+    },
+    {
+      "name": "direct_quad_graded_rectangle",
+      "random": 125000,
+      "split": "train",
+      "structured": 41666,
+      "total": 166666
+    }
+  ],
+  "feature_schema": "atelier.geometry_action_features.v3",
+  "generator_version": "atelier.corpus.generator.v2",
+  "gmsh_version": "4.15.2",
+  "notes": [
+    "Créer ce plan ne génère ni un million de fichiers ni un million de maillages",
+    "Les défauts synthétiques contrôlés ne couvrent pas toute la diversité des CAO industrielles",
+    "Les configurations de test sont séparées des familles d'apprentissage"
+  ],
+  "plan": {
+    "profile": "direct_quad_hex",
+    "random": 750000,
+    "seed": 42,
+    "shard_size": 1000,
+    "strategies": 4,
+    "structured": 250000
+  },
+  "plan_id": "67c4e1f1445fefdaf588c43061527a4c257a92a4d04f4f0088700b5e69b8a76a",
+  "planned_split_counts": {
+    "test": 166667,
+    "train": 666666,
+    "validation": 166667
+  },
+  "planned_total": 1000000,
+  "sampling": {
+    "random": "family-stratified reproducible Latin hypercube with coprime affine permutations",
+    "split": "whole geometry families assigned before all parameter and meshing variations",
+    "structured": "mixed-radix deterministic parameter grid with unique resolution coordinate"
+  },
+  "schema": "atelier.corpus.v1"
+}

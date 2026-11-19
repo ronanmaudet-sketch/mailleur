@@ -40,7 +40,7 @@ class SolverExportContracts(unittest.TestCase):
                 result = convert_mesh(source, target, "nastran")
                 restored = self.meshio.read(target, file_format="nastran")
                 self.np.testing.assert_array_equal(restored.cells_dict[kind], self.np.arange(nodes).reshape(1, nodes))
-                text = target.read_text()
+                text = target.read_text(encoding="ascii")
                 self.assertIn(card.ljust(8), text)
                 self.assertNotIn(card + "_", text)
                 self.assertEqual(_read_bdf_sets(target), {("ELEM", "DOMAIN"): [1]})
@@ -51,7 +51,7 @@ class SolverExportContracts(unittest.TestCase):
         source = self.source("hexahedron20", 20, 3)
         target = self.root / "numbering.bdf"
         convert_mesh(source, target, "nastran")
-        lines = target.read_text().splitlines()
+        lines = target.read_text(encoding="ascii").splitlines()
         index = next(index for index, line in enumerate(lines) if line.startswith("CHEXA"))
         values = []
         for line in lines[index:index + 3]:
@@ -79,7 +79,7 @@ class SolverExportContracts(unittest.TestCase):
         source = self.source("hexahedron", 8, 3, points)
         target = self.root / "bounded.inp"
         result = convert_mesh(source, target, "inp")
-        rows = target.read_text().split("*NODE\n", 1)[1].split("*ELEMENT", 1)[0].splitlines()
+        rows = target.read_text(encoding="ascii").split("*NODE\n", 1)[1].split("*ELEMENT", 1)[0].splitlines()
         coordinates = [row.split(",")[1:] for row in rows]
         self.assertTrue(all(len(value) <= 20 for row in coordinates for value in row))
         self.np.testing.assert_allclose([[float(v) for v in row] for row in coordinates],
@@ -94,7 +94,7 @@ class SolverExportContracts(unittest.TestCase):
                 source = self.source(kind, nodes, 2 if kind == "quad" else 3)
                 target = self.root / f"{kind}.key"
                 result = convert_mesh(source, target, "lsdyna")
-                lines = target.read_text().splitlines()
+                lines = target.read_text(encoding="ascii").splitlines()
                 first = next(index for index, line in enumerate(lines) if line.startswith("*ELEMENT_"))
                 self.assertEqual(list(map(int, lines[first + 1].split(",")))[2:], ids)
                 restored, sets = _read_key_subset(target)
@@ -108,14 +108,14 @@ class SolverExportContracts(unittest.TestCase):
         target.write_text("original")
         with self.assertRaisesRegex(ValueError, "hexahedron20"):
             convert_mesh(source, target, "lsdyna")
-        self.assertEqual(target.read_text(), "original")
+        self.assertEqual(target.read_text(encoding="ascii"), "original")
 
     def test_structural_apdl_solid_types_and_no_silent_quadratic_loss(self):
         for kind, count, element in (("hexahedron", 8, 185),):
             with self.subTest(kind=kind):
                 target = self.root / f"{kind}.apdl"
                 result = convert_mesh(self.source(kind, count, 3), target, "ansys_structural")
-                text = target.read_text()
+                text = target.read_text(encoding="ascii")
                 self.assertIn(f"ET,1,{element}\n", text)
                 self.assertNotIn("ET,1,200", text)
                 self.assertFalse(result["verification"]["solver_executed"])
@@ -126,7 +126,7 @@ class SolverExportContracts(unittest.TestCase):
         source = self.source("quad", 4, 2, [[0,0,0],[1,0,0],[1,1,0],[0,1,0]])
         target = self.root / "plane.apdl"
         convert_mesh(source, target, "ansys_structural", planar=True)
-        text = target.read_text()
+        text = target.read_text(encoding="ascii")
         self.assertIn("ET,1,182\nKEYOPT,1,3,0", text)
         self.assertIn("EN,1,1,2,3,4", text)
         triangle = self.source("triangle", 3, 2, [[0,0,0],[1,0,0],[0,1,0]])
@@ -134,7 +134,7 @@ class SolverExportContracts(unittest.TestCase):
             convert_mesh(triangle, self.root / "tri_shell.apdl", "ansys_structural", planar=False)
         quad = self.source("quad", 4, 2, [[0,0,0],[1,0,0],[1,1,.1],[0,1,0]])
         convert_mesh(quad, self.root / "quad_shell.apdl", "ansys_structural", planar=False)
-        self.assertIn("ET,1,181", (self.root / "quad_shell.apdl").read_text())
+        self.assertIn("ET,1,181", (self.root / "quad_shell.apdl").read_text(encoding="ascii"))
         with self.assertRaisesRegex(ValueError, "plan XY"):
             convert_mesh(quad, self.root / "not_planar.apdl", "ansys_structural", planar=True)
 
@@ -145,44 +145,6 @@ class SolverExportContracts(unittest.TestCase):
         names = [item["component"] for item in verification["component_name_map"]]
         self.assertEqual(len(names), len(set(names)))
         self.assertEqual(names, ["N_EDGE", "N_EDGE_2"])
-
-    def test_all_exports_reject_non_quad_hex_cells_without_replacing_target(self):
-        from atelier.formats import FORMATS
-        fixtures = {"triangle": (3, 2), "triangle6": (6, 2), "tetra": (4, 3),
-                    "tetra10": (10, 3), "wedge": (6, 3), "pyramid": (5, 3)}
-        for kind, (nodes, dimension) in fixtures.items():
-            source = self.source(kind, nodes, dimension)
-            for format_name, definition in FORMATS.items():
-                with self.subTest(kind=kind, format=format_name):
-                    target = self.root / ("forbidden" + definition["extension"])
-                    target.write_bytes(b"previous valid export")
-                    with self.assertRaisesRegex(ValueError, "quad_hex_only.*" + kind):
-                        convert_mesh(source, target, format_name)
-                    self.assertEqual(target.read_bytes(), b"previous valid export")
-
-    def test_hex_volume_with_triangle_boundary_cannot_bypass_policy(self):
-        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[1,1,0],[0,1,0],
-                                [0,0,1],[1,0,1],[1,1,1],[0,1,1]],
-                               [("hexahedron", [[0,1,2,3,4,5,6,7]]), ("triangle", [[0,1,2]])],
-                               cell_data={"gmsh:physical": [self.np.array([1]), self.np.array([2])],
-                                          "gmsh:geometrical": [self.np.array([1]), self.np.array([2])]},
-                               field_data={"DOMAIN": self.np.array([1,3]), "BOUNDARY": self.np.array([2,2])})
-        source = self.root / "mixed_boundary.msh"
-        self.meshio.write(source, mesh, file_format="gmsh22", binary=False)
-        with self.assertRaisesRegex(ValueError, "quad_hex_only.*triangle"):
-            convert_mesh(source, self.root / "mixed.inp", "inp")
-
-    def test_repeated_nodes_cannot_disguise_a_tetrahedron_as_a_hexahedron(self):
-        mesh = self.meshio.Mesh([[0,0,0],[1,0,0],[0,1,0],[0,0,1]],
-                               [("hexahedron", [[0,1,2,3,3,3,3,3]])],
-                               cell_data={"gmsh:physical": [self.np.array([1])],
-                                          "gmsh:geometrical": [self.np.array([1])]},
-                               field_data={"DOMAIN": self.np.array([1,3])})
-        source = self.root / "disguised_tetra.msh"
-        self.meshio.write(source, mesh, file_format="gmsh22", binary=False)
-        with self.assertRaisesRegex(ValueError, "nœuds répétés"):
-            convert_mesh(source, self.root / "disguised.key", "lsdyna")
-
 
 if __name__ == "__main__":
     unittest.main()

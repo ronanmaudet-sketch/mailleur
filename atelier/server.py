@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.metadata
+import io
 import json
 import mimetypes
 import os
@@ -17,7 +18,6 @@ import signal
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -26,6 +26,7 @@ import zipfile
 
 from mailleur.io import write_json
 from . import __version__
+from .native import EXPERIENCE_DIRECTORY
 from .projects import MAX_UPLOAD, default_examples, load_portable_project, normalize_project, safe_filename, save_portable_project, strict_json
 
 
@@ -39,12 +40,13 @@ def backend_info():
     try:
         import meshio
         import h5py
+        from .core_locator import ENGINE_ID
         from .native import core_path, gmsh_library
         core_path()
         gmsh_library()
         result.update(available=True, version=importlib.metadata.version("gmsh"), meshio=meshio.__version__,
-                      h5py=h5py.__version__, numerical_backend="rust", python_numerical_backend=False)
-    except (ImportError, OSError, importlib.metadata.PackageNotFoundError) as error:
+                      h5py=h5py.__version__, engine_id=ENGINE_ID, numerical_backend="rust", python_numerical_backend=False)
+    except (ImportError, OSError, ValueError, importlib.metadata.PackageNotFoundError) as error:
         result["error"] = f"Moteur indisponible : {error}. Relancer l'installation puis le diagnostic."
     return result
 
@@ -56,10 +58,11 @@ class JobManager:
         if not isinstance(timeout, (int, float)) or not 1 <= timeout <= 86400:
             raise ValueError("Le délai maximal doit être compris entre 1 et 86400 secondes")
         self.workspace = Path(workspace).expanduser().resolve()
-        for folder in ("jobs", "uploads", "models", "experience"):
+        for folder in ("jobs", "uploads", "models", EXPERIENCE_DIRECTORY):
             (self.workspace / folder).mkdir(parents=True, exist_ok=True)
         self.timeout = timeout
         self.max_workers = max_workers
+        self.export_slots = threading.BoundedSemaphore(max_workers)
         self.lock = threading.RLock()
         self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="atelier-calcul")
         self.jobs = {}
@@ -159,7 +162,7 @@ class JobManager:
             request = {"directory": str(directory), "operation": {"training": "train", "learning": "learn", "mesh": "mesh"}[kind],
                        "project": project, "source": str(source) if source else None,
                        "workspace": str(self.workspace), "timeout": self.timeout, "search": search,
-                       "memory_dir": str(self.workspace / "experience"),
+                       "memory_dir": str(self.workspace / EXPERIENCE_DIRECTORY),
                        "use_advisor": bool(use_advisor), "model_path": str(self.workspace / "models" / "guide.json")}
             write_json(directory / "request.json", request)
             job = {"id": identifier, "kind": kind, "status": "queued", "message": "En attente d'un créneau de calcul…",
@@ -204,7 +207,6 @@ class JobManager:
             job.update(status="running", message="Démarrage du calcul…", started_at=_now())
             self._persist(job)
         started = time.monotonic()
-        process = None
         try:
             environment = os.environ.copy()
             # Keep every native/export child inside the HTTP worker's group.
@@ -242,14 +244,9 @@ class JobManager:
                 job.update(status="failed", message=str(error), finished_at=_now())
                 self._persist(job)
         finally:
-            # A converter can fail after starting native children, or exit
-            # successfully while leaving one behind. This manager owns the
-            # worker's process group, so clean it at every terminal outcome.
-            if process is not None:
-                self._stop_process_tree(process)
             with self.lock: self.processes.pop(identifier, None)
 
-    def get(self, identifier, *, include_preview=True):
+    def get(self, identifier):
         self._check_id(identifier)
         with self.lock:
             if identifier not in self.jobs: raise KeyError(identifier)
@@ -262,20 +259,44 @@ class JobManager:
             result = strict_json((directory / "result.json").read_bytes())
             job.update(result)
             if result.get("kind") in ("mesh", "learning"):
-                if include_preview:
-                    job["preview"] = strict_json((directory / "preview.json").read_bytes())
+                job["preview"] = strict_json((directory / "preview.json").read_bytes())
                 job["files"] = result.get("exports", {}).get("results", [])
         return job
 
-    def recent_jobs(self, limit=30):
-        """Copier l'historique sous verrou pendant que les calculs évoluent."""
-        with self.lock:
-            return [dict(job) for job in sorted(self.jobs.values(),
-                    key=lambda job: job.get("created_at", ""), reverse=True)[:limit]]
+    def optional_export(self, identifier, format_name):
+        from .formats import DEFAULT_EXPORT_FORMATS, FORMATS
+        from .native import NativeSession
+        import tempfile
+
+        if not isinstance(format_name, str) or format_name not in FORMATS or format_name in DEFAULT_EXPORT_FORMATS:
+            raise ValueError("Format d’export complémentaire inconnu")
+        job = self.get(identifier)
+        if job["status"] != "completed" or job.get("kind") not in ("mesh", "learning"):
+            raise ValueError("Un maillage terminé est requis pour cet export")
+        if not self.export_slots.acquire(blocking=False):
+            raise ValueError("Un autre export est en cours ; réessayer après sa fin")
+        try:
+            with tempfile.TemporaryDirectory(dir=self.workspace) as folder:
+                root = Path(folder)
+                directory = self.directory(identifier)
+                for name in ("mesh.msh", "report.json"):
+                    # Workers finish writing before a job can be downloaded.
+                    try:
+                        os.link(directory / name, root / name)
+                    except OSError:
+                        shutil.copyfile(directory / name, root / name)
+                report = job["report"]
+                session = NativeSession(root, timeout=self.timeout)
+                outcome = session.export(root, root / "files", format_name,
+                                         units=report["units"]["input"], planar=report["mode"] == "planar")
+                output = Path(outcome["file"])
+                return output.name, output.read_bytes()
+        finally:
+            self.export_slots.release()
 
     def memory_info(self):
         from .native import NativeSession
-        return NativeSession(self.workspace, timeout=min(self.timeout, 15)).memory_info(self.workspace / "experience")
+        return NativeSession(self.workspace, timeout=min(self.timeout, 15)).memory_info()
 
     def cancel(self, identifier):
         self._check_id(identifier)
@@ -327,31 +348,15 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _host_ok(self):
-        try:
-            host = urlsplit("//" + self.headers.get("Host", "")).hostname
-        except ValueError:
-            return False
-        return not self.server.local_only or host in ("127.0.0.1", "localhost", "::1")
+        host = self.headers.get("Host", "").split(":")[0].lower()
+        return not self.server.local_only or host in ("127.0.0.1", "localhost", "[::1]")
 
     def _send(self, payload, status=200, content_type="application/json; charset=utf-8", filename=None):
         if not isinstance(payload, bytes):
             payload = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
-        self._headers(len(payload), status, content_type, filename)
-        self.wfile.write(payload)
-
-    def _send_file(self, file, *, content_type="application/octet-stream", filename=None):
-        # Un gros export ne doit pas être dupliqué en mémoire par le serveur.
-        with file.open("rb") as stream:
-            self._send_stream(stream, os.fstat(stream.fileno()).st_size, content_type, filename or file.name)
-
-    def _send_stream(self, stream, length, content_type, filename):
-        self._headers(length, 200, content_type, filename)
-        shutil.copyfileobj(stream, self.wfile, length=1024 * 1024)
-
-    def _headers(self, length, status, content_type, filename):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(length))
+        self.send_header("Content-Length", str(len(payload)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "same-origin")
@@ -360,6 +365,7 @@ class Handler(BaseHTTPRequestHandler):
             safe = "".join(c if c.isascii() and (c.isalnum() or c in "._-") else "_" for c in filename)
             self.send_header("Content-Disposition", f'attachment; filename="{safe}"')
         self.end_headers()
+        self.wfile.write(payload)
 
     def _error(self, error, status=400):
         self._send({"error": str(error)}, status)
@@ -370,31 +376,26 @@ class Handler(BaseHTTPRequestHandler):
             request = urlsplit(self.path)
             path = unquote(request.path)
             if path == "/api/info":
-                from .formats import FORMATS
-                from .imports import import_capabilities
+                from .formats import DEFAULT_EXPORT_FORMATS, FORMATS
                 return self._send({"version": __version__, "token": self.server.token, "backend": backend_info(),
-                                   "formats": FORMATS, "import_formats": import_capabilities(), "examples": default_examples(), "max_upload_bytes": MAX_UPLOAD,
+                                   "formats": FORMATS, "default_export_formats": DEFAULT_EXPORT_FORMATS, "examples": default_examples(), "max_upload_bytes": MAX_UPLOAD,
                                    "workers": self.server.manager.max_workers,
                                    "continuous_learning": True, "numerical_backend": "rust",
                                    "advisor_available": (self.server.manager.workspace / "models" / "guide.json").is_file(),
-                                   "jobs": self.server.manager.recent_jobs()})
-            if path == "/api/formats":
-                from .formats import FORMATS
-                from .imports import import_capabilities
-                return self._send({"version": __version__, "imports": import_capabilities(), "exports": FORMATS})
+                                   "jobs": [dict(j) for j in sorted(self.server.manager.jobs.values(), key=lambda j: j.get("created_at", ""), reverse=True)[:30]]})
             if path == "/api/memory":
                 return self._send(self.server.manager.memory_info())
             parts = path.strip("/").split("/")
-            if len(parts) in (3, 4) and parts[:2] == ["api", "jobs"]:
+            if len(parts) >= 3 and parts[:2] == ["api", "jobs"]:
                 identifier = parts[2]
-                job = self.server.manager.get(identifier, include_preview=len(parts) == 3)
+                job = self.server.manager.get(identifier)
                 directory = self.server.manager.directory(identifier)
                 if len(parts) == 3: return self._send(job)
                 if job["status"] != "completed": raise ValueError("Le calcul n'est pas terminé")
                 if parts[3] == "bundle":
                     archive = directory / "exports" / "exports.zip"
                     if not archive.is_file(): raise ValueError("Ce calcul ne contient pas de paquet d'export")
-                    return self._send_file(archive, content_type="application/zip", filename="maillage_exports.zip")
+                    return self._send(archive.read_bytes(), content_type="application/zip", filename="maillage_exports.zip")
                 if parts[3] == "download":
                     fmt = parse_qs(request.query).get("format", ["msh"])[0]
                     item = next((r for r in job.get("files", []) if r.get("format") == fmt and r.get("status") == "ok"), None)
@@ -407,13 +408,11 @@ class Handler(BaseHTTPRequestHandler):
                         if file.is_file() and not file.is_symlink(): files.append(file)
                     if not files: raise ValueError("Export introuvable")
                     if len(files) > 1:
-                        with tempfile.TemporaryFile() as stream:
-                            with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as out:
-                                for file in files: out.write(file, file.name)
-                            length = stream.tell()
-                            stream.seek(0)
-                            return self._send_stream(stream, length, "application/zip", f"maillage_{fmt}.zip")
-                    return self._send_file(files[0])
+                        stream = io.BytesIO()
+                        with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as out:
+                            for file in files: out.write(file, file.name)
+                        return self._send(stream.getvalue(), content_type="application/zip", filename=f"maillage_{fmt}.zip")
+                    return self._send(files[0].read_bytes(), content_type="application/octet-stream", filename=files[0].name)
                 if parts[3] == "report":
                     return self._send(job["report"], filename="rapport_qualite.json")
             if path.startswith("/api/"): return self._error("Ressource introuvable", 404)
@@ -459,6 +458,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error("Origine non autorisée", 403)
             data = self._json_body()
             path = urlsplit(self.path).path
+            parts = path.strip("/").split("/")
+            if len(parts) == 4 and parts[:2] == ["api", "jobs"] and parts[3] == "export":
+                name, content = self.server.manager.optional_export(parts[2], data.get("format"))
+                return self._send(content, content_type="application/octet-stream", filename=name)
             if path == "/api/uploads":
                 return self._send(self.server.manager.upload(data.get("filename"), self._decode(data.get("content_base64"))), 201)
             if path == "/api/jobs":

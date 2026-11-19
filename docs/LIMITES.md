@@ -1,17 +1,5 @@
 # Périmètre et limites de la version candidate
 
-La rc6 élargit les entrées et les sorties décrites ci-dessous : les capacités
-exactes sont exposées par `python -m atelier formats --json`, le
-[guide public](UTILISATION_ET_DEVELOPPEMENT.md), les
-[formats solveur](FORMATS.md) et les [passerelles natives](IMPORTS_NATIFS.md).
-Elle lit notamment OBJ, PLY, OFF, 3MF Core et plusieurs formats de maillage.
-Une entrée volumique est reconstruite par sa peau ; une entrée quadratique
-est approchée par ses sommets principaux pour cette reconstruction. Les
-originaux sont conservés et les groupes/conditions physiques source ne sont
-pas réappliqués automatiquement au nouveau maillage. Les fichiers propriétaires
-restent conditionnés à un convertisseur local adapté. La cible 2020+ ne
-garantit pas toutes les versions ou toutes les variantes de format.
-
 ## Géométries et défauts
 
 Le moteur de maillage et de CAO est Gmsh 4.15.2 avec OpenCASCADE. Les entrées
@@ -38,12 +26,12 @@ plus complexes sont importés à partir d'une CAO déjà préparée.
 
 ## Types d'éléments et qualité
 
-Les résultats acceptés depuis la rc9 sont exclusivement quadrilatéraux en
-surface et hexaédriques en volume, après subdivision native. Ce ne sont pas
-nécessairement des carrés ou des cubes réguliers, ni un découpage structuré en
-blocs. Un résultat de forme ou de qualité non admissible est refusé. Le
-remaillage local est actuellement refusé car la subdivision globale pourrait
-modifier les cellules hors sélection. Voir [le contrat strict](QUADRILATERES_HEXAEDRES.md).
+Le parcours classique génère des triangles et des tétraèdres. Les nouveaux
+blocs paramétriques compatibles permettent la génération directe de
+quadrilatères, hexaèdres, prismes et pyramides aux ordres 1 ou 2. La
+recombinaison est refusée. Le [guide rc6](EVOLUTIONS_RC6.md) précise les
+primitives acceptées et les contrôles incompatibles. La décomposition
+automatique de volumes CAO arbitraires en blocs hexaédriques reste à développer.
 
 Les éléments d'ordre 2 sont conservés seulement dans les formats et types
 effectivement pris en charge par les convertisseurs. Une conversion qui ne
@@ -112,10 +100,15 @@ loi matériau ou un calcul mécanique. La continuité demandée est à définir 
 les correspondances ou la topologie appropriées. Une zone critique ne recoud
 pas à elle seule deux pièces séparées.
 
-Les fortes contraintes et les erreurs de solution ne sont pas calculées par
-cette version. Les régions sensibles doivent être indiquées par l'utilisateur
-à partir de sa connaissance du problème ou de résultats obtenus séparément.
-Une boucle automatique solveur–estimateur d'erreur–adaptation n'est pas fournie.
+Les contraintes et les erreurs de solution sont calculées par le solveur
+externe. Les régions sensibles peuvent être indiquées par l'utilisateur ou
+transmises par un adaptateur suivant le protocole de l'[API](API_ET_COUPLAGE_SOLVEURS.md).
+La boucle générique pilote génération, export, calcul externe et adaptation ;
+chaque connecteur doit encore être validé avec son logiciel et sa version.
+Le transfert des champs et des états internes reste une responsabilité du
+solveur, particulièrement en dynamique et en non-linéaire. L'adaptation des
+blocs directs est une régénération globale ; leur reprise locale stricte
+et leur adaptation anisotrope ne sont pas fournies.
 
 Les tailles locales sont des cibles isotropes. Il n'y a pas de champ métrique
 anisotrope ni de garantie que chaque arête égale exactement la taille demandée.
@@ -129,9 +122,10 @@ Le journal d'essais est borné à 512 Mio. Les limites provoquent un arrêt
 explicite sans suppression automatique. Les sources importées et les fichiers
 d'essai occupent également de l'espace.
 Cette mémoire locale n'est pas un service de stockage illimité et ne constitue
-pas une sauvegarde externe des projets. Le modèle de mémoire rc4 (1 561 paramètres)
-peut rester désactivé pour le classement faute de géométries distinctes ; cela
-n'empêche pas le réemploi exact revalidé d'une recette.
+pas une sauvegarde externe des projets. Le modèle de mémoire
+conserve 1 561 paramètres avec la représentation rc6 v3. Il peut rester
+désactivé pour le classement faute de gain validé ; cela n'empêche pas le
+réemploi exact revalidé d'une recette.
 
 Le conseiller historique sur corpus synthétique reste un module distinct.
 Sa comparaison sur familles réservées n'est pas transférable au réseau de

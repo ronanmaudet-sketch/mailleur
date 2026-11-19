@@ -44,7 +44,7 @@ def _model_summary(model):
             "geometry_context_groups", "training_groups", "validation_groups", "warm_started",
             "epochs", "requested_epochs", "input_count", "hidden_count", "parameter_count",
             "feature_schema", "deploy_enabled", "deployment_reason", "validation_mse",
-            "constant_validation_mse", "validation_improvement", "validation_note")
+            "constant_validation_mse", "validation_improvement", "validation_note", "selection_validation", "deployment_policy")
     return {key: model.get(key) for key in keys} if isinstance(model, dict) else None
 
 
@@ -199,12 +199,12 @@ def validate_corpus():
     from atelier.native import NativeSession
 
     started = time.monotonic()
-    proof_root = ROOT / "verification" / "corpus"
+    proof_root = ROOT / "verification" / "direct_quad_hex" / "corpus_48"
     proof_root.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     workspace = proof_root / "sessions" / stamp
     session = NativeSession(workspace, timeout=180)
-    target_directory = proof_root / "target_plan"
+    target_directory = proof_root / "target_plan_rc6"
     target = session.corpus_plan(corpus_dir=target_directory)
     if (target["structured"], target["random"], target["planned_total"]) != (250000, 750000, 1000000):
         raise RuntimeError("Le plan cible ne correspond pas aux deux quotas demandés")
@@ -245,6 +245,8 @@ def validate_corpus():
                 record = json.loads(line)
                 indices.append(record["index"])
                 family, split = record["family"], record["split"]
+                if record["element_policy"] != "direct_quad_hex":
+                    raise RuntimeError("La politique de génération du corpus diffère du parcours direct")
                 if families.setdefault(family, split) != split:
                     raise RuntimeError("Une famille du pilote apparaît dans plusieurs partitions")
                 origins[record["origin"]] = origins.get(record["origin"], 0) + 1
@@ -262,14 +264,14 @@ def validate_corpus():
                     if not action["success"]:
                         kind = action.get("failure_kind") or "unclassified"
                         failure_kinds[kind] = failure_kinds.get(kind, 0) + 1
-    if indices != list(range(48)) or len(families) != 24:
+    if indices != list(range(48)) or len(families) != 6:
         raise RuntimeError("Le pilote comporte un doublon, un trou ou un nombre inattendu de familles")
     if origins != {"structured": 24, "random": 24} or set(splits) != {"train", "validation", "test"}:
         raise RuntimeError("Les origines ou partitions du pilote ne sont pas celles prévues")
     if feature_counts != {128} or len(feature_schemas) != 1:
         raise RuntimeError("Les caractéristiques du pilote ne partagent pas un schéma compatible")
-    if actions_total != 96 or not accepted_actions or not failure_kinds.get("invalid_geometry"):
-        raise RuntimeError("Le pilote doit contenir ses stratégies, des résultats acceptés et les défauts invalides attendus")
+    if actions_total != 96 or not accepted_actions:
+        raise RuntimeError("Le pilote doit contenir ses stratégies, des résultats acceptés")
     if backend_evaluations != second["backend_evaluations"]:
         raise RuntimeError("Le compteur d'évaluations ne correspond pas aux cas réellement journalisés")
     if list(pilot_directory.rglob("mesh.msh")):
@@ -375,11 +377,16 @@ def main():
                          "export_complete": export.get("complete"),
                          "export_statuses": [{"format": v["format"], "status": v["status"]} for v in export.get("results", [])],
                          "directory": str(Path(result["directory"]).relative_to(ROOT))})
-    training = session.train(project=default_examples()[0]["project"], epochs=200)
+    # The historical algorithm guide has an unstructured training domain;
+    # its fixture must not inherit the new first example's direct QUAD grid.
+    legacy_training_project = next(row["project"] for row in default_examples() if row["id"] == "plate")
+    training = session.train(project=legacy_training_project, epochs=200)
     learning = {key: training["report"].get(key) for key in ("training_cases", "validation_cases", "validation_guide_reward", "validation_fixed_reward", "improvement", "deploy_enabled", "native_kernel")}
     learning["directory"] = str(Path(training["directory"]).relative_to(ROOT))
     continuous_learning = validate_continuous_learning()
     corpus = validate_corpus()
+    from validate_structured_corpus import validate as validate_structured
+    structured_corpus = validate_structured()
     try: timestamp = datetime.now(ZoneInfo("Europe/Paris")).isoformat()
     except ZoneInfoNotFoundError: timestamp = datetime.now().astimezone().isoformat()
     report = {"version": __version__, "date": timestamp,
@@ -389,7 +396,7 @@ def main():
                                "skipped_details": [line for line in test_text.splitlines() if "... skipped " in line]},
               "rust_tests": rust_report, "examples": examples, "learning": learning,
               "continuous_learning": continuous_learning,
-              "corpus": corpus,
+              "corpus": corpus, "structured_corpus": structured_corpus,
               "test_scope": {"retired_python_prototype_tests": 57,
                              "replacement_boundary_and_io_tests": 16,
                              "reference": "tests/retired_reference/README.txt",

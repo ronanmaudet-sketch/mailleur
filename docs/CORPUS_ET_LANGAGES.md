@@ -1,10 +1,25 @@
 # Corpus à grande échelle et répartition Python / Rust
 
-> **Mise à jour rc9 — 18 novembre 2026 :** les résultats acceptés et exportés sont
-> exclusivement quadrilatéraux en surface et hexaédriques en volume. Le nouvel
-> apprentissage exclut les anciennes données sans preuve de cette politique.
-> Le [guide quadrilatères/hexaèdres](QUADRILATERES_HEXAEDRES.md) précise le contrat
-> actuel ; les chiffres et exemples des révisions antérieures restent historiques.
+Le profil actif `direct_quad_hex` construit des éléments d’ordre 2 directement en Rust.
+Ses six familles répartissent les configurations entre trois jeux indépendants.
+
+| Utilisation | Géométries |
+| --- | --- |
+| Entraînement | Rectangle, boîte, boîte mince, rectangle à progression de taille |
+| Validation | Plaque à un trou circulaire |
+| Test final | Volume extrudé à un trou circulaire |
+
+Le [pilote sur Mac](../verification/direct_quad_hex/corpus/README.md) donne les données, les poids du réseau et le détail des essais.
+
+Chaque stratégie acceptée ou refusée garde la famille demandée. Pour chaque maillage
+produit, le journal enregistre le générateur réellement utilisé. L’entraînement vérifie
+ces informations avant d’utiliser les observations. Les anciens profils
+`structured_direct` (huit familles) et `general` (24 familles) se consultent
+avec `status` et `preview`. Leurs données et leurs poids restent rattachés aux
+essais historiques. [Rapport du pilote général historique](../verification/corpus/summary.json).
+
+Le tableau ci-dessous décrit le pilote **rc5 du 4 novembre 2026**, conservé
+séparément ; il ne constitue pas le bilan des nouveaux essais rc6.
 
 La rc4 ajoute un pipeline distinct de la mémoire interactive d'une pièce.
 Son objectif par défaut est **250 000 configurations structurées et 750 000
@@ -13,10 +28,12 @@ n'exécute aucun calcul de maillage. Les essais de livraison portent sur de
 petits lots réellement exécutés ; ils ne constituent pas un corpus d'un million
 de maillages déjà calculés.
 
-## Résultats réellement exécutés pour cette livraison
+## Résultats historiques du pilote rc5
 
-Le [rapport du corpus rc4 (archive complète)](provenance/PREUVES_EXTERNES.md) et le
-[rapport natif](../verification/native_release/summary.json) consignent :
+Le [rapport du corpus rc5 conservé](../verification/corpus/summary_rc5.json)
+consigne les résultats suivants. Les totaux de suite de cette version sont
+conservés dans les notes de livraison historiques, sans être réutilisés
+comme résultats rc6 :
 
 | Vérification | Résultat observé |
 | --- | --- |
@@ -28,12 +45,12 @@ Le [rapport du corpus rc4 (archive complète)](provenance/PREUVES_EXTERNES.md) e
 | Stratégies évaluées ou explicitement refusées | 96 : 88 acceptées et 8 refusées |
 | Appels du moteur | 140, dont 48 inspections de référence indépendantes des stratégies |
 | Reprise | Premier lot de 24, puis 24 cas restants dans une nouvelle session Python |
-| Caractéristiques | 128 entrées, schéma `atelier.geometry_action_features.v3` |
+| Caractéristiques | 128 entrées, schéma `atelier.geometry_action_features.v2` |
 | Entraînement | 2 passages, mini-lots de 16 ; 32 cas d'entraînement, 8 de validation, 8 de test |
 | Exemples de stratégies par partition | 64 d'entraînement, 16 de validation, 16 de test |
 | Conseiller de corpus | 128→32→1, 4 161 paramètres, sauvegardé et installé dans l'atelier |
 | Gain de sélection de validation | 0,0 ; activation du classement désactivée |
-| Suites complètes | 140 tests Python et 93 tests Rust réussis, aucun test ignoré |
+| Suites complètes de la rc5 | 150 tests Python et 110 tests Rust réussis, aucun test ignoré |
 
 La qualité d'une stratégie, son exécution et l'admissibilité d'un cas ne sont
 pas le même compteur. En particulier, deux stratégies d'un même cas invalide
@@ -70,18 +87,21 @@ référence. Le réseau ne produit pas lui-même les étiquettes qui servent ens
 Depuis le dossier du projet et son environnement Python :
 
 ```sh
-python -m atelier corpus plan --directory output/corpus \
-  --structured 250000 --random 750000 --seed 42 --strategies 4 --shard-size 1000
+python -m atelier corpus plan --directory output/corpus_quad_hex \
+  --profile direct_quad_hex --structured 250000 --random 750000 \
+  --seed 42 --strategies 4 --shard-size 1000
 
-python -m atelier corpus status --directory output/corpus
+python -m atelier corpus status --directory output/corpus_quad_hex
 
-python -m atelier corpus run --directory output/corpus --limit 20 --max-seconds 240
+python -m atelier corpus run --directory output/corpus_quad_hex --limit 20 --max-seconds 240
 
-python -m atelier corpus train --directory output/corpus \
+python -m atelier corpus train --directory output/corpus_quad_hex \
   --epochs 3 --batch-size 128 --max-records 10000 --max-seconds 240
 ```
 
 Le panneau de corpus de la page Maillage expose également ces opérations.
+L’interface, l’API Python et la ligne de commande utilisent le même profil
+`direct_quad_hex` par défaut. Choisir un nouveau dossier pour ce corpus.
 Un lot terminé ne déclenche pas automatiquement le lot suivant. Réexécuter
 `run` reprend la progression ; les cas déjà enregistrés ne sont pas recalculés
 comme s'ils étaient nouveaux. Le bilan distingue résultats acceptés et échecs.

@@ -8,129 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 const MAX_PREVIEW_FACES: usize = 250_000;
-/// Public numerical contract: no triangular/tetrahedral result may be accepted.
-pub const ELEMENT_POLICY: &str = "quad_hex_only";
 type R<T> = Result<T, String>;
-
-pub fn validate_element_policy(mesh: &Value) -> R<()> {
-    if let Some(policy) = mesh.get("element_policy") {
-        if policy.as_str() != Some(ELEMENT_POLICY) {
-            return Err(format!("mesh.element_policy doit être {ELEMENT_POLICY} ; les maillages mixtes, triangulaires ou tétraédriques ne sont pas autorisés"));
-        }
-    }
-    Ok(())
-}
-
-fn allowed_element_family(dim: i32, primary: usize, order: i32, nodes: usize) -> Option<&'static str> {
-    match (dim, primary, order, nodes) {
-        (1, 2, 1, 2) | (1, 2, 2, 3) => Some("segment"),
-        (2, 4, 1, 4) | (2, 4, 2, 8 | 9) => Some("quadrilateral"),
-        (3, 8, 1, 8) | (3, 8, 2, 20 | 27) => Some("hexahedron"),
-        _ => None,
-    }
-}
-
-/// Read actual native connectivity, including volume boundaries. A label in a
-/// project/report is never sufficient evidence of the element family.
-pub fn validate_native_element_policy(api: &Gmsh, dimension: i32) -> R<Value> {
-    if ![2, 3].contains(&dimension) {
-        return Err("La politique quadrilatères/hexaèdres exige un maillage de dimension 2 ou 3".into());
-    }
-    let mut counts = BTreeMap::from([
-        ("segment", 0usize), ("quadrilateral", 0usize), ("hexahedron", 0usize),
-    ]);
-    for dim in 1..=3 {
-        for block in api.elements(dim, -1)? {
-            if block.tags.is_empty() { continue; }
-            let family = allowed_element_family(block.dim, block.num_primary, block.order, block.num_nodes)
-                .ok_or_else(|| format!("Politique {ELEMENT_POLICY} : {} interdit ; seuls quadrilatères en surface et hexaèdres en volume sont acceptés", block.name))?;
-            if block.num_nodes.checked_mul(block.tags.len()) != Some(block.nodes.len()) {
-                return Err("Connectivité incohérente pendant la vérification de la famille des éléments".into());
-            }
-            for row in block.nodes.chunks_exact(block.num_nodes) {
-                let corners = &row[..block.num_primary];
-                if corners.iter().enumerate().any(|(i,tag)|corners[..i].contains(tag)) {
-                    return Err(format!("Politique {ELEMENT_POLICY} : sommets répétés dans {} ; un triangle ou tétraèdre déguisé en quadrilatère/hexaèdre est interdit",block.name));
-                }
-            }
-            let next = counts[family].checked_add(block.tags.len()).ok_or("Nombre d'éléments hors plage")?;
-            *counts.get_mut(family).unwrap() = next;
-        }
-    }
-    let top = if dimension == 3 { "hexahedron" } else { "quadrilateral" };
-    if counts[top] == 0 || (dimension == 2 && counts["hexahedron"] != 0) {
-        return Err("Aucun maillage conforme à la dimension et à la politique quadrilatères/hexaèdres".into());
-    }
-    Ok(json!({"requested":ELEMENT_POLICY,"verified":true,"dimension":dimension,"surface_family":"quadrilateral",
-        "volume_family":"hexahedron","method":"native_element_inventory",
-        "final_cell_counts":counts}))
-}
-
-fn subdivided_top_count(dimension: i32, primary: usize, count: usize) -> R<usize> {
-    let multiplier = match (dimension, primary) {
-        (2, 3) => 3,
-        (2, 4) => 4,
-        (3, 4) => 4,
-        (3, 8) => 8,
-        _ => return Err("La subdivision quadrilatères/hexaèdres ne prend pas en charge cette famille intermédiaire".into()),
-    };
-    count.checked_mul(multiplier).ok_or_else(|| "Nombre d'éléments après subdivision hors plage".into())
-}
-
-/// First generate an internal linear mesh, check the exact subdivision cost,
-/// then subdivide and only finally elevate the order. Intermediate simplices
-/// are never persisted, exported or admitted as learning observations.
-fn generate_quad_hex(api: &Gmsh, dimension: i32, mesh: &Value, order: i32, max_elements: usize,
-    periodic: &[(i32,i32,i32,[f64;16])], is_cad: bool) -> R<Value> {
-    validate_element_policy(mesh)?;
-    api.set_number("Mesh.ElementOrder", 1.)?;
-    api.set_number("Mesh.SubdivisionAlgorithm", 0.)?;
-    api.set_number("Mesh.SecondOrderIncomplete", 1.)?;
-    api.set_number("Mesh.RecombineAll", if dimension == 2 && flag(mesh,"recombine",false)? {1.} else {0.})?;
-    api.mesh_generate(dimension)?;
-    let mut initial = 0usize;
-    let mut predicted = 0usize;
-    for block in api.elements(dimension, -1)? {
-        initial = initial.checked_add(block.tags.len()).ok_or("Nombre d'éléments hors plage")?;
-        predicted = predicted.checked_add(subdivided_top_count(dimension,block.num_primary,block.tags.len())?)
-            .ok_or("Nombre d'éléments après subdivision hors plage")?;
-        if predicted > max_elements {
-            return Err(format!("La subdivision quadrilatères/hexaèdres produirait {predicted} éléments, au-delà de la limite {max_elements} ; résultat refusé avant subdivision"));
-        }
-    }
-    let subdivision = if dimension == 3 {2.} else {1.};
-    api.set_number("Mesh.SubdivisionAlgorithm", subdivision)?;
-    // A discrete source describes planar facets, not an exact CAD surface.
-    // Interpolation preserves that source instead of projecting newly created
-    // vertices through an approximate/possibly singular parametrization.
-    api.set_number("Mesh.SecondOrderLinear",if is_cad {0.} else {1.})?;
-    api.mesh_refine()?;
-    // This global operation must not accidentally be repeated by any later
-    // generation/optimization call in the same native session.
-    api.set_number("Mesh.SubdivisionAlgorithm", 0.)?;
-    // Refinement creates face-centre nodes in 3D. Rebuild native periodic maps
-    // now, before elevating the order, rather than retaining an incomplete map
-    // from the internal triangular/tetrahedral mesh.
-    for (dim,slave,master,affine) in periodic {
-        api.mesh_set_periodic(*dim,&[*slave],&[*master],affine)?;
-    }
-    api.set_number("Mesh.ElementOrder", order as f64)?;
-    if order == 2 { api.mesh_set_order(2)?; }
-    let mut evidence = validate_native_element_policy(api,dimension)?;
-    let final_count = evidence["final_cell_counts"][if dimension == 3 {"hexahedron"} else {"quadrilateral"}]
-        .as_u64().ok_or("Compte final d'éléments absent")? as usize;
-    if final_count != predicted || final_count > max_elements {
-        return Err(format!("Subdivision incohérente : {predicted} éléments prévus, {final_count} mesurés ; résultat refusé"));
-    }
-    evidence["method"] = json!("gmsh_subdivision");
-    evidence["subdivision_algorithm"] = json!(subdivision as i32);
-    evidence["intermediate_top_elements"] = json!(initial);
-    evidence["predicted_final_top_elements"] = json!(predicted);
-    evidence["intermediate_elements_exported"] = json!(false);
-    evidence["boundary_geometry"] = json!(if is_cad {"cad_projected_subdivision"} else {"piecewise_linear_source_interpolation"});
-    evidence["high_order_geometry"] = json!(if order == 1 {"linear_elements"} else if is_cad {"cad_projected"} else {"linear_source_geometry_quadratic_basis"});
-    Ok(evidence)
-}
 
 fn number(value: Option<&Value>, default: f64, name: &str, positive: bool) -> R<f64> {
     let x = match value {
@@ -169,20 +47,398 @@ fn flag(v: &Value, key: &str, default: bool) -> R<bool> {
 }
 fn nonnegative_integer(v: &Value, key: &str, default: u64, max: u64) -> R<u64> {
     let value = match v.get(key) {
-        Some(v) => v.as_u64().ok_or_else(|| format!("{key} doit être un entier positif ou nul"))?,
+        Some(v) => v
+            .as_u64()
+            .ok_or_else(|| format!("{key} doit être un entier positif ou nul"))?,
         None => default,
     };
-    if value > max { return Err(format!("{key} hors limites 0..{max}")); }
+    if value > max {
+        return Err(format!("{key} hors limites 0..{max}"));
+    }
     Ok(value)
 }
 fn mesh_tuning(api: &Gmsh, mesh: &Value) -> R<()> {
-    api.set_number("Mesh.Smoothing", nonnegative_integer(mesh,"smoothing",1,100)? as f64)?;
-    api.set_number("Mesh.Optimize", if flag(mesh,"optimize",true)? {1.} else {0.})?;
-    api.set_number("Mesh.MeshSizeFromCurvature", nonnegative_integer(mesh,"curvature_elements",16,100)? as f64)?;
+    api.set_number(
+        "Mesh.Smoothing",
+        nonnegative_integer(mesh, "smoothing", 1, 100)? as f64,
+    )?;
+    api.set_number(
+        "Mesh.Optimize",
+        if flag(mesh, "optimize", true)? {
+            1.
+        } else {
+            0.
+        },
+    )?;
+    api.set_number(
+        "Mesh.MeshSizeFromCurvature",
+        nonnegative_integer(mesh, "curvature_elements", 16, 100)? as f64,
+    )?;
     Ok(())
 }
 fn has_spatial_fields(project: &Value) -> bool {
-    ["local_sizes", "refinement_regions"].iter().any(|key| project[*key].as_array().is_some_and(|a|!a.is_empty()))
+    ["local_sizes", "refinement_regions"]
+        .iter()
+        .any(|key| project[*key].as_array().is_some_and(|a| !a.is_empty()))
+}
+
+pub(crate) fn requested_shape(project: &Value) -> R<&str> {
+    let automatic = if project["mode"] == "volume" { "hexahedron" } else { "quadrilateral" };
+    match project["mesh"].get("element_shape") {
+        None => Ok(automatic),
+        Some(value) if value == "automatic" => Ok(automatic),
+        Some(value) => value
+            .as_str()
+            .filter(|shape| {
+                matches!(
+                    *shape,
+                    "triangle"
+                        | "quadrilateral"
+                        | "tetrahedron"
+                        | "hexahedron"
+                        | "prism"
+                        | "pyramid"
+                )
+            })
+            .ok_or_else(|| "Famille d'éléments inconnue".to_string()),
+    }
+}
+
+pub(crate) fn learning_shape(project: &Value) -> R<&str> {
+    match requested_shape(project)? {
+        shape @ ("quadrilateral" | "hexahedron") => Ok(shape),
+        _ => Err("L’apprentissage utilise uniquement les quadrilatères en surface et les hexaèdres en volume. Choisir la forme automatique ou la famille correspondante.".into()),
+    }
+}
+
+fn uses_direct_cells(shape: &str) -> bool {
+    matches!(shape, "quadrilateral" | "hexahedron" | "prism" | "pyramid")
+}
+
+pub(crate) fn requests_direct_cells(project: &Value) -> R<bool> {
+    let shape = requested_shape(project)?;
+    if let Some(structured) = project["mesh"].get("structured") {
+        if !structured.is_object() {
+            return Err("mesh.structured doit être un objet".into());
+        }
+    }
+    Ok(uses_direct_cells(shape)
+        || matches!(shape, "triangle" | "tetrahedron")
+            && project["mesh"].get("structured").is_some())
+}
+
+pub(crate) fn validate_shape_request(project: &Value, dimension: i32, operation: &str) -> R<()> {
+    let shape = requested_shape(project)?;
+    if operation == "inspect" {
+        return Ok(());
+    }
+    if matches!(shape, "triangle" | "quadrilateral") && dimension != 2
+        || matches!(shape, "tetrahedron" | "hexahedron" | "prism" | "pyramid") && dimension != 3
+    {
+        return Err("La famille demandée ne correspond pas au mode plan/surface/volume".into());
+    }
+    if flag(&project["mesh"], "recombine", false)? {
+        return Err("La recombinaison est désactivée : remplacer recombine=true par element_shape=quadrilateral et recombine=false pour une génération directe compatible".into());
+    }
+    if requests_direct_cells(project)? {
+        if operation == "remesh" {
+            return Err("Le remaillage local conservatif de blocs directs n'est pas encore pris en charge ; utiliser une régénération complète explicite".into());
+        }
+        if project["geometry"]["kind"] == "import" {
+            return Err("La génération directe structurée exige actuellement une géométrie paramétrique compatible ; aucune substitution par triangles ou tétraèdres n'est effectuée pour une CAO importée".into());
+        }
+        if has_spatial_fields(project) {
+            return Err("Les champs locaux isotropes ne sont pas appliqués à une grille directe ; utiliser mesh.structured.divisions et grading, ou une famille non structurée".into());
+        }
+    }
+    Ok(())
+}
+
+fn primary_nodes_for_type(element_type: i32) -> R<usize> {
+    match element_type {
+        15 => Ok(1),
+        1 | 8 => Ok(2),
+        2 | 9 => Ok(3),
+        3 | 10 | 16 => Ok(4),
+        4 | 11 => Ok(4),
+        5 | 12 | 17 => Ok(8),
+        6 | 13 | 18 => Ok(6),
+        7 | 14 | 19 => Ok(5),
+        _ => Err(format!(
+            "Type direct Gmsh non pris en charge : {element_type}"
+        )),
+    }
+}
+
+/// Match complete direct boundary blocks to the existing CAD topology. An
+/// occasional block crossing several CAD entities is split by actual cell.
+/// Classification never changes the generator's coordinates or topology.
+fn direct_entity_for_points(
+    api: &Gmsh,
+    dimension: i32,
+    points: &[[f64; 3]],
+    entities: &[(i32, [f64; 6])],
+    epsilon: f64,
+) -> R<Option<i32>> {
+    if points.is_empty() {
+        return Err("Frontière directe vide".into());
+    }
+    let mut candidates = Vec::new();
+    for &(tag, bounds) in entities {
+        if points.iter().any(|p| {
+            (0..3).any(|axis| {
+                p[axis] < bounds[axis] - epsilon || p[axis] > bounds[axis + 3] + epsilon
+            })
+        }) {
+            continue;
+        }
+        if dimension == 3 {
+            candidates.push((tag, 0.));
+            continue;
+        }
+        let distance = if dimension == 0 {
+            points
+                .iter()
+                .map(|p| {
+                    (0..3)
+                        .map(|axis| (p[axis] - (bounds[axis] + bounds[axis + 3]) / 2.).powi(2))
+                        .sum::<f64>()
+                        .sqrt()
+                })
+                .fold(0., f64::max)
+        } else {
+            let projected = api.closest_points(dimension, tag, points)?;
+            points
+                .iter()
+                .zip(projected)
+                .map(|(a, b)| {
+                    (0..3)
+                        .map(|axis| (a[axis] - b[axis]).powi(2))
+                        .sum::<f64>()
+                        .sqrt()
+                })
+                .fold(0., f64::max)
+        };
+        if distance <= epsilon {
+            candidates.push((tag, distance));
+        }
+    }
+    candidates.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+    Ok(candidates.first().map(|x| x.0))
+}
+
+fn install_direct_mesh(
+    api: &Gmsh,
+    project: &Value,
+    factor: f64,
+    dimension: i32,
+    selected: &[DimTag],
+    max_elements: usize,
+    extent: f64,
+) -> R<Value> {
+    let mut generated = crate::direct_cells::generate(project, factor)?;
+    if generated.points.is_empty() || generated.points.iter().flatten().any(|x| !x.is_finite()) {
+        return Err("Le générateur direct n'a pas produit de nœuds finis".into());
+    }
+    let top_count = generated
+        .blocks
+        .iter()
+        .filter(|b| b.dimension == dimension)
+        .try_fold(0usize, |n, b| {
+            n.checked_add(b.connectivity.len() / b.nodes_per_element.max(1))
+        })
+        .ok_or("Nombre d'éléments directs hors limites")?;
+    if top_count == 0 || top_count > max_elements {
+        return Err("La grille directe dépasse la limite d'éléments ou est vide".into());
+    }
+    let mut catalogue = BTreeMap::<i32, Vec<(i32, [f64; 6])>>::new();
+    for dim in 0..=dimension {
+        for (_, tag) in api.entities(dim)? {
+            catalogue
+                .entry(dim)
+                .or_default()
+                .push((tag, api.bbox(dim, tag)?));
+        }
+    }
+    let mut allowed = selected.iter().copied().collect::<BTreeSet<_>>();
+    // Include every level in the closure of selected domains. This retains
+    // shared interfaces while avoiding unrelated parts of a partial surface.
+    let mut level = selected.to_vec();
+    for _ in 0..dimension {
+        level = api.boundary(&level, false, false, false)?;
+        allowed.extend(level.iter().map(|&(d, t)| (d, t.abs())));
+    }
+    let epsilon = (extent * 1e-8).max(5e-12);
+    let mut installed = BTreeMap::<(i32, i32, i32, usize), Vec<usize>>::new();
+    for block in &generated.blocks {
+        let primary = primary_nodes_for_type(block.element_type)?;
+        if block.nodes_per_element < primary
+            || block.connectivity.len() % block.nodes_per_element != 0
+        {
+            return Err("Connectivité directe incohérente".into());
+        }
+        if block
+            .connectivity
+            .iter()
+            .any(|i| *i >= generated.points.len())
+        {
+            return Err("Indice de nœud direct absent".into());
+        }
+        let entities = catalogue
+            .get(&block.dimension)
+            .ok_or("Dimension de frontière directe absente de la CAO")?;
+        let whole = if block.dimension == 3 && entities.len() == 1 {
+            // The supported parametric generator has one solid. Its complete
+            // boundary is checked below; avoid another volume-sized copy and
+            // sorted set of all primary connectivity just to choose that ID.
+            Some(entities[0].0)
+        } else {
+            let ids = block
+                .connectivity
+                .chunks_exact(block.nodes_per_element)
+                .flat_map(|row| row[..primary].iter().copied())
+                .collect::<BTreeSet<_>>();
+            let points = ids.iter().map(|i| generated.points[*i]).collect::<Vec<_>>();
+            direct_entity_for_points(api, block.dimension, &points, entities, epsilon)?
+        };
+        if let Some(entity) = whole {
+            if allowed.contains(&(block.dimension, entity)) {
+                installed
+                    .entry((
+                        block.dimension,
+                        entity,
+                        block.element_type,
+                        block.nodes_per_element,
+                    ))
+                    .or_default()
+                    .extend(block.connectivity.iter().map(|i| i + 1));
+            }
+        } else {
+            for row in block.connectivity.chunks_exact(block.nodes_per_element) {
+                let points = row[..primary]
+                    .iter()
+                    .map(|i| generated.points[*i])
+                    .collect::<Vec<_>>();
+                let entity =
+                    direct_entity_for_points(api, block.dimension, &points, entities, epsilon)?
+                        .ok_or_else(|| {
+                            format!(
+                        "La frontière directe {} ne correspond à aucune entité CAO de dimension {}",
+                        block.entity_hint, block.dimension
+                    )
+                        })?;
+                if allowed.contains(&(block.dimension, entity)) {
+                    installed
+                        .entry((
+                            block.dimension,
+                            entity,
+                            block.element_type,
+                            block.nodes_per_element,
+                        ))
+                        .or_default()
+                        .extend(row.iter().map(|i| i + 1));
+                }
+            }
+        }
+    }
+    if !installed.keys().any(|key| key.0 == dimension) {
+        return Err("Aucun domaine direct sélectionné".into());
+    }
+    // The logical generator emits physical boundary curves but does not own
+    // CAD vertex IDs. Attach actual sampled CAD vertices explicitly so that
+    // protected 0D zones and the closure of curves keep their real support.
+    // Search only boundary-curve nodes, rather than the volume-sized grid.
+    let curve_nodes = installed
+        .iter()
+        .filter(|(key, _)| key.0 == 1)
+        .flat_map(|(_, nodes)| nodes.iter().copied())
+        .collect::<BTreeSet<_>>();
+    let mut missing_vertices = Vec::new();
+    let mut sampled_vertices = 0usize;
+    for &(entity, bounds) in catalogue.get(&0).map(Vec::as_slice).unwrap_or(&[]) {
+        if !allowed.contains(&(0, entity)) {
+            continue;
+        }
+        let vertex = [
+            (bounds[0] + bounds[3]) / 2.,
+            (bounds[1] + bounds[4]) / 2.,
+            (bounds[2] + bounds[5]) / 2.,
+        ];
+        let closest = curve_nodes
+            .iter()
+            .filter_map(|tag| {
+                let p = generated.points[tag - 1];
+                let distance = (0..3)
+                    .map(|axis| (p[axis] - vertex[axis]).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+                if distance <= epsilon {
+                    Some((*tag, distance))
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        if let Some((node, _)) = closest {
+            installed.insert((0, entity, 15, 1), vec![node]);
+            sampled_vertices += 1;
+        } else {
+            missing_vertices.push(entity);
+        }
+    }
+    generated.metadata["cad_vertices_sampled"] = json!(sampled_vertices);
+    generated.metadata["cad_vertices_not_sampled"] = json!(missing_vertices);
+    generated.metadata["generated_top_elements_before_selection"] = json!(top_count);
+    generated.metadata["top_elements"] = json!(installed
+        .iter()
+        .filter(|(key, _)| key.0 == dimension)
+        .map(|(key, nodes)| nodes.len() / key.3)
+        .sum::<usize>());
+    // Nodes are first inserted on a top entity; reclassification below moves
+    // them onto the lowest-dimensional CAD entities carrying their cells.
+    let top = selected.first().ok_or("Domaine direct absent")?.1;
+    let tags = installed
+        .values()
+        .flatten()
+        .copied()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let points = tags
+        .iter()
+        .map(|tag| generated.points[tag - 1])
+        .collect::<Vec<_>>();
+    api.mesh_add_nodes(dimension, top, &tags, &points)?;
+    let mut next_element = 1usize;
+    for ((_, entity, element_type, per_element), nodes) in installed {
+        let count = nodes.len() / per_element;
+        let tags = (next_element..next_element + count).collect::<Vec<_>>();
+        api.mesh_add_elements_by_type(entity, element_type, &tags, &nodes)?;
+        next_element += count;
+    }
+    api.mesh_reclassify_nodes()?;
+    Ok(generated.metadata)
+}
+
+fn enforce_element_family(api: &Gmsh, dimension: i32, shape: &str, order: i32) -> R<()> {
+    let wanted = match shape {
+        "automatic" => return Ok(()),
+        "triangle" => 3,
+        "quadrilateral" => 4,
+        "tetrahedron" => 4,
+        "hexahedron" => 8,
+        "prism" => 6,
+        "pyramid" => 5,
+        _ => return Err("Famille d'éléments inconnue".into()),
+    };
+    for (_, entity) in api.entities(dimension)? {
+        for block in api.elements(dimension, entity)? {
+            if !block.tags.is_empty() && (block.num_primary != wanted || block.order != order) {
+                return Err(format!("Le résultat {} n'appartient pas exclusivement à la famille {shape} d'ordre {order} demandée ; aucun remplacement silencieux n'est accepté",block.name));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn vec3(v: Option<&Value>, default: [f64; 3], label: &str) -> R<[f64; 3]> {
@@ -201,26 +457,48 @@ fn vec3(v: Option<&Value>, default: [f64; 3], label: &str) -> R<[f64; 3]> {
 fn refinement_fields(api: &Gmsh, project: &Value, factor: f64, global_size: f64) -> R<Vec<f64>> {
     let mut fields = Vec::new();
     if let Some(raw) = project.get("refinement_regions") {
-        let rows = raw.as_array().ok_or("refinement_regions doit être une liste")?;
-        if rows.len() > 256 { return Err("Limite de 256 régions de raffinement dépassée".into()); }
-        let min_size = n(&project["mesh"],"min_size",(global_size/factor).min(0.1),true)? * factor;
+        let rows = raw
+            .as_array()
+            .ok_or("refinement_regions doit être une liste")?;
+        if rows.len() > 256 {
+            return Err("Limite de 256 régions de raffinement dépassée".into());
+        }
+        let min_size = n(
+            &project["mesh"],
+            "min_size",
+            (global_size / factor).min(0.1),
+            true,
+        )? * factor;
         for row in rows {
-            if !row.is_object() { return Err("Chaque région de raffinement doit être un objet".into()); }
-            let center = vec3(row.get("center"), [f64::NAN;3], "Centre de raffinement")?;
-            if center.iter().any(|v|!v.is_finite()) { return Err("Un centre de raffinement à trois coordonnées est requis".into()); }
-            let radius = n(row,"radius",f64::NAN,true)? * factor;
-            let size = n(row,"size",f64::NAN,true)? * factor;
-            if !radius.is_finite() || !size.is_finite() || center.iter().any(|v|!(v*factor).is_finite()) {
+            if !row.is_object() {
+                return Err("Chaque région de raffinement doit être un objet".into());
+            }
+            let center = vec3(row.get("center"), [f64::NAN; 3], "Centre de raffinement")?;
+            if center.iter().any(|v| !v.is_finite()) {
+                return Err("Un centre de raffinement à trois coordonnées est requis".into());
+            }
+            let radius = n(row, "radius", f64::NAN, true)? * factor;
+            let size = n(row, "size", f64::NAN, true)? * factor;
+            if !radius.is_finite()
+                || !size.is_finite()
+                || center.iter().any(|v| !(v * factor).is_finite())
+            {
                 return Err("Région de raffinement hors plage".into());
             }
             if size < min_size {
                 return Err("Une taille de raffinement est inférieure à la taille minimale globale ; abaisser d'abord cette limite".into());
             }
             let field = api.mesh_field_add("Ball")?;
-            for (name, value) in [("XCenter",center[0]*factor),("YCenter",center[1]*factor),
-                ("ZCenter",center[2]*factor),("Radius",radius),("Thickness",radius*0.25),
-                ("VIn",size),("VOut",global_size)] {
-                api.mesh_field_set_number(field,name,value)?;
+            for (name, value) in [
+                ("XCenter", center[0] * factor),
+                ("YCenter", center[1] * factor),
+                ("ZCenter", center[2] * factor),
+                ("Radius", radius),
+                ("Thickness", radius * 0.25),
+                ("VIn", size),
+                ("VOut", global_size),
+            ] {
+                api.mesh_field_set_number(field, name, value)?;
             }
             fields.push(field as f64);
         }
@@ -411,12 +689,12 @@ fn validated_rings(g: &Value) -> R<(Vec<[f64; 2]>, Vec<Vec<[f64; 2]>>)> {
     }
     Ok((outer, holes))
 }
-fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>], factor: f64) -> R<i32> {
+fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>]) -> R<i32> {
     let mut loops = Vec::new();
     for r in std::iter::once(outer).chain(holes.iter().map(Vec::as_slice)) {
         let p = r
             .iter()
-            .map(|p| api.occ_add_point(p[0]*factor, p[1]*factor, 0.))
+            .map(|p| api.occ_add_point(p[0], p[1], 0.))
             .collect::<R<Vec<_>>>()?;
         let edges = (0..p.len())
             .map(|i| api.occ_add_line(p[i], p[(i + 1) % p.len()]))
@@ -425,7 +703,7 @@ fn ring_surface(api: &Gmsh, outer: &[[f64; 2]], holes: &[Vec<[f64; 2]>], factor:
     }
     api.occ_add_plane_surface(&loops)
 }
-fn plate(api: &Gmsh, g: &Value, factor: f64) -> R<Vec<DimTag>> {
+fn plate(api: &Gmsh, g: &Value) -> R<Vec<DimTag>> {
     let w = n(g, "width", 10., true)?;
     let h = n(g, "height", 6., true)?;
     let r = n(g, "corner_radius", 0., false)?;
@@ -447,10 +725,9 @@ fn plate(api: &Gmsh, g: &Value, factor: f64) -> R<Vec<DimTag>> {
                 [0., c],
             ],
             &[],
-            factor,
         )?
     } else {
-        api.occ_add_rectangle(0., 0., 0., w*factor, h*factor, r*factor)?
+        api.occ_add_rectangle(0., 0., 0., w, h, r)?
     };
     let mut disks = Vec::new();
     let mut circles: Vec<(f64, f64, f64)> = Vec::new();
@@ -493,7 +770,7 @@ fn plate(api: &Gmsh, g: &Value, factor: f64) -> R<Vec<DimTag>> {
                 return Err("Deux trous se touchent ou se chevauchent".into());
             }
             circles.push((x, y, hr));
-            disks.push((2, api.occ_add_disk(x*factor, y*factor, 0., hr*factor, hr*factor)?));
+            disks.push((2, api.occ_add_disk(x, y, 0., hr, hr)?));
         }
     }
     if disks.is_empty() {
@@ -502,22 +779,22 @@ fn plate(api: &Gmsh, g: &Value, factor: f64) -> R<Vec<DimTag>> {
         api.occ_cut(&[(2, surface)], &disks)
     }
 }
-fn native(api: &Gmsh, project: &Value, factor: f64) -> R<()> {
+fn native(api: &Gmsh, project: &Value) -> R<()> {
     let g = &project["geometry"];
     let kind = g["kind"].as_str().ok_or("Type géométrique absent")?;
     let volume = project["mode"] == "volume";
     match kind {
         "plate" => {
-            let surfaces = plate(api, g, factor)?;
+            let surfaces = plate(api, g)?;
             if volume {
-                api.occ_extrude(&surfaces, 0., 0., n(g, "thickness", 2., true)?*factor)?;
+                api.occ_extrude(&surfaces, 0., 0., n(g, "thickness", 2., true)?)?;
             }
         }
         "polygon" => {
             let (o, h) = validated_rings(g)?;
-            let s = ring_surface(api, &o, &h, factor)?;
+            let s = ring_surface(api, &o, &h)?;
             if volume {
-                api.occ_extrude(&[(2, s)], 0., 0., n(g, "thickness", 2., true)?*factor)?;
+                api.occ_extrude(&[(2, s)], 0., 0., n(g, "thickness", 2., true)?)?;
             }
         }
         "box" => {
@@ -525,26 +802,26 @@ fn native(api: &Gmsh, project: &Value, factor: f64) -> R<()> {
                 0.,
                 0.,
                 0.,
-                n(g, "width", 10., true)?*factor,
-                n(g, "height", 6., true)?*factor,
-                n(g, "depth", 4., true)?*factor,
+                n(g, "width", 10., true)?,
+                n(g, "height", 6., true)?,
+                n(g, "depth", 4., true)?,
             )?;
         }
         "sphere" => {
-            api.occ_add_sphere(0., 0., 0., n(g, "radius", 3., true)?*factor)?;
+            api.occ_add_sphere(0., 0., 0., n(g, "radius", 3., true)?)?;
         }
         "bracket" => {
-            let w = n(g, "width", 10., true)?*factor;
-            let h = n(g, "height", 8., true)?*factor;
-            let d = n(g, "depth", 4., true)?*factor;
-            let wall = n(g, "wall", 2., true)?*factor;
+            let w = n(g, "width", 10., true)?;
+            let h = n(g, "height", 8., true)?;
+            let d = n(g, "depth", 4., true)?;
+            let wall = n(g, "wall", 2., true)?;
             if wall >= w.min(h) {
                 return Err("Paroi d'équerre trop épaisse".into());
             }
             let a = api.occ_add_box(0., 0., 0., w, d, wall)?;
             let b = api.occ_add_box(0., 0., wall, wall, d, h - wall)?;
             let solid = api.occ_fuse(&[(3, a)], &[(3, b)])?;
-            let r = n(g, "throughhole_radius", 0., false)?*factor;
+            let r = n(g, "throughhole_radius", 0., false)?;
             if r < 0. {
                 return Err("Rayon de perçage négatif".into());
             }
@@ -610,25 +887,6 @@ fn import_geometry(
         return Err("Source CAO supérieure à 200 Mio".into());
     }
     if ["step", "stp", "iges", "igs", "brep"].contains(&ext.as_str()) {
-        if ["iges", "igs"].contains(&ext.as_str()) {
-            // Gmsh 4.15.2 sets xstep.cascade.unit before constructing its
-            // first IGES reader; OCC has not initialized that registry yet.
-            // Bootstrap through the public API in a discarded model, then
-            // reread with the explicit target unit. No first-pass geometry or
-            // default-unit coordinates can reach the actual mesh.
-            let target = api.get_string("Geometry.OCCTargetUnit")?;
-            let bootstrap = (|| -> R<()> {
-                api.set_string("Geometry.OCCTargetUnit", "")?;
-                api.occ_import(source)?;
-                api.remove_model()?;
-                api.add_model("atelier-rust")
-            })();
-            // Restore this process-global option even when bootstrapping
-            // fails: another recipe may run in the same native process.
-            let restored = api.set_string("Geometry.OCCTargetUnit", &target);
-            bootstrap?;
-            restored?;
-        }
         api.occ_import(source)?;
         api.occ_sync()?;
         return Ok(true);
@@ -716,7 +974,7 @@ fn import_geometry(
     warnings.push(format!("{} : surface discrète triangulée ; les courbes CAO exactes ne sont pas reconstruites. Les sommets des frontières polygonales sont conservés",ext.to_uppercase()));
     Ok(false)
 }
-fn entity_catalog(api: &Gmsh, is_cad: bool) -> R<Vec<Value>> {
+fn entity_catalog(api: &Gmsh) -> R<Vec<Value>> {
     let mut items = Vec::new();
     for dim in 0..=3 {
         for (_, tag) in api.entities(dim)? {
@@ -728,8 +986,15 @@ fn entity_catalog(api: &Gmsh, is_cad: bool) -> R<Vec<Value>> {
                 _ => "Volume",
             };
             let name = api.entity_name(dim, tag)?;
-            let boundaries = if dim > 0 { api.boundary(&[(dim, tag)], false, false, false)?.into_iter().map(|(dimension, tag)| json!({"dimension":dimension,"tag":tag.abs()})).collect::<Vec<_>>() } else { Vec::new() };
-            items.push(json!({"dim":dim,"dimension":dim,"tag":tag,"name":if name.is_empty(){format!("{label} {tag}")}else{name},"bbox":bbox,"bbox_source":if is_cad{"opencascade_stl_tessellation"}else{"discrete_geometry"},"bbox_approximate":is_cad,"center":[(bbox[0]+bbox[3])/2.,(bbox[1]+bbox[4])/2.,(bbox[2]+bbox[5])/2.],"boundaries":boundaries}));
+            let boundaries = if dim > 0 {
+                api.boundary(&[(dim, tag)], false, false, false)?
+                    .into_iter()
+                    .map(|(dimension, tag)| json!({"dimension":dimension,"tag":tag.abs()}))
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
+            items.push(json!({"dim":dim,"dimension":dim,"tag":tag,"name":if name.is_empty(){format!("{label} {tag}")}else{name},"bbox":bbox,"center":[(bbox[0]+bbox[3])/2.,(bbox[1]+bbox[4])/2.,(bbox[2]+bbox[5])/2.],"boundaries":boundaries}));
         }
     }
     Ok(items)
@@ -925,7 +1190,14 @@ fn same_snapshot(before: &BTreeMap<i32, Value>, after: &BTreeMap<i32, Value>) ->
     true
 }
 
-fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, factor: f64, build_preview: bool) -> R<(Value, Value, usize, Value)> {
+fn mesh_data(
+    api: &Gmsh,
+    dimension: i32,
+    max_elements: usize,
+    project: &Value,
+    factor: f64,
+    build_preview: bool,
+) -> R<(Value, Value, usize, Value)> {
     let (node_tags, points) = api.nodes()?;
     let map: HashMap<_, _> = node_tags
         .iter()
@@ -936,7 +1208,12 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
     if points.is_empty() {
         return Err("Le moteur n'a produit aucun nœud".into());
     }
-    if !build_preview && points.iter().flatten().any(|coordinate| !coordinate.is_finite()) {
+    if !build_preview
+        && points
+            .iter()
+            .flatten()
+            .any(|coordinate| !coordinate.is_finite())
+    {
         return Err("Coordonnées de maillage non finies".into());
     }
     let mut cells = Vec::new();
@@ -949,15 +1226,20 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
     for dim in 1..=dimension {
         for (_, entity) in api.entities(dim)? {
             for b in api.elements(dim, entity)? {
-                if b.num_nodes == 0 || b.num_primary > b.num_nodes
-                    || b.tags.len().checked_mul(b.num_nodes) != Some(b.nodes.len()) {
+                if b.num_nodes == 0
+                    || b.num_primary > b.num_nodes
+                    || b.tags.len().checked_mul(b.num_nodes) != Some(b.nodes.len())
+                {
                     return Err("Connectivité de maillage incohérente".into());
                 }
                 *counts.entry(b.name.clone()).or_default() += b.tags.len();
                 if b.dim == dimension {
                     top_tags.extend(&b.tags);
                     if top_tags.len() > max_elements {
-                        return Err(format!("{} éléments dépassent la limite {max_elements}", top_tags.len()));
+                        return Err(format!(
+                            "{} éléments dépassent la limite {max_elements}",
+                            top_tags.len()
+                        ));
                     }
                 }
                 let kind = match (b.dim, b.num_primary) {
@@ -969,9 +1251,11 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
                     (3, 6) => "wedge",
                     (3, 5) => "pyramid",
                     _ => {
-                        if b.dim == dimension { top_blocks.push((entity, b)); }
+                        if b.dim == dimension {
+                            top_blocks.push((entity, b));
+                        }
                         continue;
-                    },
+                    }
                 };
                 if build_preview {
                     let mut rows = Vec::with_capacity(b.tags.len());
@@ -994,11 +1278,15 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
                     // catalogue validation even when its display JSON is omitted.
                     for row in b.nodes.chunks_exact(b.num_nodes) {
                         for id in &row[..b.num_primary] {
-                            if !map.contains_key(id) { return Err("Nœud absent du catalogue".into()); }
+                            if !map.contains_key(id) {
+                                return Err("Nœud absent du catalogue".into());
+                            }
                         }
                     }
                 }
-                if b.dim == dimension { top_blocks.push((entity, b)); }
+                if b.dim == dimension {
+                    top_blocks.push((entity, b));
+                }
             }
         }
     }
@@ -1014,14 +1302,29 @@ fn mesh_data(api: &Gmsh, dimension: i32, max_elements: usize, project: &Value, f
     let q = api.element_qualities(&top_tags, "minSICN")?;
     let jac = api.element_qualities(&top_tags, "minDetJac")?;
     if q.is_empty() || q.iter().chain(&jac).any(|x| !x.is_finite() || *x <= 0.) {
-        return Err(format!("Éléments inversés ou dégénérés détectés ; résultat non exporté (minSICN={:.6e}, minDetJac={:.6e})",
-            q.iter().copied().fold(f64::INFINITY,f64::min),jac.iter().copied().fold(f64::INFINITY,f64::min)));
+        return Err("Éléments inversés ou dégénérés détectés ; résultat non exporté".into());
     }
-    let quality = crate::quality::assess(api, project, dimension, factor, &map, &points, &top_tags, &q, &jac, &top_blocks)?;
+    let quality = crate::quality::assess(
+        api,
+        project,
+        dimension,
+        factor,
+        &map,
+        &points,
+        &top_tags,
+        &q,
+        &jac,
+        &top_blocks,
+    )?;
     if !build_preview {
         // Internal metadata only: this value is never persisted as a display
         // preview. The complete normal-mode preview schema stays unchanged.
-        return Ok((quality, json!({"point_count":points.len()}), top_tags.len(), json!(counts)));
+        return Ok((
+            quality,
+            json!({"point_count":points.len()}),
+            top_tags.len(),
+            json!(counts),
+        ));
     }
     let mut triangles = Vec::new();
     let mut face_tags = Vec::new();
@@ -1098,7 +1401,7 @@ fn constraint_fields(api: &Gmsh, p: &Value, factor: f64, global_size: f64) -> R<
             fields.push(restrict as f64);
         }
     }
-    fields.extend(refinement_fields(api,p,factor,global_size)?);
+    fields.extend(refinement_fields(api, p, factor, global_size)?);
     let global = api.mesh_field_add("MathEval")?;
     api.mesh_field_set_string(global, "F", &format!("{global_size:.16e}"))?;
     fields.push(global as f64);
@@ -1127,54 +1430,151 @@ fn constraint_fields(api: &Gmsh, p: &Value, factor: f64, global_size: f64) -> R<
     }
     Ok(())
 }
-/// Gmsh's direct high-order optimizer can log an error inside an OpenMP
-/// region. Throwing there (AbortOnError=2) terminates the native process before
-/// the C ABI can return ierr. Keep the same optimizer, collect its diagnostics
-/// in non-throwing mode, restore normal error handling, and refuse any error.
-fn optimize_high_order(api:&Gmsh, warnings:&mut Vec<String>) -> R<()> {
-    let previous=api.get_number("General.AbortOnError")?;
-    api.logger_start()?;
-    let configured=api.set_number("General.AbortOnError",1.);
-    let optimized=if configured.is_ok(){api.mesh_optimize("HighOrder")}else{Ok(())};
-    let messages=api.logger_messages();
-    let stopped=api.logger_stop();
-    let restored=api.set_number("General.AbortOnError",previous);
-    // Run every cleanup before propagating errors; no global Gmsh error mode
-    // or logger is left changed by an ordinary C-ABI failure.
-    let mut errors=Vec::new();
-    for (stage,result) in [("configuration",configured),("optimisation",optimized),("journal",stopped),("restauration",restored)] {
-        if let Err(error)=result {errors.push(format!("{stage} : {error}"));}
+fn uses_analytic_sphere_curving(project: &Value, dimension: i32, order: u64) -> bool {
+    (2..=3).contains(&dimension) && order == 2 && project["geometry"]["kind"] == "sphere"
+}
+
+/// OCC's spherical UV parametrization is singular at its poles. Interpolating
+/// those UV values can collapse a P2 edge node onto a pole. Construct that node
+/// from the physical midpoint of its TWO primary endpoints instead, then project
+/// analytically onto this known sphere. Existing P2 positions are never used.
+fn curve_native_sphere_nodes(api: &Gmsh, project: &Value, factor: f64) -> R<Value> {
+    let geometry = &project["geometry"];
+    let transform = &geometry["transform"];
+    let radius = n(geometry, "radius", 3., true)? * n(transform, "scale", 1., true)? * factor;
+    let offset = vec3(transform.get("translation"), [0.; 3], "Translation")?;
+    let center = offset.map(|x| x * factor);
+    if !radius.is_finite() || radius <= 0. || center.iter().any(|x| !x.is_finite()) {
+        return Err("Sphère hors plage numérique".into());
     }
-    match messages {
-        Ok(messages)=>{
-            for message in messages {
-                let level=message.trim_start();
-                if level.starts_with("Error") {errors.push(message);}
-                else if level.starts_with("Warning") {warnings.push(format!("Optimisation quadratique Gmsh : {message}"));}
+    let norm = |p: [f64; 3]| p[0].hypot(p[1]).hypot(p[2]);
+    let scale = center.iter().map(|x| x.abs()).fold(radius, f64::max);
+    let tolerance = (radius * 1e-10).max(scale * 256. * f64::EPSILON);
+    let (tags, points) = api.nodes()?;
+    let positions = tags
+        .iter()
+        .copied()
+        .zip(points.iter().copied())
+        .collect::<HashMap<_, _>>();
+    let mut targets = BTreeMap::<usize, [f64; 3]>::new();
+    let mut boundary_nodes = BTreeSet::new();
+    let mut boundary_elements = Vec::new();
+    for block in api.elements(2, -1)? {
+        if block.element_type != 9 || block.num_nodes != 6 || block.num_primary != 3 {
+            return Err(
+                "La projection de sphère attend uniquement des triangles quadratiques à six nœuds"
+                    .into(),
+            );
+        }
+        boundary_nodes.extend(block.nodes.iter().copied());
+        boundary_elements.extend(block.tags.iter().copied());
+        for row in block.nodes.chunks_exact(6) {
+            for (a, b, mid) in [(0, 1, 3), (1, 2, 4), (2, 0, 5)] {
+                let pa = *positions
+                    .get(&row[a])
+                    .ok_or("Sommet primaire de sphère absent")?;
+                let pb = *positions
+                    .get(&row[b])
+                    .ok_or("Sommet primaire de sphère absent")?;
+                for p in [pa, pb] {
+                    if (norm(std::array::from_fn(|axis| p[axis] - center[axis])) - radius).abs()
+                        > tolerance
+                    {
+                        return Err(
+                            "Un sommet primaire n'est pas sur la sphère analytique attendue".into(),
+                        );
+                    }
+                }
+                let direction = std::array::from_fn(|axis| {
+                    (pa[axis] - center[axis]) / 2. + (pb[axis] - center[axis]) / 2.
+                });
+                let distance = norm(direction);
+                if !distance.is_finite() || distance <= radius * 1e-12 {
+                    return Err(
+                        "Arête sphérique quasi antipodale : affiner la taille de maillage".into(),
+                    );
+                }
+                let target = std::array::from_fn(|axis| {
+                    center[axis] + radius * (direction[axis] / distance)
+                });
+                if let Some(previous) = targets.insert(row[mid], target) {
+                    if norm(std::array::from_fn(|axis| previous[axis] - target[axis])) > tolerance {
+                        return Err("Un nœud quadratique partagé reçoit deux positions sphériques incompatibles".into());
+                    }
+                }
             }
-        },
-        Err(error)=>errors.push(format!("lecture du journal : {error}")),
+        }
     }
-    if !errors.is_empty() {
-        return Err(format!("Optimisation quadratique Gmsh refusée ; aucun maillage public n'est publié : {}",errors.join(" ; ")));
+    let mut updated = BTreeSet::new();
+    for dimension in 1..=2 {
+        for (_, entity) in api.entities(dimension)? {
+            let (nodes, _) = api.nodes_for(dimension, entity, false)?;
+            let selected = nodes
+                .into_iter()
+                .filter(|tag| targets.contains_key(tag))
+                .collect::<Vec<_>>();
+            if selected.is_empty() {
+                continue;
+            }
+            let coordinates = selected.iter().map(|tag| targets[tag]).collect::<Vec<_>>();
+            let parameters = api.parametrization(dimension, entity, &coordinates)?;
+            for (i, tag) in selected.into_iter().enumerate() {
+                let dim = dimension as usize;
+                api.set_node_with_parameters(
+                    tag,
+                    targets[&tag],
+                    &parameters[i * dim..(i + 1) * dim],
+                )?;
+                updated.insert(tag);
+            }
+        }
     }
-    Ok(())
+    if updated.len() != targets.len() {
+        return Err("Un nœud quadratique sphérique n'est pas classé sur sa frontière CAD".into());
+    }
+    let maximum_radius_error = boundary_nodes
+        .iter()
+        .map(|tag| {
+            let point = targets.get(tag).copied().unwrap_or(positions[tag]);
+            (norm(std::array::from_fn(|axis| point[axis] - center[axis])) - radius).abs()
+        })
+        .fold(0., f64::max);
+    if maximum_radius_error > tolerance {
+        return Err("Des nœuds de la coque ne sont pas sur la sphère analytique".into());
+    }
+    // Validate curved boundary facets even for a volume with no user-defined
+    // critical zone. Positive volume Jacobians alone do not establish valid
+    // curved contact triangles. Interior TET10 nodes were never selected above.
+    let boundary_quality = api.element_qualities(&boundary_elements, "minSICN")?;
+    let boundary_jacobian = api.element_qualities(&boundary_elements, "minDetJac")?;
+    if boundary_quality.is_empty()
+        || boundary_quality
+            .iter()
+            .chain(&boundary_jacobian)
+            .any(|x| !x.is_finite() || *x <= 0.)
+    {
+        return Err(
+            "Facettes quadratiques sphériques inversées ou dégénérées : résultat refusé".into(),
+        );
+    }
+    Ok(
+        json!({"method":"primary_edge_midpoint_radial_projection","projected_nodes":targets.len(),
+        "center":center,"radius":radius,"maximum_radius_error":maximum_radius_error,
+        "boundary_node_count":boundary_nodes.len(),"interior_nodes_modified":0,
+        "minimum_boundary_quality":boundary_quality.iter().copied().fold(f64::INFINITY,f64::min),
+        "minimum_boundary_jacobian":boundary_jacobian.iter().copied().fold(f64::INFINITY,f64::min),
+        "cad_parameters_updated":true,"scope":"native analytic sphere boundary, quadratic triangles only; volume interior untouched"}),
+    )
 }
 
-fn optimize_high_order_if_needed(api:&Gmsh, project:&Value, dimension:i32, factor:f64,
-    max_elements:usize, warnings:&mut Vec<String>) -> R<&'static str> {
-    // The direct optimizer can be very expensive on valid hexahedron20 meshes.
-    // Assess the complete actual mesh and all declared protected zones first;
-    // satisfying the same acceptance criteria makes a repair unnecessary.
-    if mesh_data(api,dimension,max_elements,project,factor,false)
-        .is_ok_and(|(quality,_,_,_)|quality["accepted"] == true) {
-        return Ok("not_needed_quality_already_accepted");
-    }
-    optimize_high_order(api,warnings)?;
-    Ok("native_high_order_repair_attempted")
-}
-
-fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, warnings:&mut Vec<String>) -> R<()> {
+fn replay_generate(
+    api: &Gmsh,
+    p: &Value,
+    factor: f64,
+    dim: i32,
+    local: bool,
+    is_cad: bool,
+) -> R<()> {
     let m = &p["mesh"];
     let size = n(m, "size", 0.5, true)? * factor;
     let min = n(m, "min_size", 0.1, true)? * factor;
@@ -1182,10 +1582,11 @@ fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, wa
     if dim == 3 && algo == "frontal" && has_spatial_fields(p) {
         return Err("Le frontal 3D ne prend pas en charge les champs de taille locaux ; utiliser Delaunay ou Automatique".into());
     }
-    let order = integer(m, "order", 1, 2)?;
+    let order = integer(m, "order", 2, 2)?;
+    let sphere_curving = uses_analytic_sphere_curving(p, dim, order);
     api.set_number("Mesh.MeshSizeMin", min)?;
     api.set_number("Mesh.MeshSizeMax", size)?;
-    mesh_tuning(api,m)?;
+    mesh_tuning(api, m)?;
     api.set_number("Mesh.MeshSizeExtendFromBoundary", 1.)?;
     api.set_number(
         "Mesh.Algorithm",
@@ -1197,7 +1598,10 @@ fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, wa
     )?;
     api.set_number("Mesh.Algorithm3D", if algo == "frontal" { 4. } else { 1. })?;
     api.set_number("Mesh.ElementOrder", order as f64)?;
-    api.set_number("Mesh.SecondOrderLinear", 0.)?;
+    api.set_number(
+        "Mesh.SecondOrderLinear",
+        if is_cad && !sphere_curving { 0. } else { 1. },
+    )?;
     api.set_number(
         "Mesh.RecombineAll",
         if flag(m, "recombine", false)? { 1. } else { 0. },
@@ -1233,30 +1637,27 @@ fn replay_generate(api: &Gmsh, p: &Value, factor: f64, dim: i32, local: bool, wa
     }
     constraint_fields(api, p, factor, size)?;
     api.mesh_generate(dim)?;
-    if order == 2 && !local {
-        optimize_high_order(api,warnings)?;
+    if sphere_curving {
+        curve_native_sphere_nodes(api, p, factor)?;
+    }
+    if order == 2 && !local && is_cad && !sphere_curving {
+        api.mesh_optimize("HighOrder")?;
     }
     Ok(())
 }
 /// Execute a complete isolated native operation and persist its reviewable result.
 pub fn run(request: &Value) -> R<Value> {
     let started = Instant::now();
-    let mut normalized_project = request.get("project").filter(|p|p.is_object()).ok_or("Projet absent ou invalide")?.clone();
-    if normalized_project.get("mesh").is_none() { normalized_project["mesh"] = json!({}); }
-    if !normalized_project["mesh"].is_object() { return Err("mesh doit être un objet".into()); }
-    validate_element_policy(&normalized_project["mesh"])?;
-    normalized_project["mesh"]["element_policy"] = json!(ELEMENT_POLICY);
-    let project = &normalized_project;
+    let project = request.get("project").ok_or("Projet absent")?;
     let operation = request["operation"].as_str().unwrap_or("mesh");
     let report_only = flag(request, "report_only", false)?;
     if report_only && !["mesh", "inspect"].contains(&operation) {
-        return Err("Le mode sans artefacts est réservé aux évaluations de maillage et de géométrie".into());
+        return Err(
+            "Le mode sans artefacts est réservé aux évaluations de maillage et de géométrie".into(),
+        );
     }
     if !["mesh", "inspect", "remesh"].contains(&operation) {
         return Err("Opération inconnue".into());
-    }
-    if operation == "remesh" {
-        return Err("Le remaillage local strict tout-quadrilatères/tout-hexaèdres n'est pas disponible : la subdivision native modifierait le maillage extérieur à la sélection. Régénérer explicitement un maillage complet ; aucun remaillage de remplacement n'est effectué".into());
     }
     let mode = project["mode"].as_str().unwrap_or("planar");
     let requested_dim = match mode {
@@ -1269,6 +1670,9 @@ pub fn run(request: &Value) -> R<Value> {
     } else {
         requested_dim
     };
+    validate_shape_request(project, requested_dim, operation)?;
+    let element_shape = requested_shape(project)?;
+    let direct_generation = operation != "inspect" && requests_direct_cells(project)?;
     let geometry = project
         .get("geometry")
         .filter(|v| v.is_object())
@@ -1284,17 +1688,26 @@ pub fn run(request: &Value) -> R<Value> {
     if min_size > size {
         return Err("La taille minimale dépasse la taille cible".into());
     }
-    let order = integer(mesh, "order", 1, 2)? as i32;
+    let order = integer(mesh, "order", 2, 2)? as i32;
+    let sphere_curving =
+        operation != "inspect" && uses_analytic_sphere_curving(project, dimension, order as u64);
     let threads = integer(mesh, "threads", 1, 64)?;
     let max_elements = integer(mesh, "max_elements", 200000, 2000000)? as usize;
     let algorithm = mesh["algorithm"].as_str().unwrap_or("automatic");
     if !["automatic", "delaunay", "frontal"].contains(&algorithm) {
         return Err("Algorithme inconnu".into());
     }
-    if operation != "inspect" && dimension == 3 && algorithm == "frontal" && has_spatial_fields(project) {
+    if operation != "inspect"
+        && dimension == 3
+        && algorithm == "frontal"
+        && has_spatial_fields(project)
+    {
         return Err("Le frontal 3D ne prend pas en charge les champs de taille locaux ; utiliser Delaunay ou Automatique".into());
     }
     let recombine = flag(mesh, "recombine", false)?;
+    if dimension == 3 && recombine {
+        return Err("La recombinaison quadrangulaire est réservée aux surfaces".into());
+    }
     let units = project.get("units").unwrap_or(&Value::Null);
     let input_unit = units["input"].as_str().unwrap_or("mm");
     let factor = unit_factor(input_unit)?;
@@ -1386,6 +1799,14 @@ pub fn run(request: &Value) -> R<Value> {
         let steps = recipe["steps"]
             .as_array()
             .ok_or("Historique de remaillage invalide")?;
+        for previous in std::iter::once(&recipe["base_project"]).chain(steps.iter()) {
+            if requests_direct_cells(previous)? {
+                return Err("L'état précédent utilise des cellules structurées directes ; une régénération complète doit être demandée explicitement".into());
+            }
+            if flag(&previous["mesh"], "recombine", false)? {
+                return Err("L'historique exige une recombinaison désormais interdite ; créer un nouvel état de référence avec une famille directe".into());
+            }
+        }
         if steps.len() >= 32 {
             return Err(
                 "Limite de 32 opérations locales atteinte ; créer un nouvel état de référence"
@@ -1438,22 +1859,22 @@ pub fn run(request: &Value) -> R<Value> {
     let mut warnings = Vec::new();
     let is_cad = if kind == "import" {
         let source = source.as_ref().ok_or("Sélectionner la source CAO")?;
-        // STEP/IGES carry physical units: request SI directly from OCC. A later
-        // dilation can retain stale curve/surface parameters on periodic CAD
-        // (notably spheres), which corrupts projected subdivision nodes.
-        api.set_string("Geometry.OCCTargetUnit", "M")?;
+        // Ask OCC for the selected coordinate unit, then convert exactly once to SI.
+        let target = match input_unit {
+            "m" => "M",
+            "cm" => "CM",
+            "in" | "inch" => "INCH",
+            _ => "MM",
+        };
+        api.set_string("Geometry.OCCTargetUnit", target)?;
         import_geometry(&api, source, project, factor, &mut warnings)?
     } else {
-        // Construct primitives in SI from the outset. Keep input-unit project
-        // values intact, including default lengths and polygon validation.
-        native(&api, project, factor)?;
+        native(&api, project)?;
         true
     };
     if is_cad {
         let all = maximal_entities(&api)?;
-        let unitless_cad_import = kind == "import" && source.as_ref().and_then(|p|p.extension())
-            .and_then(|e|e.to_str()).is_some_and(|e|e.eq_ignore_ascii_case("brep"));
-        if factor != 1. && unitless_cad_import {
+        if factor != 1. {
             api.occ_dilate(&all, 0., 0., 0., factor, factor, factor)?;
             api.occ_sync()?;
         }
@@ -1530,10 +1951,7 @@ pub fn run(request: &Value) -> R<Value> {
             "Le mode 2D exige une pièce plane XY ; choisir coque pour une surface spatiale".into(),
         );
     }
-    let catalog = entity_catalog(&api, is_cad)?;
-    if is_cad {
-        warnings.push("Les boîtes CAO proviennent de la tessellation OpenCASCADE (OCCBoundsUseStl) ; leurs extrema sont approximatifs et peuvent sous-estimer une surface courbe".into());
-    }
+    let catalog = entity_catalog(&api)?;
     let selection = &project["selection"];
     let scope = selection["scope"].as_str().unwrap_or("all");
     if scope != "all" && scope != "entities" {
@@ -1578,9 +1996,16 @@ pub fn run(request: &Value) -> R<Value> {
             return Err("Un remaillage local exige une sélection explicite d'entités".into());
         }
         let replay_started = Instant::now();
-        replay_generate(&api, &recipe["base_project"], factor, dimension, false, &mut warnings)?;
+        replay_generate(
+            &api,
+            &recipe["base_project"],
+            factor,
+            dimension,
+            false,
+            is_cad,
+        )?;
         for step in recipe["steps"].as_array().ok_or("Historique invalide")? {
-            replay_generate(&api, step, factor, dimension, true, &mut warnings)?;
+            replay_generate(&api, step, factor, dimension, true, is_cad)?;
         }
         replay_seconds = replay_started.elapsed().as_secs_f64();
         unselected = all_top
@@ -1681,9 +2106,14 @@ pub fn run(request: &Value) -> R<Value> {
     } else {
         None
     };
-    let estimate = mass.map(|m| m / scaled_size.powi(dimension)
-        * if dimension == 3 { 2. } else { 1. }
-        * if operation == "inspect" {1.} else if dimension == 3 {4.} else {if recombine {4.} else {3.}});
+    // Direct grids have an exact allocation/count preflight in direct_cells.
+    // A tetrahedral size-based estimate would incorrectly reject a coarser
+    // explicitly divided block and is not applicable to those generators.
+    let estimate = if direct_generation {
+        None
+    } else {
+        mass.map(|m| m / scaled_size.powi(dimension) * if dimension == 3 { 2. } else { 1. })
+    };
     if estimate.is_some_and(|e| !e.is_finite() || e > 8. * max_elements as f64) {
         return Err("L'estimation préalable dépasse largement la limite d'éléments".into());
     }
@@ -1696,7 +2126,7 @@ pub fn run(request: &Value) -> R<Value> {
         },
     )?;
     api.set_number("Mesh.MeshSizeMax", scaled_size)?;
-    mesh_tuning(&api,mesh)?;
+    mesh_tuning(&api, mesh)?;
     api.set_number("Mesh.MeshSizeExtendFromBoundary", 1.)?;
     let algo2 = match algorithm {
         "delaunay" => 5,
@@ -1714,11 +2144,19 @@ pub fn run(request: &Value) -> R<Value> {
             order as f64
         },
     )?;
-    api.set_number("Mesh.SecondOrderLinear", 0.)?;
-    api.set_number("Mesh.SecondOrderIncomplete", 1.)?;
+    // An STL/discrete source describes piecewise-linear facets, not analytic
+    // curved CAD. Curving order-two nodes through its auxiliary parametrization
+    // can invert an otherwise valid flat mesh (and Gmsh's HighOrder optimizer
+    // can abort with non-finite scale values on that parametrization). Preserve
+    // the represented geometry with straight P2 edges, keeping every quadratic
+    // interpolation node and all subsequent Jacobian/quality checks.
+    api.set_number(
+        "Mesh.SecondOrderLinear",
+        if is_cad && !sphere_curving { 0. } else { 1. },
+    )?;
     api.set_number(
         "Mesh.RecombineAll",
-        if recombine && dimension == 2 && operation != "inspect" {
+        if recombine && operation != "inspect" {
             1.
         } else {
             0.
@@ -1772,7 +2210,7 @@ pub fn run(request: &Value) -> R<Value> {
         }
     }
     if operation != "inspect" {
-        size_fields.extend(refinement_fields(&api,project,factor,scaled_size)?);
+        size_fields.extend(refinement_fields(&api, project, factor, scaled_size)?);
     }
     {
         let global = api.mesh_field_add("MathEval")?;
@@ -1822,21 +2260,50 @@ pub fn run(request: &Value) -> R<Value> {
         api.write(&output.join("model.brep"))?;
     }
     let mesh_started = Instant::now();
-    let mut element_evidence = if operation == "inspect" {
-        api.set_number("Mesh.SubdivisionAlgorithm",0.)?;
-        api.mesh_generate(dimension)?;
-        json!({"requested":ELEMENT_POLICY,"verified":false,"diagnostic_only":true,"dimension":dimension,
-            "method":"geometry_tessellation","note":"La tessellation de visualisation n'est pas un maillage accepté pour le calcul ou l'apprentissage"})
+    let generation_metadata = if direct_generation {
+        // The complete requested topology, including order-2 nodes, comes
+        // from the Rust generator. Gmsh is only used for CAD classification,
+        // independent quality assessment and serialization of those cells.
+        let metadata = install_direct_mesh(
+            &api,
+            project,
+            factor,
+            dimension,
+            &selected,
+            max_elements,
+            extent,
+        )?;
+        for &(dim, slave, master, affine) in &periodic_requests {
+            api.mesh_set_periodic(dim, &[slave], &[master], &affine)?;
+        }
+        metadata
     } else {
-        generate_quad_hex(&api,dimension,mesh,order,max_elements,&periodic_requests,is_cad)?
+        api.mesh_generate(dimension)?;
+        let sphere_metadata = if sphere_curving {
+            curve_native_sphere_nodes(&api, project, factor)?
+        } else {
+            Value::Null
+        };
+        if order == 2
+            && operation != "inspect"
+            && operation != "remesh"
+            && is_cad
+            && !sphere_curving
+        {
+            api.mesh_optimize("HighOrder")?;
+        }
+        if order == 2 && operation != "inspect" && !is_cad {
+            warnings.push("Source discrète : éléments quadratiques conservés avec géométrie linéaire par morceaux ; nœuds intermédiaires interpolés et optimisation de courbure CAO non appliquée.".into());
+        }
+        json!({"method":"native_unstructured","element_shape":element_shape,
+            "recombination":false,"direct_high_order_nodes":false,
+            "high_order_geometry":if sphere_curving {"analytic_sphere_edge_midpoint_projection"}else if is_cad {"analytic_cad"}else{"piecewise_linear_discrete"},
+            "sphere_curving":sphere_metadata,
+            "high_order_optimization_applied":order==2 && operation!="inspect" && operation!="remesh" && is_cad && !sphere_curving,
+            "note":"Gmsh produit l'ordre demandé ; son algorithme peut construire puis élever une topologie interne"})
     };
-    let high_order_optimization = if order == 2 && operation != "inspect" && operation != "remesh" {
-        optimize_high_order_if_needed(&api,project,dimension,factor,max_elements,&mut warnings)?
-    } else {"not_applicable"};
     if operation != "inspect" {
-        // Check again after high-order optimization, before any mesh is saved.
-        let final_evidence = validate_native_element_policy(&api,dimension)?;
-        element_evidence["final_cell_counts"] = final_evidence["final_cell_counts"].clone();
+        enforce_element_family(&api, dimension, element_shape, order)?;
     }
     let generation_seconds = mesh_started.elapsed().as_secs_f64();
     let validation_started = Instant::now();
@@ -1851,9 +2318,20 @@ pub fn run(request: &Value) -> R<Value> {
         }
     }
     let display_project = json!({});
-    let quality_project = if operation == "inspect" { &display_project } else { project };
-    let (mut quality, preview, elements, cell_counts) = mesh_data(&api, dimension, max_elements, quality_project, factor, !report_only)?;
-    quality["diagnostic_only"] = json!(operation=="inspect");
+    let quality_project = if operation == "inspect" {
+        &display_project
+    } else {
+        project
+    };
+    let (mut quality, preview, elements, cell_counts) = mesh_data(
+        &api,
+        dimension,
+        max_elements,
+        quality_project,
+        factor,
+        !report_only,
+    )?;
+    quality["diagnostic_only"] = json!(operation == "inspect");
     let mut correspondences = Vec::new();
     for (dim, slave, master, _) in periodic_requests {
         let (actual_master, slave_nodes, master_nodes, affine) =
@@ -1865,44 +2343,58 @@ pub fn run(request: &Value) -> R<Value> {
         {
             return Err("La correspondance n'a produit aucun appariement nodal valide".into());
         }
-        let (expected_nodes,_) = api.nodes_for(dim,slave,true)?;
-        let expected: BTreeSet<_> = expected_nodes.into_iter().collect();
-        let actual: BTreeSet<_> = slave_nodes.iter().copied().collect();
-        let actual_masters: BTreeSet<_> = master_nodes.iter().copied().collect();
-        if actual != expected || actual.len() != slave_nodes.len()
-            || actual_masters.len() != master_nodes.len() {
-            return Err("La correspondance périodique ne couvre pas tous les nœuds du maillage quadrilatères/hexaèdres final".into());
-        }
         let node_pairs = slave_nodes
             .iter()
             .zip(&master_nodes)
             .map(|(a, b)| [*a, *b])
             .collect::<Vec<_>>();
-        correspondences.push(json!({"dimension":dim,"slave":slave,"master":master,"matched_nodes":node_pairs.len(),"all_slave_nodes_covered":true,"node_pairs":node_pairs,"affine_transform":affine}));
+        correspondences.push(json!({"dimension":dim,"slave":slave,"master":master,"matched_nodes":node_pairs.len(),"node_pairs":node_pairs,"affine_transform":affine}));
     }
     if quality["below_0_1"].as_u64().unwrap_or(0) > 0 {
         warnings.push("Certains éléments ont un minSICN inférieur à 0,1 ; contrôler leur acceptabilité dans le solveur".into());
     }
-    if operation != "inspect" {
-        warnings.push("Les maillages intermédiaires internes sont subdivisés en quadrilatères/hexaèdres et ne sont ni exportés ni utilisés comme exemples d'apprentissage ; la subdivision augmente le nombre d'éléments et ne garantit pas des cubes réguliers".into());
-        if !is_cad {
-            warnings.push("Source discrète : les sommets ajoutés interpolent la peau polygonale fournie. L'ordre 2 enrichit les fonctions d'élément sur cette géométrie linéaire ; aucune surface CAO courbe exacte n'est reconstruite".into());
-        }
+    if recombine {
+        warnings.push("La recombinaison peut conserver des triangles ; un maillage tout quadrilatères n'est pas garanti".into());
     }
     let free = api.boundary(&api.entities(2)?, true, false, false)?.len();
-    let mut report = json!({"schema":"atelier.report.v1","project_name":project["name"].as_str().unwrap_or("Nouvelle pièce"),"mode":mode,"operation":operation,"display_only":operation=="inspect","dimension":dimension,"requested_dimension":requested_dim,"nodes":preview["point_count"].as_u64().unwrap_or_else(||preview["points"].as_array().map_or(0,Vec::len) as u64),"elements":elements,"cell_counts":cell_counts,"quality":quality,"entity_catalog":catalog,"units":{"input":input_unit,"internal":"m","input_to_internal":factor},"geometry_diagnostics":{"entity_counts":counts(&api)?,"free_boundary_curves":free,"bounds":[bbox[..3].to_vec(),bbox[3..].to_vec()],"bounds_source":if is_cad{"opencascade_stl_tessellation"}else{"discrete_geometry"},"bounds_approximate":is_cad,"bounds_tessellation":if is_cad{json!({"relative_linear_deflection":api.get_number("Mesh.StlLinearDeflection")?,"relative_to_curve_length":api.get_number("Mesh.StlLinearDeflectionRelative")?!=0.,"angular_deflection_radians":api.get_number("Mesh.StlAngularDeflection")?,"not_an_exact_analytical_envelope":true})}else{Value::Null},"intersection_check":"not_exhaustive","source_format":source.as_ref().and_then(|p|p.extension()).and_then(|s|s.to_str())},"repair":repair_report,"groups":groups,"warnings":warnings,"selection":{"scope":scope,"dimension":dimension,"tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>()},"correspondences":correspondences,"remesh":if operation=="remesh"{json!({"requested_tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>(),"preserved_entities":unselected,"unselected_elements_unchanged":true,"boundary_policy":"existing_boundary_mesh_locked","strategy":"replay_then_local","replay_seconds":replay_seconds,"replayed_local_steps":recipe["steps"].as_array().map_or(0,Vec::len),"coordinate_tolerance_relative":64.*f64::EPSILON})}else{Value::Null},"backend":{"name":"Rust / Gmsh / OpenCASCADE","language":"Rust","gmsh_version":"4.15.2","python_numerical_backend":false},"algorithms":{"surface":algo2,"volume":if dimension==3{Some(algo3)}else{None}},"preflight":{"estimated_elements":estimate,"estimate_kind":"indicative_not_a_memory_bound"},"mesh_settings":mesh,"timings":{"geometry_seconds":geometry_seconds,"generation_seconds":generation_seconds,"validation_seconds":validation_started.elapsed().as_secs_f64(),"total_seconds":started.elapsed().as_secs_f64()},"limitations":["Réparation arbitraire des défauts et intersections non garantie","Remaillage local par entité géométrique, pas par sous-ensemble arbitraire de cellules","La validation du fichier ne remplace pas les contrôles du solveur"]});
+    let mut report = json!({"schema":"atelier.report.v1","project_name":project["name"].as_str().unwrap_or("Nouvelle pièce"),"mode":mode,"operation":operation,"display_only":operation=="inspect","dimension":dimension,"requested_dimension":requested_dim,"nodes":preview["point_count"].as_u64().unwrap_or_else(||preview["points"].as_array().map_or(0,Vec::len) as u64),"elements":elements,"cell_counts":cell_counts,"quality":quality,"entity_catalog":catalog,"units":{"input":input_unit,"internal":"m","input_to_internal":factor},"geometry_diagnostics":{"entity_counts":counts(&api)?,"free_boundary_curves":free,"bounds":[bbox[..3].to_vec(),bbox[3..].to_vec()],"intersection_check":"not_exhaustive","source_format":source.as_ref().and_then(|p|p.extension()).and_then(|s|s.to_str())},"repair":repair_report,"groups":groups,"warnings":warnings,"selection":{"scope":scope,"dimension":dimension,"tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>()},"correspondences":correspondences,"remesh":if operation=="remesh"{json!({"requested_tags":selected.iter().map(|(_,t)|*t).collect::<Vec<_>>(),"preserved_entities":unselected,"unselected_elements_unchanged":true,"boundary_policy":"existing_boundary_mesh_locked","strategy":"replay_then_local","replay_seconds":replay_seconds,"replayed_local_steps":recipe["steps"].as_array().map_or(0,Vec::len),"coordinate_tolerance_relative":64.*f64::EPSILON})}else{Value::Null},"backend":{"name":"Rust / Gmsh / OpenCASCADE","language":"Rust","gmsh_version":"4.15.2","python_numerical_backend":false},"algorithms":{"surface":algo2,"volume":if dimension==3{Some(algo3)}else{None}},"preflight":{"estimated_elements":estimate,"estimate_kind":"indicative_not_a_memory_bound"},"mesh_settings":mesh,"timings":{"geometry_seconds":geometry_seconds,"generation_seconds":generation_seconds,"validation_seconds":validation_started.elapsed().as_secs_f64(),"total_seconds":started.elapsed().as_secs_f64()},"limitations":["Réparation arbitraire des défauts et intersections non garantie","Remaillage local par entité géométrique, pas par sous-ensemble arbitraire de cellules","La validation du fichier ne remplace pas les contrôles du solveur"]});
+    report["generation"] = generation_metadata;
+    if direct_generation {
+        report["generation"]["method"] = json!("rust_direct_structured");
+        report["generation"]["requested_element_shape"] = json!(element_shape);
+        report["generation"]["recombination"] = json!(false);
+        report["generation"]["intermediate_linear_mesh"] = json!(false);
+        report["generation"]["direct_high_order_nodes"] = json!(order == 2);
+        report["generation"]["gmsh_smoothing_applied"] = json!(false);
+        report["generation"]["smoothing_not_applied"] = json!(true);
+        report["generation"]["gmsh_optimization_applied"] = json!(false);
+        report["algorithms"] = json!({"surface":null,"volume":null,
+            "generator":"rust_direct_structured","requested_unstructured_algorithm":algorithm,
+            "unstructured_algorithm_applied":false});
+        report["backend"]["mesher"] =
+            json!("Rust direct cells; Gmsh CAD classification and quality only");
+        report["preflight"]["estimate_kind"] = json!("exact_direct_grid_preallocation_checks");
+        if report["generation"]["cad_vertices_not_sampled"]
+            .as_array()
+            .is_some_and(|a| !a.is_empty())
+        {
+            report["warnings"].as_array_mut().unwrap().push(json!("Certains points de couture CAO ne sont pas échantillonnés par la grille directe ; une zone protégée ponctuelle sur ces points sera refusée explicitement."));
+        }
+    }
     if let Err(error) = crate::quality::enforce(&report["quality"]) {
         if !report_only {
             write_json(&output.join("report.json"), &report)?;
-            write_json(&output.join("quality_rejection.json"), &json!({"error":error,"quality":report["quality"]}))?;
+            write_json(
+                &output.join("quality_rejection.json"),
+                &json!({"error":error,"quality":report["quality"]}),
+            )?;
         }
         return Err(error);
     }
-    report["element_policy"] = element_evidence;
-    report["high_order_optimization"] = json!({"status":high_order_optimization,
-        "acceptance_criteria_unchanged":true});
     if report["quality"]["accepted"] == false {
-        report["warnings"].as_array_mut().unwrap().push(json!("Maillage d'essai non admissible : les critères de qualité ne sont pas satisfaits"));
+        report["warnings"].as_array_mut().unwrap().push(json!(
+            "Maillage d'essai non admissible : les critères de qualité ne sont pas satisfaits"
+        ));
     }
     if !report_only {
         api.set_number("Mesh.SaveParametric", 1.)?;
@@ -1948,35 +2440,37 @@ pub fn run(request: &Value) -> R<Value> {
 mod tests {
     use super::*;
     #[test]
-    fn mandatory_element_policy_rejects_legacy_or_mixed_requests() {
-        assert!(validate_element_policy(&json!({})).is_ok());
-        assert!(validate_element_policy(&json!({"element_policy":"quad_hex_only"})).is_ok());
-        for value in [json!("tetra"),json!("mixed"),json!(true),Value::Null] {
-            assert!(validate_element_policy(&json!({"element_policy":value})).is_err());
-        }
+    fn explicit_shapes_reject_dimension_mismatch_and_all_recombination() {
+        let mut p = json!({"mode":"planar","geometry":{"kind":"plate"},
+            "mesh":{"element_shape":"quadrilateral","recombine":false}});
+        assert!(validate_shape_request(&p, 2, "mesh").is_ok());
+        assert!(validate_shape_request(&p, 3, "mesh").is_err());
+        p["mesh"]["recombine"] = json!(true);
+        assert!(validate_shape_request(&p, 2, "mesh").is_err());
+        p["mesh"]["element_shape"] = json!("automatic");
+        assert!(validate_shape_request(&p, 2, "mesh").is_err());
+        assert!(validate_shape_request(&p, 2, "inspect").is_ok());
     }
     #[test]
-    fn element_inventory_allows_only_quad_hex_and_their_boundary_segments() {
-        for (dim,primary,order,nodes,expected) in [
-            (1,2,1,2,"segment"),(1,2,2,3,"segment"),
-            (2,4,1,4,"quadrilateral"),(2,4,2,8,"quadrilateral"),(2,4,2,9,"quadrilateral"),
-            (3,8,1,8,"hexahedron"),(3,8,2,20,"hexahedron"),(3,8,2,27,"hexahedron"),
-        ] {
-            assert_eq!(allowed_element_family(dim,primary,order,nodes),Some(expected));
-        }
-        // Quadratic triangles/tetrahedra are still the forbidden families.
-        for args in [(2,3,1,3),(2,3,2,6),(3,4,1,4),(3,4,2,10),(3,6,1,6),(3,5,1,5),(2,4,2,4)] {
-            assert_eq!(allowed_element_family(args.0,args.1,args.2,args.3),None);
-        }
+    fn direct_grids_never_ignore_local_fields_or_claim_conservative_remeshing() {
+        let mut p = json!({"mode":"volume","geometry":{"kind":"box"},
+            "mesh":{"element_shape":"hexahedron","recombine":false}});
+        assert!(validate_shape_request(&p, 3, "mesh").is_ok());
+        assert!(validate_shape_request(&p, 3, "remesh").is_err());
+        p["local_sizes"] = json!([{"dim":3,"tag":1,"size":0.1}]);
+        assert!(validate_shape_request(&p, 3, "mesh").is_err());
+        p.as_object_mut().unwrap().remove("local_sizes");
+        p["geometry"]["kind"] = json!("import");
+        assert!(validate_shape_request(&p, 3, "mesh").is_err());
     }
     #[test]
-    fn subdivision_budget_counts_exact_final_cells_and_rejects_overflow() {
-        assert_eq!(subdivided_top_count(2,3,10).unwrap(),30);
-        assert_eq!(subdivided_top_count(2,4,10).unwrap(),40);
-        assert_eq!(subdivided_top_count(3,4,10).unwrap(),40);
-        assert_eq!(subdivided_top_count(3,8,10).unwrap(),80);
-        assert!(subdivided_top_count(3,6,10).is_err());
-        assert!(subdivided_top_count(3,4,usize::MAX).is_err());
+    fn simplex_families_only_use_direct_grid_when_requested() {
+        let mut p = json!({"geometry":{"kind":"box"},"mesh":{"element_shape":"tetrahedron"}});
+        assert!(!requests_direct_cells(&p).unwrap());
+        p["mesh"]["structured"] = json!({"divisions":[2,2,2]});
+        assert!(requests_direct_cells(&p).unwrap());
+        p["mesh"]["structured"] = json!(false);
+        assert!(requests_direct_cells(&p).is_err());
     }
     fn sample_snapshot() -> BTreeMap<i32, Value> {
         BTreeMap::from([(
@@ -2018,11 +2512,17 @@ mod tests {
     }
     #[test]
     fn optional_mesh_tuning_bounds_allow_zero_but_not_negative_or_unbounded_values() {
-        assert_eq!(nonnegative_integer(&json!({"smoothing":0}),"smoothing",1,100).unwrap(),0);
-        assert_eq!(nonnegative_integer(&json!({}),"smoothing",1,100).unwrap(),1);
-        assert!(nonnegative_integer(&json!({"smoothing":-1}),"smoothing",1,100).is_err());
-        assert!(nonnegative_integer(&json!({"smoothing":101}),"smoothing",1,100).is_err());
-        assert!(nonnegative_integer(&json!({"smoothing":1.5}),"smoothing",1,100).is_err());
+        assert_eq!(
+            nonnegative_integer(&json!({"smoothing":0}), "smoothing", 1, 100).unwrap(),
+            0
+        );
+        assert_eq!(
+            nonnegative_integer(&json!({}), "smoothing", 1, 100).unwrap(),
+            1
+        );
+        assert!(nonnegative_integer(&json!({"smoothing":-1}), "smoothing", 1, 100).is_err());
+        assert!(nonnegative_integer(&json!({"smoothing":101}), "smoothing", 1, 100).is_err());
+        assert!(nonnegative_integer(&json!({"smoothing":1.5}), "smoothing", 1, 100).is_err());
     }
     #[test]
     fn self_crossing_ring_is_rejected() {

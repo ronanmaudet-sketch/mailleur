@@ -1,0 +1,38 @@
+{
+  "accepted_actions": 96,
+  "admissible_cases": 32,
+  "backend_evaluations": 128,
+  "completed_cases": 32,
+  "failed_actions": 0,
+  "family_counts": {
+    "direct_hex_box": 6,
+    "direct_hex_one_hole": 6,
+    "direct_hex_thin_box": 4,
+    "direct_quad_graded_rectangle": 4,
+    "direct_quad_one_hole": 6,
+    "direct_quad_rectangle": 6
+  },
+  "generated_cases": 32,
+  "journal_cursor": {
+    "last_case_id": "137e58d998fa8f700729886433d9fb264d08caf3f62477e6f6db4610d934431f",
+    "offset": 138277,
+    "prefix_sha256": "e8b23e18d79455114e45f9e7202ae5eeb87dc44a75e6a349acca7eed78d02704",
+    "records": 8,
+    "schema": "atelier.corpus.cursor.v1",
+    "shard": 3
+  },
+  "last_case_id": "137e58d998fa8f700729886433d9fb264d08caf3f62477e6f6db4610d934431f",
+  "meshed_cases": 32,
+  "next_index": 32,
+  "origin_counts": {
+    "random": 16,
+    "structured": 16
+  },
+  "schema": "atelier.corpus.checkpoint.v1",
+  "split_counts": {
+    "test": 6,
+    "train": 20,
+    "validation": 6
+  },
+  "updated_at": 1795114084
+}

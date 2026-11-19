@@ -19,18 +19,11 @@ def environment_python() -> Path:
 def environment_ready(executable: Path) -> bool:
     if not executable.is_file():
         return False
-    try:
-        check = subprocess.run(
-            [str(executable), "-c",
-             "import PySide6, meshio, h5py; import subprocess; "
-             "from atelier.native import core_path, gmsh_library; gmsh_library(); "
-             "subprocess.run([str(core_path()), '--version'], check=True, "
-             "stdout=subprocess.DEVNULL, timeout=10)"],
-            cwd=ROOT, capture_output=True, text=True, timeout=20,
-        )
-        return check.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    check = subprocess.run(
+        [str(executable), "-c", "import PySide6; from atelier.native import core_path; core_path()"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    return check.returncode == 0
 
 
 def main(argv: list[str] | None = None) -> int:

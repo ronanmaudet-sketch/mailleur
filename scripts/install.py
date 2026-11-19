@@ -9,15 +9,16 @@ Aucun paquet système ni interpréteur global n'est modifié.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
-import platform
 import shutil
 import subprocess
 import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from atelier.core_locator import find_core
+
 VENV = ROOT / ".venv"
 
 
@@ -29,37 +30,8 @@ def supported_python() -> bool:
     return (3, 11) <= sys.version_info[:2] < (3, 14)
 
 
-def native_binary() -> Path | None:
-    """Même convention de recherche que le pont atelier.native."""
-    override = os.environ.get("ATELIER_CORE")
-    if override:
-        candidate = Path(override).expanduser().resolve()
-        if not candidate.is_file():
-            raise ValueError(f"ATELIER_CORE désigne un fichier absent : {candidate}")
-        if not binary_runs(candidate):
-            raise ValueError(f"ATELIER_CORE ne peut pas être exécuté sur cet ordinateur : {candidate}")
-        return candidate
-    filename = "mailleur-core.exe" if sys.platform == "win32" else "mailleur-core"
-    system = f"{sys.platform}-{platform.machine().lower()}"
-    candidates = [ROOT / "rust_core" / "target" / "release" / filename,
-                  ROOT / "rust_core" / "bin" / system / filename]
-    # Le pont natif utilisera le premier fichier existant dans ce même ordre.
-    # Un binaire copié depuis une autre plateforme doit être recompilé.
-    candidate = next((path for path in candidates if path.is_file()), None)
-    return candidate if candidate is not None and binary_runs(candidate) else None
-
-
-def binary_runs(candidate: Path) -> bool:
-    try:
-        result = subprocess.run([str(candidate), "--version"], cwd=ROOT,
-                                capture_output=True, text=True, timeout=10)
-        return result.returncode == 0 and result.stdout.startswith("mailleur-core ")
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
-
 def ensure_core() -> Path:
-    existing = native_binary()
+    existing = find_core(ROOT)
     if existing:
         print(f"Noyau Rust disponible : {existing}", flush=True)
         return existing
@@ -77,9 +49,9 @@ def ensure_core() -> Path:
         raise ValueError("Les sources rust_core/Cargo.toml sont absentes. "
                          "Extraire l'archive source complète avant l'installation.")
     print("Compilation du noyau Rust. Cargo peut télécharger ses dépendances lors de ce premier calcul.", flush=True)
-    run([cargo, "build", "--release", "--locked", "--manifest-path", str(manifest),
+    run([cargo, "build", "--locked", "--release", "--manifest-path", str(manifest),
          "--target-dir", str(ROOT / "rust_core" / "target")])
-    compiled = native_binary()
+    compiled = find_core(ROOT)
     if compiled is None:
         raise ValueError("La compilation s'est terminée sans produire rust_core/target/release/mailleur-core.")
     return compiled

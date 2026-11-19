@@ -73,6 +73,7 @@ class DesktopCorpus(unittest.TestCase):
         from PySide6.QtWidgets import QToolButton
         self.assertEqual(self.window.corpus_structured.value(), 250000)
         self.assertEqual(self.window.corpus_random.value(), 750000)
+        self.assertEqual(self.window.corpus_profile.currentData(), "direct_quad_hex")
         self.assertTrue(self.window.corpus_body.isHidden())
         toggle = self.window.findChild(QToolButton, "corpusToggle")
         toggle.setChecked(True)
@@ -89,7 +90,8 @@ class DesktopCorpus(unittest.TestCase):
         name, options, _ = self.session.calls[0]
         self.assertEqual(name, "corpus_plan")
         self.assertEqual(options, {"corpus_dir": Path(self.temp.name) / "corpus", "structured": 250000,
-                                  "random": 750000, "seed": 42, "strategies": 4, "shard_size": 1000})
+                                  "random": 750000, "seed": 42, "strategies": 4, "shard_size": 1000,
+                                  "profile": "direct_quad_hex"})
         self.assertEqual(len(self.session.calls), 1)
         self.assertIn("Traitées : 0", self.window.corpus_summary.text())
         self.assertIn("ne démarre", self.window.corpus_summary.text())

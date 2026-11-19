@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "Bloc hexaédrique structuré quadratique — API",
+  "mode": "volume",
+  "units": {"input": "mm", "internal": "m"},
+  "geometry": {"kind": "box", "width": 4, "height": 3, "depth": 2},
+  "mesh": {
+    "element_shape": "hexahedron",
+    "order": 2,
+    "quadratic_layout": "serendipity",
+    "size": 1,
+    "min_size": 0.1,
+    "structured": {"divisions": [4, 3, 2]},
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 10000
+  },
+  "quality_policy": {"minimum_quality": 0.05, "poor_threshold": 0.2, "strict": true}
+}

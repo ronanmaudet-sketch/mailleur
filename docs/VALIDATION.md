@@ -1,10 +1,5 @@
 # Protocole de validation
 
-La révision locale du 4 novembre 2026 dispose aussi de
-[mesures et résultats Apple M3](MESURES_M3.md) : 163 tests Python et 111 tests
-Rust réussis, sans test ignoré. Les rapports initiaux Linux restent conservés
-dans leurs dossiers d'origine ; les preuves M3 sont dans `verification/local_m3/`.
-
 Cette page définit les contrôles à exécuter pour une livraison. Elle ne remplace
 pas les sorties de test : le nombre de tests, leurs durées, versions et résultats
 doivent provenir du rapport réellement produit dans `verification/`.
@@ -24,8 +19,32 @@ recouvrantes et l'ordre déterministe des échantillons. Pour la vue, contrôler
 les invalidations de cache et le choix de la face visible lors de la sélection.
 
 Le [guide des optimisations](OPTIMISATIONS_RC5.md) décrit la portée de ces
-mesures. Les résultats de livraison ci-dessous concernent la rc5 ; les
+mesures. Les résultats historiques ci-dessous concernent la rc5 ; les
 comparaisons avec la rc4 sont conservées dans les rapports de performance.
+Les preuves de la rc6 sont consignées séparément et n'héritent pas des
+résultats d'une version antérieure.
+
+## Contrôles ajoutés pour la rc6
+
+Les nouveaux blocs structurés doivent être contrôlés sur leurs fichiers
+réels : famille demandée, connectivité, nœuds partagés, ordre 2 et Jacobiennes.
+Les métadonnées doivent identifier le parcours direct et l'absence de
+recombinaison ou de maillage linéaire intermédiaire. Les nœuds quadratiques
+placés sur un trou doivent suivre sa géométrie courbe, y compris après export.
+
+Les zones critiques de dimensions 0, 1 et 2 doivent rester associées aux
+éléments adjacents. Une opération incompatible avec les blocs directs doit
+échouer explicitement. Les variantes complètes et serendipity doivent être
+conservées ou refusées par le format, sans suppression des nœuds supplémentaires.
+
+L'API doit vérifier le maillage courant, les unités, le solveur, la physique,
+les budgets et les arrêts. Une boucle utilisant des retours fictifs vérifie le
+protocole et le pilotage ; elle ne valide ni la convergence physique, ni la
+reprise d'état dans un solveur réel. Le profil de corpus direct doit produire
+de vrais cas bornés et distinguer les configurations du nombre de stratégies.
+
+Le [guide rc6](EVOLUTIONS_RC6.md), le [guide API](API_ET_COUPLAGE_SOLVEURS.md)
+et les rapports de livraison définissent leur périmètre.
 
 ## Contrôles du corpus
 
@@ -59,13 +78,50 @@ ou des opérations natives est un changement de contrat explicite.
 Les résultats rc5 ci-dessous proviennent de leur exécution réelle. Voir aussi
 [le guide du corpus et des langages](CORPUS_ET_LANGAGES.md).
 
+## Résultats exécutés pour la rc6
+
+La livraison **1.0.0rc6 du 19 novembre 2026** a été vérifiée sous Linux.
+Le [rapport global](../verification/native_release/summary.json), le
+[rapport de mémoire](../verification/continuous_learning/summary.json), le
+[pilote général](../verification/corpus/summary.json) et le
+[pilote direct](../verification/rc6/structured_corpus/summary.json) distinguent
+les suites, les configurations et les résultats des réseaux.
+
+| Vérification | Résultat observé |
+| --- | --- |
+| Suite Python | 195 tests réussis, aucun test ignoré |
+| Suite Rust | 139 tests réussis, aucun échec ni test ignoré |
+| Exemples et exports | Huit exemples maillés à l'ordre 2 ; paquets d'export complets |
+| Familles directes | QUAD8/9, HEX20/27, PRISM15/18 et PYRAMID13/14 ; contrôles de famille, ordre et qualité native |
+| Frontières directes | Nœuds partagés et courbes conservées ; zones critiques 0D, 1D et 2D associées aux éléments adjacents |
+| Sources discrètes | STL à ordre 2 par défaut, TRI6 et milieux d'arêtes conservés dans MSH/VTU, Jacobiennes positives |
+| Sphère analytique | Surface et volume P2, projection limitée aux frontières ; mids TET10 intérieurs inchangés ; transformation de surface vérifiée |
+| API | Protocole et pilotage de vrais maillages avec retours solveurs fictifs explicitement identifiés |
+| Pilote structuré direct | 32 configurations : 16 structurées, 16 aléatoires, huit familles ; 96 stratégies acceptées |
+| Partitions directes | 20 cas d'entraînement, huit de validation, quatre de test ; trois passages et mini-lots de 16 |
+| Réseau de corpus direct | Classement inactif ; gain de sélection de validation d'environ −0,008215 |
+| Pilote général | 48 configurations : 46 maillées, 45 avec une stratégie admissible ; caractéristiques v3 |
+| Mémoire interactive | Six géométries, 29 observations ; réseau v3 inactif, gain de choix au budget d'un candidat égal à zéro |
+| Conseiller historique | Activé sur son domaine classique ; 10 cas d'entraînement, six de validation ; gain d'environ 0,02046 |
+| Plan d'un million | 250 000 configurations structurées et 750 000 aléatoires, sans exécution de cette campagne complète |
+
+Le gain du conseiller historique est distinct des résultats de la mémoire
+interactive et des nouveaux corpus. Ce petit jeu n'est pas une preuve de
+généralisation industrielle. Les tests de fichiers et les retours fictifs
+ne prouvent pas une analyse physique exécutée dans un solveur externe.
+Les essais macOS/M3, Windows et dans les solveurs ne sont pas présentés comme
+réalisés par cette livraison Linux.
+
+Les résultats rc5 suivants sont conservés comme historiques ; ils ne sont
+pas ajoutés aux totaux rc6.
+
 ## Résultats exécutés pour la rc5
 
 La livraison **1.0.0rc5 du 4 novembre 2026** a été vérifiée sous Linux x86_64,
 avec Python 3.12.14. Les données ci-dessous proviennent du
-[rapport natif](../verification/native_release/summary.json), du
-[rapport d'apprentissage continu (archive complète)](provenance/PREUVES_EXTERNES.md)
-et du [rapport du corpus (archive complète)](provenance/PREUVES_EXTERNES.md).
+[rapport natif](../verification/native_release/summary_rc5.json), du
+[rapport d'apprentissage continu](../verification/continuous_learning/summary_rc5.json)
+et du [rapport du corpus](../verification/corpus/summary_rc5.json).
 
 | Vérification | Résultat observé |
 | --- | --- |
@@ -116,15 +172,15 @@ et dans `test_scope` du rapport natif.
 
 Les commandes de la CLI release avaient également été vérifiées dans une
 campagne distincte de la rc4, conservée à titre historique :
-[plan (archive complète)](provenance/PREUVES_EXTERNES.md),
-[lot (archive complète)](provenance/PREUVES_EXTERNES.md),
-[état (archive complète)](provenance/PREUVES_EXTERNES.md) et
-[entraînement (archive complète)](provenance/PREUVES_EXTERNES.md). Ces sorties ne sont pas
+[plan](../verification/cli_rc4/plan.json),
+[lot](../verification/cli_rc4/run.json),
+[état](../verification/cli_rc4/status.json) et
+[entraînement](../verification/cli_rc4/train.json). Ces sorties ne sont pas
 additionnées aux 48 cas du pilote rc5 ci-dessus et ne sont pas présentées comme
 de nouvelles exécutions de la CLI rc5.
 
-Le conseiller historique sur corpus synthétique reste également désactivé,
-son gain de validation n'étant pas positif. Ses résultats figurent séparément
+Sur cette campagne rc5, le conseiller historique sur corpus synthétique reste
+également désactivé, son gain de validation n'étant pas positif. Ses résultats figurent séparément
 dans le rapport natif et ne doivent pas être confondus avec la mémoire continue.
 
 Les essais macOS, Windows et dans Code_Aster, Salome-Meca, CalculiX, Abaqus,
@@ -203,8 +259,8 @@ données lorsque celle-ci empêche une conclusion.
 
 Ces contrôles définissent les invariants du parcours continu. Leur exécution
 rc4 du 3 novembre 2026 est consignée dans le
-[rapport d'apprentissage continu (archive complète)](provenance/PREUVES_EXTERNES.md)
-et le [rapport natif](../verification/native_release/summary.json). Les sorties
+[rapport d'apprentissage continu](../verification/continuous_learning/summary_rc5.json)
+et le [rapport natif](../verification/native_release/summary_rc5.json). Les sorties
 conservées d'une version antérieure ne prouvent pas les fonctions ajoutées à
 la version courante.
 

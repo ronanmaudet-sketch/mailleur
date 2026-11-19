@@ -4,33 +4,28 @@
   "mode": "planar",
   "geometry": {
     "kind": "plate",
-    "width": 10,
-    "height": 6,
+    "width": 8,
+    "height": 8,
     "thickness": 2,
-    "corner_radius": 0.5,
+    "corner_radius": 0,
     "chamfer": 0,
     "holes": [
       {
-        "x": 3,
-        "y": 3,
-        "radius": 0.8
-      },
-      {
-        "x": 7,
-        "y": 3,
-        "radius": 1
+        "x": 4.0,
+        "y": 4.0,
+        "radius": 2
       }
     ]
   },
   "mesh": {
     "size": 0.65,
     "min_size": 0.18,
-    "order": 1,
+    "order": 2,
     "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
     "max_elements": 200000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "quadrilateral"
   },
   "repair": {
     "enabled": false,
@@ -70,17 +65,6 @@
       ],
       "buffer": 0,
       "minimum_quality": 0.25
-    }
-  ],
-  "refinement_regions": [
-    {
-      "center": [
-        3,
-        3,
-        0
-      ],
-      "radius": 1.4,
-      "size": 0.22
     }
   ],
   "learning": {

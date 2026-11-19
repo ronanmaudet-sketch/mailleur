@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "Bloc structuré · HEX20",
+  "mode": "volume",
+  "geometry": {
+    "kind": "box",
+    "width": 6,
+    "height": 4,
+    "depth": 3
+  },
+  "mesh": {
+    "size": 0.65,
+    "min_size": 0.18,
+    "order": 2,
+    "algorithm": "automatic",
+    "recombine": false,
+    "threads": 1,
+    "max_elements": 200000,
+    "element_shape": "hexahedron",
+    "quadratic_layout": "serendipity",
+    "structured": {
+      "divisions": [
+        6,
+        4,
+        3
+      ],
+      "grading": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "repair": {
+    "enabled": false,
+    "tolerance": 1e-07,
+    "sew": true,
+    "small_edges": true,
+    "small_faces": false,
+    "make_solids": false
+  }
+}

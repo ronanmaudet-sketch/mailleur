@@ -2,7 +2,6 @@
 import base64
 import io
 import json
-import os
 from pathlib import Path
 import tempfile
 import threading
@@ -11,11 +10,9 @@ import unittest
 from unittest.mock import patch
 import subprocess
 import sys
-import signal
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import zipfile
-import uuid
 
 from atelier.server import JobManager, create_server
 
@@ -90,15 +87,6 @@ class LocalServer(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b"Atelier", contents)
 
-    def test_format_discovery_distinguishes_optional_converters(self):
-        status, info = self.request("/api/formats")
-        self.assertEqual(status, 200)
-        self.assertIn("nastran", info["exports"])
-        rows = {row["extension"]: row for row in info["imports"]["formats"]}
-        self.assertTrue(rows[".obj"]["available"])
-        self.assertTrue(rows[".sldprt"]["conditional"])
-        self.assertIn("import_formats", self.info)
-
     def test_mutations_require_token_and_strict_json(self):
         status, _ = self.request("/api/jobs", {"project": tiny_plate()}, token=False)
         self.assertEqual(status, 403)
@@ -156,48 +144,6 @@ class LocalServer(unittest.TestCase):
         status, _ = self.request("/api/jobs", {"project": p, "upload_id": "../../etc/passwd"})
         self.assertIn(status, (400, 404))
 
-    def test_downloads_stream_without_loading_exports_or_preview(self):
-        identifier = uuid.uuid4().hex
-        directory = self.server.manager.directory(identifier)
-        exports = directory / "exports"
-        exports.mkdir(parents=True)
-        payload = b"mesh data\n" * 250000
-        (exports / "mesh.msh").write_bytes(payload)
-        (exports / "mesh.xdmf").write_bytes(b"metadata")
-        (exports / "mesh.h5").write_bytes(payload)
-        (exports / "exports.zip").write_bytes(payload)
-        result = {"kind": "mesh", "report": {"elements": 42},
-                  "exports": {"results": [{"format": "msh", "status": "ok", "file": "mesh.msh"},
-                                          {"format": "xdmf", "status": "ok", "files": ["mesh.xdmf", "mesh.h5"]}]}}
-        (directory / "result.json").write_text(json.dumps(result), encoding="utf-8")
-        # Aucun preview.json : les routes d'artefacts n'en ont pas besoin.
-        with self.server.manager.lock:
-            self.server.manager.jobs[identifier] = {"id": identifier, "status": "completed"}
-        original = Path.read_bytes
-        def guarded_read(path):
-            if path.parent == exports:
-                raise AssertionError("Un téléchargement doit être lu par blocs")
-            return original(path)
-        try:
-            with patch.object(Path, "read_bytes", guarded_read):
-                for suffix in ("bundle", "download?format=msh"):
-                    status, contents = self.request(f"/api/jobs/{identifier}/{suffix}")
-                    self.assertEqual(status, 200)
-                    self.assertEqual(contents, payload)
-                status, contents = self.request(f"/api/jobs/{identifier}/download?format=xdmf")
-                self.assertEqual(status, 200)
-                with zipfile.ZipFile(io.BytesIO(contents)) as archive:
-                    self.assertEqual(archive.read("mesh.h5"), payload)
-                    self.assertEqual(archive.read("mesh.xdmf"), b"metadata")
-                status, report = self.request(f"/api/jobs/{identifier}/report")
-                self.assertEqual(status, 200)
-                self.assertEqual(report, {"elements": 42})
-                status, _ = self.request(f"/api/jobs/{identifier}/report/extra")
-                self.assertEqual(status, 404)
-        finally:
-            with self.server.manager.lock:
-                self.server.manager.jobs.pop(identifier)
-
     def test_actual_mesh_job_and_export_bundle(self):
         if not self.info["backend"]["available"]:
             self.skipTest(self.info["backend"].get("error", "Gmsh unavailable"))
@@ -216,25 +162,6 @@ class LocalServer(unittest.TestCase):
         status, data = self.request(f"/api/jobs/{created['id']}/download?format=msh")
         self.assertEqual(status, 200)
         self.assertIn(b"$MeshFormat", data)
-
-    def test_obj_upload_really_reconstructs_and_exports_nastran(self):
-        if not self.info["backend"]["available"]:
-            self.skipTest(self.info["backend"].get("error", "Gmsh unavailable"))
-        obj = b"v 0 0 0\nv 2 0 0\nv 0 2 0\nv 0 0 2\nf 1 3 2\nf 1 2 4\nf 2 3 4\nf 3 1 4\n"
-        status, upload = self.request("/api/uploads", {"filename": "tetra.obj", "content_base64": base64.b64encode(obj).decode()})
-        self.assertEqual(status, 201)
-        project = {"name": "OBJ via API", "mode": "volume", "geometry": {"kind": "import"},
-                   "units": {"input": "mm"}, "mesh": {"size": .6, "min_size": .2}}
-        status, created = self.request("/api/jobs", {"project": project, "upload_id": upload["id"]})
-        self.assertEqual(status, 202)
-        job = self.wait_job(created["id"])
-        self.assertEqual(job["status"], "completed", job)
-        self.assertIn("native_preparation", job["report"]["import_preparation"])
-        status, bdf = self.request(f"/api/jobs/{created['id']}/download?format=nastran")
-        self.assertEqual(status, 200)
-        self.assertIn(b"CHEXA", bdf)
-        self.assertNotIn(b"CTETRA", bdf)
-        self.assertIs(job["report"]["element_policy"]["verified"], True)
 
     def test_bad_geometry_is_visible_as_rejected_or_failed_job(self):
         if not self.info["backend"]["available"]:
@@ -334,36 +261,6 @@ class JobLifecycle(unittest.TestCase):
             self.assertIsNotNone(processes[0].poll())
         finally:
             manager.close()
-
-    @unittest.skipIf(os.name == "nt", "Contrôle des groupes POSIX ; les jobs Windows demandent une validation distincte")
-    def test_failed_worker_does_not_leave_a_sigterm_resistant_child(self):
-        manager = JobManager(self.directory, timeout=10)
-        original = subprocess.Popen
-        pid_file, ready = self.directory / "child.pid", self.directory / "ready"
-        child = ("import os,signal,time;from pathlib import Path;"
-                 "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
-                 f"Path({str(ready)!r}).write_text('ready');time.sleep(20)")
-        parent = ("import subprocess,sys,time;from pathlib import Path;"
-                  f"p=subprocess.Popen([sys.executable,'-c',{child!r}]);"
-                  f"Path({str(pid_file)!r}).write_text(str(p.pid));"
-                  f"deadline=time.monotonic()+3\nwhile not Path({str(ready)!r}).exists() and time.monotonic()<deadline:time.sleep(.01)\n"
-                  "raise SystemExit(2)")
-        def launch(command, *args, **kwargs):
-            return original([sys.executable, "-c", parent], *args, **kwargs)
-        try:
-            with patch("atelier.server.subprocess.Popen", side_effect=launch):
-                created = manager.submit(tiny_plate())
-                self.wait_status(manager, created["id"], {"failed"})
-                manager.close()  # wait for the finally block and its group cleanup
-            self.assertTrue(pid_file.exists())
-            pid = int(pid_file.read_text())
-            state = subprocess.run(["ps", "-p", str(pid), "-o", "stat="], capture_output=True, text=True)
-            self.assertTrue(state.returncode != 0 or state.stdout.strip().startswith("Z"), state.stdout)
-        finally:
-            manager.close()
-            if pid_file.exists():
-                try: os.kill(int(pid_file.read_text()), signal.SIGKILL)
-                except ProcessLookupError: pass
 
 
 if __name__ == "__main__":

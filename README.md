@@ -1,149 +1,52 @@
-# Atelier Mailleur — 1.0.0rc9
+# Atelier Mailleur — 1.0.0rc10
 
-Mailleur est un outil libre qui transforme une géométrie CAO en maillage pour
-le calcul par éléments finis. Il permet de contrôler la qualité du maillage et
-de l’exporter, notamment au format UNV avec un script d’import pour Cast3M.
+Le moteur de référence est celui du projet **« Optimiser le mailleur »**. La version publique rc10 reprend le générateur structuré écrit en Rust de l’archive du 19 novembre 2026 (rc6 dans le projet d’origine). En mode automatique, il construit des **quadrilatères en 2D et des hexaèdres en 3D**, d’ordre 2 par défaut, sur les géométries compatibles. Le rapport indique comment les cellules ont été générées. Les formes explicites restent disponibles pour les essais manuels.
 
-## Moteur de référence
+[Télécharger les sources](https://github.com/ronanmaudet-sketch/mailleur/archive/refs/heads/main.zip) · [Installer et lancer](#installation-et-lancement) · [Exemple 2D](examples/direct_quad.json) · [Exemple 3D](examples/direct_hex.json) · [API Python](docs/API_ET_COUPLAGE_SOLVEURS.md) · [Préparer un STEP depuis SolidWorks](docs/IMPORTS_NATIFS.md) · [Essai Cast3M](examples/cast3m_pilot/README.md) · [Vérifications de la rc10](verification/rc10/README.md)
 
-La suite de Mailleur prend pour base un générateur structuré en Rust qui construit
-directement les quadrilatères, les hexaèdres et leurs nœuds d’ordre 2. Le nom du
-projet et celui de l’application sont conservés.
-
-**État au 19 novembre 2026.** Le code distribué ici est la **rc9 par subdivision**.
-Le générateur direct doit encore être intégré et vérifié sur Mac. Les commandes,
-les maillages d’exemple, les temps et les essais Cast3M ci-dessous décrivent les
-versions indiquées. Les résultats du moteur direct seront publiés avec sa révision.
-
-## Essayer la version rc9
-
-[Télécharger Mailleur](https://github.com/ronanmaudet-sketch/mailleur/releases) ·
-[Essayer l’exemple Cast3M](examples/cast3m_pilot/README.md#tester-le-maillage-fourni-sans-installer-mailleur) ·
-[Installer Mailleur](#installation-et-lancement) ·
-[Partager un retour d’essai](https://github.com/ronanmaudet-sketch/mailleur/issues/new?template=retour_cast3m.yml)
-
-Si tu as déjà Cast3M, tu peux rejouer le calcul de traction avec le maillage
-fourni. L’option `--reference` fonctionne sans installer Mailleur. Que le calcul
-réussisse ou bloque, indique ton système, ta version de Cast3M et ce qui a
-facilité ou ralenti l’essai.
-
-[![Tests multiplateformes](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain)
-
-La rc9 impose des **quadrilatères en surface et des hexaèdres en volume**, y compris
-pour les nouveaux maillages d’apprentissage et les exports. Un résultat mixte ou
-non admissible est refusé. Le [guide quadrilatères/hexaèdres](docs/QUADRILATERES_HEXAEDRES.md)
-explique la construction, les contrôles, les données anciennes et les limites.
-
-La rc8 a corrigé les erreurs relevées sous Windows. Les contrôles automatiques
-couvrent macOS, Ubuntu et Windows avec Python 3.11 et 3.12. Les résultats de
-chaque version sont consultables dans [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain).
-Le [détail des corrections rc8](docs/CORRECTIONS_RC8.md) décrit les changements et les vérifications.
-
-[Résultats sur Mac, performances et limites](docs/RESULTATS_MAILLEUR.md) ·
-[Inventaire des géométries d’entraînement, de validation et de test](docs/GEOMETRIES_ENTRAINEMENT_RC9.md)
-
-## Vérifications rc9 — 18 novembre 2026
-
-Sur le Mac Apple Silicon de préparation : **143 tests Rust et 207 tests Python
-réussis, aucun échec ni test ignoré**, quatre vérifications de fichiers finaux
-(2D/3D, ordres 1/2), cinq calculs Cast3M et huit calculs CalculiX réussis.
-Les [preuves rc9](verification/quad_hex_20261118/README.md) donnent les tailles,
-comptages, temps de démonstration et nouveaux modèles. Les trois petits guides
-réentraînés restent désactivés, faute de gain de validation démontré. Le nouveau
-[pilote Cast3M](examples/cast3m_pilot/README.md) utilise des hexaèdres à 20 nœuds.
-
-## Présentation à l'équipe Cast3M — 10 novembre 2026
-
-[Note de présentation PDF](docs/cast3m/PROPOSITION_CAST3M.pdf) ·
-[Word modifiable](docs/cast3m/PROPOSITION_CAST3M.docx) ·
-[Source de la note](docs/cast3m/PROPOSITION_CAST3M.md) ·
-[Exemple de traction réexécutable](examples/cast3m_pilot/README.md).
-
-Cette proposition concerne la préparation, le contrôle et la traçabilité des
-maillages pour Cast3M. Aucun gain de vitesse du solveur Cast3M n'est revendiqué.
-Le démonstrateur a été réellement exécuté dans Cast3M 2026.0 : 43 comparaisons
-réussies sur une éprouvette élastique quadratique. Voir aussi les
-[preuves des cinq cas rc7](docs/cast3m/preuves/RAPPORT_CAST3M_RC7.md).
-
-La préparation initiale du 10 novembre conservait le code de calcul rc7. Le binaire Mac a été
-reconstruit avec remappage des chemins de compilation ; les rapports publics
-ont été expurgés des chemins personnels. Les archives vérifiées du 7 novembre
-restent inchangées. [Provenance de cette préparation](docs/provenance/README.md).
-
-Les essais GitHub ont ensuite révélé deux problèmes de sauvegarde sous Windows.
-Le [correctif de portabilité](docs/provenance/CORRECTIF_WINDOWS.md) décrit leur
-cause, les modifications et leur validation.
-
-Dépôt public : [ronanmaudet-sketch/mailleur](https://github.com/ronanmaudet-sketch/mailleur).
-Les commandes pour récupérer une copie et publier les mises à jour figurent
-dans [PUBLICATION_GITHUB.md](PUBLICATION_GITHUB.md).
-
-Application locale de préparation CAO et de maillage avec une **interface
-PySide6 en Python** et un **noyau numérique Rust**, qui pilote Gmsh/OpenCASCADE
-natifs. Python fournit aussi les commandes, la lecture des formats et l'API
-HTTP ; Rust assure les traitements numériques, la qualité et l'apprentissage.
-L'interface suit trois pages : Géométrie, Maillage et Export.
-
-## Prise en main et documentation rc7 — 7 novembre 2026
-
-Le [guide public d'utilisation et de développement](docs/UTILISATION_ET_DEVELOPPEMENT.md)
-est le point d'entrée de cette révision : installation, formats, API, architecture,
-entraînement, partage et méthode d'amélioration. Il est aussi disponible en
-[PDF](docs/livrables/Mailleur_Guide_public_rc7.pdf) et en
-[Word modifiable](docs/livrables/Mailleur_Guide_public_rc7.docx). La
-[liste détaillée des formats](docs/FORMATS.md), les
-[imports natifs et la passerelle SOLIDWORKS](docs/IMPORTS_NATIFS.md) et la
-[préparation d'une publication GitHub](docs/PUBLICATION.md) précisent les contrats.
-
-La rc6 ajoute des lecteurs de maillages et de 3MF Core, un transport d'assemblage
-`.cadpack`, des convertisseurs locaux configurables et des exports `nastran`,
-`lsdyna` et `ansys_structural`. Le catalogue de l'installation décrit les formats
-intégrés et conditionnels :
+Sur un bloc rectangulaire, le noyau construit la grille et place les nœuds d’ordre 2 directement. Il sait aussi traiter certaines plaques percées et des extrusions. Si une CAO importée exige un découpage en blocs qu’il ne sait pas faire, le parcours automatique signale cette limite. Pour lancer un premier calcul depuis le dossier installé :
 
 ```sh
-.venv/bin/python -m atelier doctor
-.venv/bin/python -m atelier formats --json
-.venv/bin/python -m atelier mesh examples/atelier_plate.json \
-  -o output/premier_maillage --formats msh,inp
+python -m atelier mesh examples/direct_hex.json -o output/bloc
 ```
 
-La rc7 corrige des défauts identifiés par une campagne élargie : champs INP,
-import IGES, erreurs de l'optimiseur quadratique et intégrité/reprise du corpus.
-Les [vérifications étendues](docs/VALIDATION_RC7.md) détaillent les résultats,
-les vrais calculs Cast3M/CalculiX, les installations neuves et les limites.
+Les mesures de la [rc9 par subdivision](https://github.com/ronanmaudet-sketch/mailleur/tree/v1.0.0-rc9) et les rapports Linux de la rc6 amont ci-dessous identifient leurs propres versions. Les capacités d’import et d’export de la version directe figurent dans son [guide des limites](docs/LIMITES.md). Le code du projet est distribué sous [GPLv3 ou ultérieure](LICENSE).
 
-Sur Windows, remplacer `.venv/bin/python` par `.venv\Scripts\python.exe`.
-Pour une première installation, voir plus bas les lanceurs et les versions
-de Python/Rust nécessaires.
 
-La cible d'échange **2020+** ne certifie pas tous les logiciels ni toutes leurs
-versions. Un format propriétaire demande son convertisseur et ses dépendances ;
-la passerelle SOLIDWORKS Windows reste **non validée sur une installation
-SOLIDWORKS réelle** lors de l'audit effectué sur Mac. Une relecture de fichier
-n'est pas une exécution du calcul dans le solveur cible. Les éléments et
-modèles physiques non pris en charge sont détaillés dans les guides.
+Application locale de préparation CAO et de maillage, avec une **interface de
+bureau PySide6 en Python** et un **noyau numérique natif en Rust**. Le noyau
+appelle Gmsh/OpenCASCADE par son interface C : les calculs de cette bibliothèque
+restent exécutés par ses composants natifs C/C++.
 
-Pour partager des poids sans copier le corpus ni les pièces, utiliser
-`python scripts/share_model.py --help`. Les guides sont expérimentaux et
-restent désactivés lorsqu'aucun gain de validation n'est démontré. Le guide
-interactif seul ne permet pas de reprendre une mémoire neuve : il lui faut
-également l'historique cohérent des observations déjà apprises.
+L'interface suit trois pages : **Géométrie**, **Maillage** et **Export**. Elle
+permet de préparer les unités, sélectionner des entités, régler le maillage
+local et choisir un profil d'export. Les anciens noms de modules Python servent
+à la compatibilité ou signalent les anciennes API retirées ; ils ne fournissent
+plus de moteur numérique alternatif.
 
-Le [guide général](docs/GUIDE_COMPLET_MAILLEUR.md),
-l'[inventaire des tailles](docs/TAILLES_ET_CAPACITES.md),
-la [documentation API](docs/API_UTILISATION.md) et le
-[guide de contribution](docs/CONTRIBUER.md) complètent ces documents.
+`rc6` désigne une version candidate. Les cas réellement vérifiés sont consignés
+dans les rapports de livraison ; la disponibilité d'une commande ne prouve pas
+que toutes les géométries défectueuses ou toutes les versions de solveurs ont
+été validées. Voir [les limites](docs/LIMITES.md) et
+[l'architecture](docs/ARCHITECTURE.md).
 
-Les [mesures Apple M3 du 4 novembre](docs/MESURES_M3.md) et leurs **163 tests
-Python / 111 tests Rust** décrivent la révision mesurée à cette date ; elles
-ne constituent pas une nouvelle campagne de validation des formats rc6.
-Les preuves Linux initiales et les campagnes plus récentes restent séparées.
+## Éléments directs et API de la rc6
 
-`rc8` désigne une version candidate. La disponibilité d'une commande ne prouve
-pas que toutes les géométries ou toutes les versions de solveurs ont été
-validées. Les préversions sont disponibles dans GitHub Releases. Le code propre
-au projet est distribué sous **GNU GPL version 3 ou toute version ultérieure**
-(`GPL-3.0-or-later`) selon le choix du titulaire ; voir [LICENSE](LICENSE).
+Les nouveaux projets utilisent l'**ordre 2** par défaut. Les quadrilatères,
+hexaèdres, prismes et pyramides peuvent être générés directement en Rust sur
+les blocs paramétriques compatibles, sans recombinaison et sans remplacement
+silencieux de la famille demandée. La portée actuelle comprend notamment les
+plaques simples, boîtes, quadrilatères convexes et une plaque à un trou
+circulaire avec grille en anneau. Elle ne fournit pas encore un découpage
+automatique de toutes les CAO complexes en blocs hexaédriques.
+
+Le [guide des évolutions rc6](docs/EVOLUTIONS_RC6.md) décrit les géométries,
+les divisions, les progressions de tailles et les variantes quadratiques.
+L'[API de scripts et de couplage solveurs](docs/API_ET_COUPLAGE_SOLVEURS.md)
+permet de générer et d'exporter un maillage, puis de piloter ses relances à
+partir des résultats du solveur choisi. Les échanges sont génériques ;
+les adaptateurs de calcul et le transfert des champs physiques doivent être
+validés avec le logiciel destinataire.
 
 ## Optimisations de la rc5
 
@@ -157,16 +60,18 @@ Sur une fixture JSONL de 33 010 cas synthétiques, l'entraînement passe de
 d'évaluation. L'index interactif mesuré passe de 13,35 à 4,38 Mo en conservant
 les mêmes données. Ces mesures ne préjugent pas des performances sur toutes
 les pièces ou sur un autre ordinateur.
-Le guide donne aussi les commandes pour reproduire les mesures. Les anciennes
-sources rc4 et les données brutes nécessaires sont dans l’archive complète
-externe ; elles ne sont pas incluses dans ce dépôt léger. La [notice des
-preuves externes](docs/provenance/PREUVES_EXTERNES.md) en précise le contenu
-et l’empreinte. Les copies publiques de rapports sont documentées dans
-la [provenance de publication](docs/provenance/README.md).
+Le guide donne aussi le protocole de comparaison avec les sources rc4
+incluses. Pour reproduire les chiffres rc4→rc5, exécuter ses commandes depuis
+la version rc5 conservée ; une exécution du code rc6 mesure la rc6. L'archive standard conserve toutes les fonctions
+du projet et ses preuves courantes ; les anciens historiques de calcul
+non référencés peuvent être ajoutés avec `--include-history` lors d'un nouvel
+empaquetage.
 
 La planification d'un million de cas reste une capacité configurable. Les
 mesures sur des enregistrements synthétiques ne signifient pas qu'un million
 de maillages a été calculé.
+
+Les [sources du pilote automatique rc10, ses 32 cas et son modèle entraîné](verification/direct_quad_hex/corpus/README.md) permettent de reproduire l’apprentissage et de partager le modèle.
 
 ## Corpus et responsabilités des programmes
 
@@ -188,6 +93,33 @@ dans les rapports de validation. Les informations spatiales et topologiques
 enrichissent la description du modèle ; elles ne transforment pas le réseau en
 mailleur autonome plaçant directement chaque nœud.
 
+## Vérifications exécutées sur la rc6
+
+La livraison du **19 novembre 2026** passe **195 tests Python et 139 tests
+Rust**, sans échec ni test ignoré, sous Linux. Les huit exemples de livraison
+ont été maillés à l'ordre 2 et leurs paquets d'export ont été produits.
+Le [rapport natif rc6](verification/native_release/summary.json) consigne les
+résultats réels, dont les contrôles de géométrie courbe des sphères et du
+STL quadratique.
+
+Le [pilote direct](verification/rc6/structured_corpus/summary.json) a calculé
+32 configurations, sur huit familles, et 96 stratégies acceptées. Le
+[pilote général](verification/corpus/summary.json) a traité 48 configurations,
+dont 46 ont produit un maillage et 45 une stratégie admissible. Ces petits
+pilotes sont distincts du million de cas planifiés, toujours non exécuté.
+
+Les trois conseillers ont des résultats différents. Le guide historique
+à huit entrées est activé **dans son domaine classique** après un gain de
+validation d'environ 0,02046 sur son petit jeu de 10 cas d'entraînement et
+six de validation. Ce résultat ne concerne pas les nouvelles grilles
+directes. Le réseau de mémoire v3 et les conseillers de corpus restent
+désactivés pour le classement, faute de gain validé ; la recherche et la
+mémoire exacte revalidée fonctionnent indépendamment de cette activation.
+
+La boucle API a été vérifiée avec de vrais maillages et des retours solveurs
+fictifs identifiés. Aucun calcul physique dans les solveurs externes, ni
+essai macOS/M3 ou Windows, n'est déduit de ces tests Linux.
+
 ## Vérifications exécutées sur la rc5
 
 La rc5 du **4 novembre 2026** a été vérifiée sous Linux avec **150 tests Python
@@ -207,18 +139,16 @@ La recherche continue a également été exécutée sur six géométries distinc
 dont une source STEP à deux volumes. Le réemploi revalidé et le refus d'un
 seuil impossible sans maillage public ont été contrôlés.
 
-Les réseaux ont été actualisés, mais **leur classement reste désactivé** : le
-pilote de corpus ne montre aucun gain de sélection sur la référence, et le
+Sur cette campagne rc5, les réseaux ont été actualisés, mais **leur classement
+reste désactivé** : le pilote de corpus ne montre aucun gain de sélection sur la référence, et le
 guide de mémoire ne démontre pas d'avantage de validation. La recherche des recettes et
 la mémoire exacte revalidée fonctionnent indépendamment de cette activation.
-Ces résultats initiaux étaient limités à Linux. Les nouveaux tests sur Apple
-M3 sont consignés dans [MESURES_M3.md](docs/MESURES_M3.md) ; Windows et les
-calculs dans les solveurs externes restent à vérifier pour cette révision.
+Les tests sur macOS, Windows et dans les solveurs externes restent à effectuer.
 
 Consulter les [résultats détaillés](docs/VALIDATION.md), le
-[rapport natif](verification/native_release/summary.json) et le
-[rapport d'apprentissage continu (archive complète)](docs/provenance/PREUVES_EXTERNES.md),
-ainsi que le [rapport du corpus (archive complète)](docs/provenance/PREUVES_EXTERNES.md).
+[rapport natif rc5 conservé](verification/native_release/summary_rc5.json) et le
+[rapport d'apprentissage continu rc5](verification/continuous_learning/summary_rc5.json),
+ainsi que le [rapport du corpus rc5](verification/corpus/summary_rc5.json).
 
 ## Installation et lancement
 
@@ -269,14 +199,8 @@ problème.
 ### 1. Géométrie
 
 Créer une pièce simple ou importer une géométrie prise en charge : STEP/STP,
-IGES/IGS, BREP, STL, OBJ, PLY, OFF, 3MF Core ou les formats de maillage du
-catalogue `atelier formats`. La rc6 extrait la peau des cellules volumiques et
-triangule les quadrilatères pris en charge. Une géométrie d'ordre supérieur
-est approchée par ses sommets principaux pour cette reconstruction, avec un
-avertissement explicite ; l'original est conservé. Les groupes et champs du
-maillage source ne sont pas réappliqués au nouveau maillage. Les formats
-propriétaires demandent une passerelle locale configurée.
-Définir l'unité d'entrée du modèle avant les transformations. Les paramètres de création comprennent les dimensions,
+IGES/IGS, BREP, STL ou une peau triangulée MSH/VTK classique/UNV selon le mode. Les maillages volumiques et les peaux quadrangulaires ne sont pas acceptés comme sources de reconstruction dans ces trois derniers formats. Définir l'unité d'entrée du modèle avant
+les transformations. Les paramètres de création comprennent les dimensions,
 les trous et, pour une plaque, les congés ou chanfreins du contour.
 
 Les congés et chanfreins natifs de plaque ne sont pas un modeleur général de
@@ -310,13 +234,13 @@ près. Ce coût de reconstruction est indiqué dans le rapport ; il ne s'agit
 pas encore d'un noyau persistant gardant toute la session CAO en mémoire.
 L'historique est borné à 32 reprises successives.
 
-Les résultats de calcul acceptés sont exclusivement quadrilatéraux en surface
-et hexaédriques en volume, après subdivision native et contrôles stricts. Les
-hexaèdres ne sont pas nécessairement des cubes réguliers. Une géométrie ou une
-qualité non admissible provoque un refus ; le remaillage local est actuellement
-refusé pour préserver les cellules hors sélection. Les contrôles de
-qualité portent sur le fichier réellement calculé et pas seulement sur son
-aperçu.
+Le choix explicite de la forme conserve la famille demandée. Le parcours
+classique produit des triangles et des tétraèdres ; les blocs compatibles
+peuvent produire directement quadrilatères, hexaèdres, prismes ou pyramides.
+La recombinaison est refusée. Une CAO incompatible avec les blocs directs
+est signalée, sans substitution par des triangles ou des tétraèdres.
+Les contrôles de qualité portent sur le fichier réellement calculé et pas
+seulement sur son aperçu. Voir le [périmètre des blocs directs](docs/EVOLUTIONS_RC6.md).
 
 ### 3. Export
 
@@ -464,10 +388,10 @@ n'est pas une application macOS signée/notariée ni un installeur Windows natif
 Une compilation correspondant au système est nécessaire si son binaire n'est
 pas fourni dans l'archive.
 
-La CI exécute les tests Rust et Python sur les trois systèmes avec Python 3.11
-et 3.12. Les [résultats de chaque révision](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain)
-sont consultables sur GitHub. Les rapports de livraison décrivent les cas de
-réparation, les unités, le remaillage partiel et les imports solveur vérifiés.
+La CI préparée teste Rust et Python sur les trois systèmes avec Python 3.11 et
+3.12. Sa présence ne signifie pas qu'elle a déjà été exécutée. Les résultats
+réellement obtenus, les cas de réparation, les unités, le remaillage partiel et
+les imports solveur sont consignés séparément dans les rapports de livraison.
 
 Consulter [LIMITES.md](docs/LIMITES.md), [VALIDATION.md](docs/VALIDATION.md),
 [FORMATS.md](docs/FORMATS.md) et [THIRD_PARTY.md](docs/THIRD_PARTY.md).

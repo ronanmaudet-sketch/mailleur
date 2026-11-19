@@ -38,7 +38,7 @@ def plate():
         "units": {"input": "mm", "internal": "m"},
         "geometry": {"kind": "plate", "width": 20, "height": 10,
                      "corner_radius": 1, "holes": [{"x": 10, "y": 5, "radius": 2}]},
-        "mesh": {"size": 2, "min_size": .5, "order": 1, "algorithm": "automatic",
+        "mesh": {"size": 2, "min_size": .5, "order": 1, "algorithm": "automatic", "element_shape": "triangle",
                  "threads": 1, "max_elements": 20000, "recombine": False},
         "repair": {"enabled": False},
     }
@@ -82,13 +82,6 @@ class NativeKernelIntegration(unittest.TestCase):
                         "Le rapport doit identifier le noyau Rust réellement utilisé")
         self.assertTrue((self.directory(result) / "mesh.msh").is_file())
         self.assertGreater(len(result["preview"]["points"]), 0)
-        self.assertEqual(report["element_policy"]["requested"], "quad_hex_only")
-        self.assertIs(report["element_policy"]["verified"], True)
-        restored = self.meshio.read(self.directory(result) / "mesh.msh")
-        allowed = {"vertex", "line", "line3", "quad", "quad8", "quad9"}
-        if report["dimension"] == 3:
-            allowed |= {"hexahedron", "hexahedron20", "hexahedron27"}
-        self.assertTrue(all(not len(block.data) or block.type in allowed for block in restored.cells))
 
     def test_generation_calls_rust_and_keeps_input_immutable(self):
         project = plate()
@@ -137,23 +130,41 @@ class NativeKernelIntegration(unittest.TestCase):
         self.assertEqual(set(tags), {selected})
         self.assertEqual(len(tags), len(result["preview"]["surface_triangles"]))
 
-    def test_local_remesh_refuses_to_change_the_existing_quad_mesh(self):
+    def test_local_surface_remesh_preserves_the_other_surfaces(self):
         project = plate()
         project["mode"] = "surface"
         project["geometry"] = {"kind": "box", "width": 20, "height": 12, "depth": 8}
         first = self.session.generate(project)
         faces = [entity for entity in first["report"]["entity_catalog"]
                  if entity.get("dimension", entity.get("dim")) == 2]
-        original_file = self.directory(first) / "mesh.msh"
-        original_bytes = original_file.read_bytes()
-        project["selection"] = {"scope": "entities", "dimension": 2, "tags": [faces[0]["tag"]]}
+        tag = faces[0]["tag"]
+        original = self.meshio.read(self.directory(first) / "mesh.msh")
+        project["selection"] = {"scope": "entities", "dimension": 2, "tags": [tag]}
         project["mesh"]["size"] = 1
         project["mesh"]["min_size"] = .25
-        with self.assertRaisesRegex(RuntimeError, "(?i)(local|préserv|conserv|régénér)"):
-            self.session.remesh(project, previous_directory=self.directory(first))
-        self.assertEqual(original_file.read_bytes(), original_bytes)
-        self.assertEqual(self.session.last_directory, self.directory(first))
-        self.assertFalse((self.session.last_attempt_directory / "mesh.msh").exists())
+        changed = self.session.remesh(project, previous_directory=self.directory(first))
+        remesh = changed["report"]["remesh"]
+        self.assertIs(remesh["unselected_elements_unchanged"], True)
+        updated = self.meshio.read(self.directory(changed) / "mesh.msh")
+
+        def signatures(mesh, excluded):
+            result = {}
+            tags = mesh.cell_data["gmsh:geometrical"]
+            for block, entity_tags in zip(mesh.cells, tags):
+                if not block.type.startswith(("triangle", "quad")):
+                    continue
+                for connectivity, entity in zip(block.data, entity_tags):
+                    entity = int(entity)
+                    if entity == excluded:
+                        continue
+                    vertices = tuple(sorted(tuple(round(float(x), 12) for x in mesh.points[index])
+                                            for index in connectivity))
+                    result.setdefault(entity, []).append((block.type, vertices))
+            return {key: sorted(value) for key, value in result.items()}
+
+        before = signatures(original, tag)
+        self.assertGreater(len(before), 0)
+        self.assertEqual(before, signatures(updated, tag))
 
     def test_invalid_entity_and_unit_are_rejected(self):
         project = plate()
@@ -168,6 +179,7 @@ class NativeKernelIntegration(unittest.TestCase):
     def test_three_dimensional_units_apply_to_every_axis(self):
         project = plate()
         project["mode"] = "volume"
+        project["mesh"]["element_shape"] = "tetrahedron"
         project["geometry"] = {"kind": "box", "width": 20, "height": 12, "depth": 8}
         box = self.session.generate(project)
         for axis, expected in enumerate((.02, .012, .008)):
@@ -186,6 +198,7 @@ class NativeKernelIntegration(unittest.TestCase):
     def test_periodic_volume_faces_have_actual_translated_node_pairs(self):
         project = plate()
         project["mode"] = "volume"
+        project["mesh"]["element_shape"] = "tetrahedron"
         project["geometry"] = {"kind": "box", "width": 20, "height": 12, "depth": 8}
         project["mesh"].update(size=4, min_size=1)
         inspected = self.session.inspect(project)
@@ -264,6 +277,7 @@ class NativeKernelIntegration(unittest.TestCase):
                 with self.subTest(source=source.name, work_unit=work_unit):
                     project = plate()
                     project["mode"] = "volume"
+                    project["mesh"]["element_shape"] = "tetrahedron"
                     project["geometry"] = {"kind": "import"}
                     project["units"]["input"] = work_unit
                     project["mesh"].update(size=.5 * physical_scale / unit_scale,
@@ -300,6 +314,7 @@ endsolid open_surface
     def test_all_export_formats_complete_without_crashing_the_interface_process(self):
         project = plate()
         project["mode"] = "volume"
+        project["mesh"]["element_shape"] = "tetrahedron"
         project["geometry"] = {"kind": "box", "width": 20, "height": 12, "depth": 8}
         native = self.session.generate(project)
         destination = self.root / "all_formats.zip"
@@ -317,8 +332,8 @@ print(json.dumps(result,allow_nan=False))
         self.assertEqual(process.returncode, 0, process.stderr[-3000:] or process.stdout[-3000:])
         report = json.loads(process.stdout.splitlines()[-1])
         self.assertIs(report["complete"], True)
-        from atelier.formats import FORMATS
-        self.assertEqual({row["format"] for row in report["results"]}, set(FORMATS))
+        self.assertEqual({row["format"] for row in report["results"]},
+                         {"msh", "med", "inp", "vtu", "unv", "ansys", "cast3m"})
         self.assertTrue(all(row["status"] == "ok" for row in report["results"]))
         with zipfile.ZipFile(destination) as archive:
             names = set(archive.namelist())
@@ -328,11 +343,14 @@ print(json.dumps(result,allow_nan=False))
     def test_training_and_advice_execute_in_rust_without_python_training_fallback(self):
         first = plate()
         second = plate()
-        second["name"] = "Plaque carrée à congés"
+        for project in (first, second):
+            project["mesh"]["element_shape"] = "quadrilateral"
+        first["geometry"]["corner_radius"] = 0
+        second["name"] = "Plaque carrée"
         second["geometry"] = {"kind": "plate", "width": 14, "height": 14,
-                              "corner_radius": 2, "holes": []}
+                              "corner_radius": 0, "holes": []}
         cases = [{"family": "qa_perforated", "project": first},
-                 {"family": "qa_rounded", "project": second}]
+                 {"family": "qa_rectangle", "project": second}]
         with patch("atelier.advisor.train_advisor", side_effect=AssertionError("Python training is forbidden here")), \
              patch("atelier.backend.run_project", side_effect=AssertionError("Python meshing is forbidden here")):
             trained = self.session.train(epochs=10, seed=42, cases=cases)

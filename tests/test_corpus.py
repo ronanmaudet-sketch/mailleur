@@ -116,14 +116,13 @@ class CorpusNativeIntegration(unittest.TestCase):
         for start in range(0, 96, 24):
             for row in self.preview(start=start, limit=24):
                 family, split = row["family"], row["split"]
-                self.assertEqual(row["project"]["mesh"]["element_policy"], "quad_hex_only")
                 self.assertIn(split, ("train", "validation", "test"))
                 self.assertEqual(families.setdefault(family, split), split)
                 observed_splits.add(split)
                 observed_modes.add(row["project"]["mode"])
         self.assertEqual(observed_splits, {"train", "validation", "test"})
-        self.assertEqual(observed_modes, {"planar", "surface", "volume"})
-        self.assertGreaterEqual(len(families), 15)
+        self.assertEqual(observed_modes, {"planar", "volume"})
+        self.assertEqual(len(families), 6)
 
     def test_bounded_real_batch_resumes_without_duplicate_cases(self):
         self.plan(structured=24, random=0)
@@ -147,6 +146,17 @@ class CorpusNativeIntegration(unittest.TestCase):
                 self.assertLessEqual(action["target"], 1)
         self.assertFalse(list(self.corpus.rglob("mesh.msh")), "Raw mesh retention must be explicit")
 
+    def test_training_rejects_an_action_from_another_topology(self):
+        self.plan(structured=6, random=0)
+        self.session.corpus_run(self.corpus, limit=6)
+        shard = sorted((self.corpus / "shards").glob("*.jsonl"))[0]
+        rows = [json.loads(line) for line in shard.read_text(encoding="utf-8").splitlines()]
+        rows[0]["actions"][0]["mesh_settings"]["element_shape"] = "prism"
+        shard.write_text("".join(json.dumps(row) + "\n" for row in rows))
+        with self.assertRaisesRegex(RuntimeError, "génération directe"):
+            self.session.corpus_train(self.corpus, epochs=1)
+        self.assertFalse((self.corpus / "models/current.json").exists())
+
     def test_partial_tail_after_interruption_is_recovered_before_next_case(self):
         self.plan(structured=24, random=0)
         self.session.corpus_run(corpus_dir=self.corpus, limit=1, max_seconds=30)
@@ -169,48 +179,36 @@ class CorpusNativeIntegration(unittest.TestCase):
         result = self.session.corpus_run(corpus_dir=self.corpus, limit=1, max_seconds=30)
         self.assertEqual(result["completed_cases"], before + 1)
 
-    def test_invalid_geometry_has_an_explicit_failure_label_not_an_accepted_mesh(self):
-        self.plan(structured=18, random=0)
-        self.session.corpus_run(corpus_dir=self.corpus, limit=18, max_seconds=30)
-        rows = self.records()
-        invalid = next(row for row in rows if row["index"] == 17)
-        self.assertTrue(invalid["expected_invalid"])
-        self.assertTrue(invalid["actions"])
-        for action in invalid["actions"]:
-            self.assertFalse(action["accepted"])
-            self.assertFalse(action["success"])
-            self.assertEqual(action["target"], 0)
-            self.assertEqual(action["failure_kind"], "invalid_geometry")
+    def test_mixed_historical_plans_cannot_start_new_batches(self):
+        for historical in ("general", "structured_direct"):
+            with self.subTest(profile=historical), self.assertRaisesRegex(RuntimeError, "historique"):
+                self.session.corpus_plan(self.corpus, structured=18, random=0, profile=historical)
 
-    def test_legacy_observations_are_preserved_but_excluded_from_strict_training(self):
+    def test_legacy_observations_are_reencoded_when_geometry_information_is_available(self):
         from tests.test_continuous import plate
         project = plate()
         first = self.session.learn(project, max_trials=1, epochs=3)
-        memory_path = self.session.workspace / "experience/memory.json"
+        memory_path = self.session.workspace / "experience_quad_hex/memory.json"
         memory = json.loads(memory_path.read_text(encoding="utf-8"))
         old_context = next(row for row in memory["contexts"]
                            if row["context_id"] == first["report"]["experience"]["context_id"])
         observation = old_context["observations"][0]
         observation["features"] = observation["features"][:16]
-        observation.pop("element_policy", None)
-        observation["recipe"]["mesh"].pop("element_policy", None)
-        observation["feature_schema"] = "atelier.geometry_action_features.v2"
         observation.pop("legacy_features", None)
         for entity in old_context.get("last_geometry_report", {}).get("entity_catalog", []):
             entity.pop("boundaries", None)
         memory_path.write_text(json.dumps(memory))
-        (self.session.workspace / "experience/model.json").unlink()
+        (self.session.workspace / "experience_quad_hex/model.json").unlink()
         changed = plate()
         changed["geometry"]["height"] = 12
         second = self.session.learn(changed, max_trials=1, epochs=3)
         migrated = second["report"]["experience"]["representation_migration"]
-        self.assertEqual(migrated["legacy_examples_reencoded"], 0)
-        self.assertGreaterEqual(migrated["legacy_examples_excluded_from_new_training"], 1)
+        self.assertGreaterEqual(migrated["legacy_examples_reencoded"], 1)
         updated = json.loads(memory_path.read_text(encoding="utf-8"))
         previous = next(row for row in updated["contexts"] if row["context_id"] == old_context["context_id"])
         row = previous["observations"][0]
-        self.assertEqual(len(row["features"]), 16)
-        self.assertNotIn("element_policy", row)
+        self.assertEqual(len(row["features"]), 128)
+        self.assertEqual(len(row["legacy_features"]), 16)
 
 
 class CorpusStreamingIntegration(unittest.TestCase):
@@ -228,12 +226,10 @@ class CorpusStreamingIntegration(unittest.TestCase):
             for index in range(training + validation + testing):
                 split = "train" if index < training else "validation" if index < training + validation else "test"
                 targets = (.2, .9) if split != "test" else (test_target, test_target)
-                record = {"schema": "atelier.corpus.case.v1", "index": index,
+                record = {"element_policy": "synthetic_benchmark", "schema": "atelier.corpus.case.v1", "index": index,
                           "case_id": f"fixture-{index}", "geometry_id": f"geometry-{index}",
                           "family": "fixture-" + split, "split": split,
-                          "feature_schema": "atelier.synthetic_training_benchmark.v1",
-                          "dataset_kind": "synthetic_network_benchmark",
-                          "element_policy": "not_applicable_no_mesh",
+                          "feature_schema": "test.corpus.two_inputs.v1",
                           "actions": [{"strategy_id": name, "features": features, "target": target,
                                        "success": True, "accepted": True}
                                       for name, features, target in zip(
@@ -293,8 +289,7 @@ class CorpusStreamingIntegration(unittest.TestCase):
     def test_family_leakage_is_rejected_before_training(self):
         self.fixture(self.corpus)
         path = self.corpus / "shards/cases-000000.jsonl"
-        path.write_text(path.read_text(encoding="utf-8").replace(
-            '"family":"fixture-validation"', '"family":"fixture-train"'), encoding="utf-8")
+        path.write_text(path.read_text(encoding="utf-8").replace('"family":"fixture-validation"', '"family":"fixture-train"'))
         with self.assertRaisesRegex(RuntimeError, "(?i)(fuite|famille|partition)"):
             self.train_direct(self.corpus)
 

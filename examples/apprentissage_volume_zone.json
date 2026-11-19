@@ -15,12 +15,12 @@
   "mesh": {
     "size": 1.0,
     "min_size": 0.2,
-    "order": 1,
-    "algorithm": "delaunay",
+    "order": 2,
+    "algorithm": "automatic",
     "recombine": false,
     "threads": 1,
     "max_elements": 100000,
-    "element_policy": "quad_hex_only"
+    "element_shape": "hexahedron"
   },
   "repair": {
     "enabled": false,

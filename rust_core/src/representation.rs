@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const INPUTS: usize = 128;
 pub const SCHEMA: &str = "atelier.geometry_action_features.v3";
-const DESCRIPTOR_SCHEMA: &str = "atelier.geometry_descriptor.v2";
+const DESCRIPTOR_SCHEMA: &str = "atelier.geometry_descriptor.v3";
 
 #[derive(Clone)]
 struct Entity {
@@ -333,6 +333,7 @@ pub fn descriptor(project: &Value, geometry_report: Option<&Value>) -> Value {
     let ps = analytic_points(project);
     let b = bounds(project, geometry_report, &es, &ps);
     let mut bins = [0.; 64];
+    let mut coarse = [0.; 8];
     for e in &es {
         let weight = match e.dim {
             0 => 0.2,
@@ -342,12 +343,15 @@ pub fn descriptor(project: &Value, geometry_report: Option<&Value>) -> Value {
         };
         for p in box_points(&e.bounds) {
             splat(&mut bins, [4, 4, 4], normal(p, &b), weight / 9.);
+            splat(&mut coarse, [2, 2, 2], normal(p, &b), weight / 9.);
         }
     }
     for (p, w) in &ps {
         splat(&mut bins, [4, 4, 4], normal(*p, &b), *w);
+        splat(&mut coarse, [2, 2, 2], normal(*p, &b), *w);
     }
     let spatial = bins.map(|v| v / (1. + v));
+    let coarse = coarse.map(|v| v / (1. + v));
     let mut nodes = Vec::new();
     let mut edges = BTreeSet::new();
     let mut counts = [0usize; 4];
@@ -406,7 +410,7 @@ pub fn descriptor(project: &Value, geometry_report: Option<&Value>) -> Value {
     topology[13] = if es.is_empty() { 0. } else { 1. };
     topology[14] = count(ps.len(), 64.);
     topology[15] = (n(g, "thickness", 0.) * f / diagonal).clamp(0., 1.);
-    json!({"schema":DESCRIPTOR_SCHEMA,"feature_schema":SCHEMA,"input_count":INPUTS,"bounds_internal":b,"boundary_spatial_signature":spatial.to_vec(),"topology_signature":topology.to_vec(),"entity_graph":{"nodes":nodes,"boundaries":edges.iter().map(|&(d,t,bd,bt)|json!({"from":[d,t],"to":[bd,bt]})).collect::<Vec<_>>(),"connected_components":components,"relation_source":if edges.is_empty(){"unavailable"}else{"native_cad_boundary"}},"reference_kind":if es.is_empty(){"parametric_geometry"}else{"cad_catalogue_and_parametric_geometry"},"spatial_method":"trilinear splats of CAD entity boxes and declared parametric boundaries, not exact volume occupancy","quality_or_target_mesh_used":false,"limitations":["Fixed spatial resolution 4x4x4; distinct geometries may still share a descriptor","The MLP uses graph summary statistics, not learned graph message passing"]})
+    json!({"schema":DESCRIPTOR_SCHEMA,"feature_schema":SCHEMA,"input_count":INPUTS,"bounds_internal":b,"boundary_spatial_signature":spatial.to_vec(),"coarse_spatial_signature":coarse.to_vec(),"multiscale_levels":[[2,2,2],[4,4,4]],"mlp_layout":{"global":[0,16],"coarse_spatial":[16,24],"fine_spatial_without_corners":[24,80],"protected_fields":[80,112],"topology":[112,120],"direct_controls":[120,128]},"topology_signature":topology.to_vec(),"entity_graph":{"nodes":nodes,"boundaries":edges.iter().map(|&(d,t,bd,bt)|json!({"from":[d,t],"to":[bd,bt]})).collect::<Vec<_>>(),"connected_components":components,"relation_source":if edges.is_empty(){"unavailable"}else{"native_cad_boundary"}},"reference_kind":if es.is_empty(){"parametric_geometry"}else{"cad_catalogue_and_parametric_geometry"},"spatial_method":"trilinear splats of CAD entity boxes and declared parametric boundaries, not exact volume occupancy","quality_or_target_mesh_used":false,"limitations":["Two fixed spatial scales 2x2x2 and 4x4x4; distinct geometries may still share a descriptor","The MLP uses graph summary statistics, not learned graph message passing"]})
 }
 
 /// Geometry, protected regions and candidate controls in a fixed schema.
@@ -464,8 +468,12 @@ pub fn features(
             original["correspondences"].as_array().map_or(0, Vec::len),
             4.,
         ),
-        if mesh["element_policy"] == crate::dataset_model::ELEMENT_POLICY { 1. } else { 0. },
-        if mesh["order"] == 2 { 1. } else { 0. },
+        if mesh["recombine"] == true { 1. } else { 0. },
+        if mesh["order"].as_u64().unwrap_or(2) == 2 {
+            1.
+        } else {
+            0.
+        },
         if original["repair"]["enabled"] == true {
             1.
         } else {
@@ -480,12 +488,47 @@ pub fn features(
         (n(mesh, "smoothing", 1.) / 100.).clamp(0., 1.),
         count(es.len(), 64.),
     ]);
-    for i in 0..64 {
-        v[16 + i] = d["boundary_spatial_signature"][i].as_f64().unwrap_or(0.);
+    for i in 0..8 {
+        v[16 + i] = d["coarse_spatial_signature"][i].as_f64().unwrap_or(0.);
     }
+    let mut fine_index = 24;
+    for i in 0..64 {
+        let [x, y, z] = [i % 4, (i / 4) % 4, i / 16];
+        // The eight exterior corners are represented by the coarse level.
+        // Keep the other 56 finer channels without increasing model size.
+        if [x, y, z].iter().all(|axis| *axis == 0 || *axis == 3) {
+            continue;
+        }
+        v[fine_index] = d["boundary_spatial_signature"][i].as_f64().unwrap_or(0.);
+        fine_index += 1;
+    }
+    debug_assert_eq!(fine_index, 80);
     v[80..112].copy_from_slice(&field_signature(candidate, &es, &b));
-    for i in 0..16 {
+    for i in 0..8 {
         v[112 + i] = d["topology_signature"][i].as_f64().unwrap_or(0.);
+    }
+    v[120] = match mesh["element_shape"].as_str().unwrap_or("automatic") {
+        "triangle" => 1. / 6.,
+        "quadrilateral" => 2. / 6.,
+        "tetrahedron" => 3. / 6.,
+        "hexahedron" => 4. / 6.,
+        "prism" => 5. / 6.,
+        "pyramid" => 1.,
+        _ => 0.,
+    };
+    v[121] = if mesh["quadratic_layout"] == "complete" {
+        1.
+    } else {
+        0.
+    };
+    for axis in 0..3 {
+        let divisions = mesh["structured"]["divisions"][axis].as_u64().unwrap_or(0);
+        v[122 + axis] = count(divisions.min(1_000_000) as usize, 32.);
+        let grading = mesh["structured"]["grading"][axis]
+            .as_f64()
+            .filter(|r| r.is_finite() && *r > 0.)
+            .unwrap_or(1.);
+        v[125 + axis] = grading.ln().clamp(-4., 4.) / 4.;
     }
     v
 }
@@ -585,5 +628,22 @@ mod tests {
             &features(&p, &a, Some(&report()))[80..112],
             &features(&p, &b, Some(&report()))[80..112]
         );
+    }
+    #[test]
+    fn multiscale_descriptor_and_direct_controls_have_explicit_v3_layout() {
+        let mut p = plate();
+        p["mesh"]["element_shape"] = json!("quadrilateral");
+        p["mesh"]["quadratic_layout"] = json!("serendipity");
+        p["mesh"]["structured"] = json!({"divisions":[4,6,1],"grading":[1.,1.3,1.]});
+        let d = descriptor(&p, None);
+        assert_eq!(d["multiscale_levels"], json!([[2, 2, 2], [4, 4, 4]]));
+        assert_eq!(d["coarse_spatial_signature"].as_array().unwrap().len(), 8);
+        let a = features(&p, &p, None);
+        let mut changed = p.clone();
+        changed["mesh"]["element_shape"] = json!("hexahedron");
+        changed["mesh"]["quadratic_layout"] = json!("complete");
+        changed["mesh"]["structured"]["divisions"][0] = json!(8);
+        assert_ne!(&a[120..128], &features(&p, &changed, None)[120..128]);
+        assert_eq!(a.len(), 128);
     }
 }
