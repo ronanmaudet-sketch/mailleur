@@ -4,6 +4,19 @@ Mailleur est un outil libre qui transforme une géométrie CAO en maillage pour
 le calcul par éléments finis. Il permet de contrôler la qualité du maillage et
 de l’exporter, notamment au format UNV avec un script d’import pour Cast3M.
 
+## Moteur de référence
+
+La suite de Mailleur prend pour base un générateur structuré en Rust qui construit
+directement les quadrilatères, les hexaèdres et leurs nœuds d’ordre 2. Le nom du
+projet et celui de l’application sont conservés.
+
+**État au 19 novembre 2026.** Le code distribué ici est la **rc9 par subdivision**.
+Le générateur direct doit encore être intégré et vérifié sur Mac. Les commandes,
+les maillages d’exemple, les temps et les essais Cast3M ci-dessous décrivent les
+versions indiquées. Les résultats du moteur direct seront publiés avec sa révision.
+
+## Essayer la version rc9
+
 [Télécharger Mailleur](https://github.com/ronanmaudet-sketch/mailleur/releases) ·
 [Essayer l’exemple Cast3M](examples/cast3m_pilot/README.md#tester-le-maillage-fourni-sans-installer-mailleur) ·
 [Installer Mailleur](#installation-et-lancement) ·
