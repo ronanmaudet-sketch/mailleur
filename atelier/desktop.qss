@@ -1,5 +1,5 @@
 QMainWindow { background: #f3f5f8; color: #25364b; }
-QWidget { font-family: "Segoe UI", "Helvetica Neue", sans-serif; font-size: 12px; color: #25364b; }
+QWidget { font-size: 12px; color: #25364b; }
 QFrame#appHeader { background: #182c43; border: 0; }
 QLabel#brand { color: #f4f8fd; font-size: 18px; letter-spacing: 1px; }
 QLabel#architectureBadge { color: #b8cce2; font-size: 10px; }
@@ -40,7 +40,7 @@ QTreeWidget::item:selected { background: #deecfa; color: #20659f; }
 QTreeWidget::item:hover { background: #edf3fa; }
 QTableWidget { background: white; border: 1px solid #d9e2ec; gridline-color: #e4eaf1; border-radius: 3px; }
 QHeaderView::section { background: #edf2f8; color: #68809a; border: 0; border-bottom: 1px solid #d5dfeb; padding: 6px; font-size: 10px; }
-QPlainTextEdit { background: #fafcfe; border: 1px solid #d6e0eb; border-radius: 4px; padding: 7px; font-family: monospace; font-size: 11px; }
+QPlainTextEdit { background: #fafcfe; border: 1px solid #d6e0eb; border-radius: 4px; padding: 7px; font-size: 11px; }
 QPlainTextEdit#calculationLog { background: #1c2c3e; color: #d0deeb; border: 0; border-radius: 0; padding: 12px; }
 QCheckBox { spacing: 7px; padding: 4px 0; }
 QCheckBox::indicator { width: 15px; height: 15px; border: 1px solid #b3c3d4; border-radius: 3px; background: white; }

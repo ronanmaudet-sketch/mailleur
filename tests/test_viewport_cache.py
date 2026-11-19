@@ -24,9 +24,9 @@ class ViewportCache(unittest.TestCase):
     def setUpClass(cls):
         if importlib.util.find_spec("PySide6") is None:
             raise unittest.SkipTest("PySide6 absent")
-        from PySide6.QtWidgets import QApplication
+        from tests import desktop_test_application
         from atelier.viewport import MeshViewport
-        cls.application = QApplication.instance() or QApplication([])
+        cls.application = desktop_test_application()
         cls.viewport_type = MeshViewport
 
     def setUp(self):

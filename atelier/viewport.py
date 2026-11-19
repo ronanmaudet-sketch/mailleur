@@ -251,11 +251,16 @@ class MeshViewport(QWidget):
             self._background, self._background_key = image, key
         return self._background
 
+    def _label_font(self, point_size: int) -> QFont:
+        font = self.font()
+        font.setPointSize(point_size)
+        return font
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.drawPixmap(0, 0, self._background_pixmap())
-        painter.setFont(QFont("Sans Serif", 10))
+        painter.setFont(self._label_font(10))
         painter.setPen(QColor("#53667a"))
         painter.drawText(22, 29, self.preview_label)
         if self.points:
@@ -265,17 +270,17 @@ class MeshViewport(QWidget):
                 painter.drawText(22, self.height() - 42, "Affichage allégé · le fichier exporté conserve tous les éléments")
         else:
             painter.setPen(QColor("#70849a"))
-            painter.setFont(QFont("Sans Serif", 17))
+            painter.setFont(self._label_font(17))
             painter.drawText(self.rect(), Qt.AlignCenter, "Importez une pièce ou ouvrez un exemple\npour commencer")
         self._draw_axes(painter)
-        painter.setFont(QFont("Sans Serif", 9))
+        painter.setFont(self._label_font(9))
         painter.setPen(QColor("#7b8b9b"))
         painter.drawText(22, self.height() - 20, "Glisser : tourner  ·  Maj + glisser : déplacer  ·  Molette : zoomer  ·  Clic : sélectionner une face")
         painter.end()
 
     def _draw_axes(self, painter):
         origin = QPointF(self.width() - 66, self.height() - 68)
-        painter.setFont(QFont("Sans Serif", 10))
+        painter.setFont(self._label_font(10))
         for point, name, color in (((1, 0, 0), "X", "#c25c59"), ((0, 1, 0), "Y", "#41956f"), ((0, 0, 1), "Z", "#397eb9")):
             x, y, _ = self._rotate(point)
             end = origin + QPointF(33 * x, -33 * y)

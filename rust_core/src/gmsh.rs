@@ -1337,24 +1337,6 @@ impl Gmsh {
             coords.chunks_exact(3).map(|p| [p[0], p[1], p[2]]).collect(),
         ))
     }
-    pub fn set_node(&self, tag: usize, coords: [f64; 3]) -> Result<(), String> {
-        if coords.iter().any(|value| !value.is_finite()) {
-            return Err("Coordonnées non finies".into());
-        }
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshModelMeshSetNode",
-            unsafe extern "C" fn(usize, *const f64, usize, *const f64, usize, *mut c_int),
-            tag,
-            coords.as_ptr(),
-            coords.len(),
-            ptr::null(),
-            0,
-            &mut ierr
-        );
-        self.check(ierr)
-    }
     pub fn elements(&self, dim: i32, tag: i32) -> Result<Vec<ElementBlock>, String> {
         let mut types = ptr::null_mut();
         let mut type_count = 0;
@@ -1557,97 +1539,6 @@ impl Gmsh {
             affine.len(),
             entities.as_ptr(),
             entities.len(),
-            &mut ierr
-        );
-        self.check(ierr)
-    }
-    pub fn geo_dilate(
-        &self,
-        entities: &[DimTag],
-        x: f64,
-        y: f64,
-        z: f64,
-        fx: f64,
-        fy: f64,
-        fz: f64,
-    ) -> Result<(), String> {
-        let entities = flattened(entities);
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshModelGeoDilate",
-            unsafe extern "C" fn(*const c_int, usize, f64, f64, f64, f64, f64, f64, *mut c_int),
-            entities.as_ptr(),
-            entities.len(),
-            x,
-            y,
-            z,
-            fx,
-            fy,
-            fz,
-            &mut ierr
-        );
-        self.check(ierr)
-    }
-    pub fn geo_translate(
-        &self,
-        entities: &[DimTag],
-        dx: f64,
-        dy: f64,
-        dz: f64,
-    ) -> Result<(), String> {
-        let entities = flattened(entities);
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshModelGeoTranslate",
-            unsafe extern "C" fn(*const c_int, usize, f64, f64, f64, *mut c_int),
-            entities.as_ptr(),
-            entities.len(),
-            dx,
-            dy,
-            dz,
-            &mut ierr
-        );
-        self.check(ierr)
-    }
-    pub fn geo_rotate(
-        &self,
-        entities: &[DimTag],
-        x: f64,
-        y: f64,
-        z: f64,
-        ax: f64,
-        ay: f64,
-        az: f64,
-        angle: f64,
-    ) -> Result<(), String> {
-        let entities = flattened(entities);
-        let mut ierr = 0;
-        invoke!(
-            self,
-            "gmshModelGeoRotate",
-            unsafe extern "C" fn(
-                *const c_int,
-                usize,
-                f64,
-                f64,
-                f64,
-                f64,
-                f64,
-                f64,
-                f64,
-                *mut c_int,
-            ),
-            entities.as_ptr(),
-            entities.len(),
-            x,
-            y,
-            z,
-            ax,
-            ay,
-            az,
-            angle,
             &mut ierr
         );
         self.check(ierr)

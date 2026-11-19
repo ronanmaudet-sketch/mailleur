@@ -2,6 +2,7 @@
   "schema": "atelier.public_build.v1",
   "version": "mailleur-core 1.0.0-rc.9",
   "date": "2026-11-18",
+  "source_commit": "8da5d7825e316af6b12a2e2c212871ecc9e97807",
   "source": "Sources du dépôt public, politique quad_hex_only rc9",
   "changes": [
     "Subdivision native stricte quadrilatères/hexaèdres et contrôle des connectivités finales",

@@ -333,9 +333,10 @@ pub fn analyze_preview(preview: &Value) -> Result<Value,String> {
     }))
 }
 
+#[cfg(test)]
 /// Scale a preview's coordinates and bounds atomically after full validation.
 /// Connectivity is unchanged; physical metrics must be recomputed afterwards.
-pub fn scale_mesh_json(document: &mut Value, factor: f64) -> Result<(),String> {
+fn scale_mesh_json(document: &mut Value, factor: f64) -> Result<(),String> {
     if !factor.is_finite() || factor <= 0.0 { return Err("Facteur d'échelle fini strictement positif attendu".to_string()); }
     let points = parse_points(document)?;
     let scale_point = |p: Point| -> Result<Value,String> {

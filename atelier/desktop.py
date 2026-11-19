@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QIcon
+from PySide6.QtGui import QAction, QColor, QFontDatabase, QIcon
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
     QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
@@ -78,7 +78,17 @@ class AtelierWindow(QMainWindow):
         self.setMinimumSize(1080, 720)
         self._build()
         style = Path(__file__).with_name("desktop.qss")
-        if style.is_file(): self.setStyleSheet(style.read_text(encoding="utf-8"))
+        if style.is_file():
+            fixed = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
+            families = QFontDatabase.families()
+            if fixed.family() not in families:
+                for family in ("Menlo", "Consolas", "DejaVu Sans Mono"):
+                    if family in families:
+                        fixed.setFamily(family)
+                        break
+            for editor in self.findChildren(QPlainTextEdit):
+                editor.setFont(fixed)
+            self.setStyleSheet(style.read_text(encoding="utf-8"))
         self.load_project(self.project)
 
     def _build(self):

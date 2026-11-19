@@ -26,6 +26,9 @@ couvrent macOS, Ubuntu et Windows avec Python 3.11 et 3.12. Les résultats de
 chaque version sont consultables dans [GitHub Actions](https://github.com/ronanmaudet-sketch/mailleur/actions/workflows/tests.yml?query=branch%3Amain).
 Le [détail des corrections rc8](docs/CORRECTIONS_RC8.md) décrit les changements et les vérifications.
 
+[Résultats sur Mac, performances et limites](docs/RESULTATS_MAILLEUR.md) ·
+[Inventaire des géométries d’entraînement, de validation et de test](docs/GEOMETRIES_ENTRAINEMENT_RC9.md)
+
 ## Vérifications rc9 — 18 novembre 2026
 
 Sur le Mac Apple Silicon de préparation : **143 tests Rust et 207 tests Python

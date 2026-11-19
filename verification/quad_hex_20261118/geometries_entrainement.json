@@ -1,0 +1,3271 @@
+{
+  "release": "1.0.0rc9",
+  "source_commit": "8da5d7825e316af6b12a2e2c212871ecc9e97807",
+  "campaign_date": "2026-11-18",
+  "core_sha256": "537eb405731ed53efc43ff07a52a20004ba5e19d7aa9d8c176937fafca3ddfd2",
+  "model_file_sha256": {
+    "historique": "ade8a18a748364868986bac793c0cfd09b214dc862f8cf0b3adbe6bbdf006713",
+    "experience": "f3f7072cff809682ed23838cc6ab276ee32a3a4e36866329a3ab9413273344db",
+    "corpus": "67b7bc782e4ed3cf6ab83808c40695079fd56c8ebf9cf3d6506aa67f4d66bd5f"
+  },
+  "units": {
+    "input_geometry": "mm",
+    "recorded_time": "s"
+  },
+  "guide": {
+    "raw_report_sha256": "d6c34d216bb610f4e80c3b3c786280c8c233e5f984eecb16c43fda71d00a7adb",
+    "epochs": 12,
+    "seed": 42,
+    "cases": [
+      {
+        "family": "plate_plain",
+        "split": "train",
+        "project": {
+          "geometry": {
+            "chamfer": 0.0,
+            "corner_radius": 0.0,
+            "height": 2.0,
+            "holes": [],
+            "kind": "plate",
+            "width": 4.0
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "max_elements": 5000,
+            "min_size": 0.2,
+            "order": 1,
+            "recombine": false,
+            "size": 0.65,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "Démonstration quadrilatères",
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "actions": [
+          {
+            "algorithm": "automatic",
+            "success": true,
+            "seconds": 0.038945541,
+            "reward": 0.6597384895782386,
+            "algorithms": {
+              "surface": 2,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 372,
+              "segment": 56
+            },
+            "minimum_quality": 0.592617773991153
+          },
+          {
+            "algorithm": "delaunay",
+            "success": true,
+            "seconds": 0.005789791,
+            "reward": 0.6597384895782386,
+            "algorithms": {
+              "surface": 5,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 372,
+              "segment": 56
+            },
+            "minimum_quality": 0.592617773991153
+          },
+          {
+            "algorithm": "frontal",
+            "success": true,
+            "seconds": 0.005457584,
+            "reward": 0.68688444358041,
+            "algorithms": {
+              "surface": 6,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 336,
+              "segment": 56
+            },
+            "minimum_quality": 0.594869646556518
+          }
+        ]
+      },
+      {
+        "family": "plate_round",
+        "split": "validation",
+        "project": {
+          "geometry": {
+            "chamfer": 0.0,
+            "corner_radius": 0.3,
+            "height": 3.0,
+            "holes": [],
+            "kind": "plate",
+            "width": 3.0
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "max_elements": 5000,
+            "min_size": 0.2,
+            "order": 1,
+            "recombine": false,
+            "size": 0.65,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "Démonstration quadrilatères",
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "actions": [
+          {
+            "algorithm": "automatic",
+            "success": true,
+            "seconds": 0.010842583,
+            "reward": 0.6353954303730532,
+            "algorithms": {
+              "surface": 2,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 666,
+              "segment": 80
+            },
+            "minimum_quality": 0.5514578901989176
+          },
+          {
+            "algorithm": "delaunay",
+            "success": true,
+            "seconds": 0.010427916,
+            "reward": 0.6353954303730532,
+            "algorithms": {
+              "surface": 5,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 666,
+              "segment": 80
+            },
+            "minimum_quality": 0.5514578901989176
+          },
+          {
+            "algorithm": "frontal",
+            "success": true,
+            "seconds": 0.010574125,
+            "reward": 0.6489544116410981,
+            "algorithms": {
+              "surface": 6,
+              "volume": null
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 564,
+              "segment": 80
+            },
+            "minimum_quality": 0.533600247448989
+          }
+        ]
+      },
+      {
+        "family": "box_long",
+        "split": "validation",
+        "project": {
+          "geometry": {
+            "depth": 1.0,
+            "height": 1.0,
+            "kind": "box",
+            "width": 2.0
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "max_elements": 5000,
+            "min_size": 0.2,
+            "order": 1,
+            "recombine": false,
+            "size": 0.65,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "Démonstration quadrilatères",
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "actions": [
+          {
+            "algorithm": "automatic",
+            "success": false,
+            "seconds": 0.014318083,
+            "error": "La subdivision quadrilatères/hexaèdres produirait 5096 éléments, au-delà de la limite 5000 ; résultat refusé avant subdivision",
+            "reward": 0.0
+          },
+          {
+            "algorithm": "delaunay",
+            "success": false,
+            "seconds": 0.014333834,
+            "error": "La subdivision quadrilatères/hexaèdres produirait 5096 éléments, au-delà de la limite 5000 ; résultat refusé avant subdivision",
+            "reward": 0.0
+          },
+          {
+            "algorithm": "frontal",
+            "success": false,
+            "seconds": 0.020652667,
+            "error": "La subdivision quadrilatères/hexaèdres produirait 5872 éléments, au-delà de la limite 5000 ; résultat refusé avant subdivision",
+            "reward": 0.0
+          }
+        ]
+      },
+      {
+        "family": "box_wide",
+        "split": "train",
+        "project": {
+          "geometry": {
+            "depth": 1.0,
+            "height": 2.0,
+            "kind": "box",
+            "width": 2.0
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "max_elements": 5000,
+            "min_size": 0.2,
+            "order": 1,
+            "recombine": false,
+            "size": 0.65,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "Démonstration quadrilatères",
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "actions": [
+          {
+            "algorithm": "automatic",
+            "success": true,
+            "seconds": 0.05025075,
+            "reward": 0.3631211196102377,
+            "algorithms": {
+              "surface": 2,
+              "volume": 1
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 3840,
+              "quadrilateral": 1584,
+              "segment": 144
+            },
+            "minimum_quality": 0.18606113672212912
+          },
+          {
+            "algorithm": "delaunay",
+            "success": true,
+            "seconds": 0.049586292,
+            "reward": 0.3631211196102377,
+            "algorithms": {
+              "surface": 5,
+              "volume": 1
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 3840,
+              "quadrilateral": 1584,
+              "segment": 144
+            },
+            "minimum_quality": 0.18606113672212912
+          },
+          {
+            "algorithm": "frontal",
+            "success": true,
+            "seconds": 0.055739583,
+            "reward": 0.3521699426132101,
+            "algorithms": {
+              "surface": 6,
+              "volume": 4
+            },
+            "accepted": true,
+            "cell_counts": {
+              "hexahedron": 3976,
+              "quadrilateral": 1524,
+              "segment": 144
+            },
+            "minimum_quality": 0.17549209335937402
+          }
+        ]
+      }
+    ],
+    "evaluation": {
+      "baseline_algorithm": "frontal",
+      "training_cases": 2,
+      "validation_cases": 2,
+      "successful_actions": 9,
+      "failed_actions": 3,
+      "validation_guide_reward": 0.32447720582054906,
+      "validation_fixed_reward": 0.32447720582054906,
+      "improvement": 0.0,
+      "deploy_enabled": false
+    }
+  },
+  "experience": {
+    "max_trials_per_case": 2,
+    "requested_epochs_per_update": 8,
+    "seed": 42,
+    "cases": [
+      {
+        "split": "train",
+        "project": {
+          "schema_version": 1,
+          "name": "Démonstration quadrilatères",
+          "mode": "planar",
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          },
+          "geometry": {
+            "kind": "plate",
+            "width": 4,
+            "height": 2
+          },
+          "mesh": {
+            "size": 0.65,
+            "min_size": 0.2,
+            "order": 1,
+            "threads": 1,
+            "max_elements": 10000,
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "recombine": false
+          },
+          "repair": {
+            "enabled": false,
+            "tolerance": 1e-07,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "make_solids": false
+          },
+          "quality_policy": {
+            "minimum_quality": 0.05,
+            "poor_threshold": 0.2,
+            "strict": true
+          }
+        },
+        "raw_report_sha256": "46db0ef10e3c2965c2db5d48490c22bede6c7d66e0f5f3525a1e2a8569f47565",
+        "actions": [
+          {
+            "action_id": "automatic:size:1",
+            "algorithm": "automatic",
+            "size": 0.65,
+            "success": true,
+            "accepted": true,
+            "elements": 372,
+            "score": 0.7958430937469432,
+            "seconds": 0.0056815
+          },
+          {
+            "action_id": "delaunay:size:1",
+            "algorithm": "delaunay",
+            "size": 0.65,
+            "success": true,
+            "accepted": true,
+            "elements": 372,
+            "score": 0.7958430937469432,
+            "seconds": 0.005938709
+          }
+        ]
+      },
+      {
+        "split": "train",
+        "project": {
+          "schema_version": 1,
+          "name": "Démonstration quadrilatères",
+          "mode": "planar",
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          },
+          "geometry": {
+            "kind": "plate",
+            "width": 5,
+            "height": 2
+          },
+          "mesh": {
+            "size": 0.65,
+            "min_size": 0.2,
+            "order": 1,
+            "threads": 1,
+            "max_elements": 10000,
+            "algorithm": "automatic",
+            "element_policy": "quad_hex_only",
+            "recombine": false
+          },
+          "repair": {
+            "enabled": false,
+            "tolerance": 1e-07,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "make_solids": false
+          },
+          "quality_policy": {
+            "minimum_quality": 0.05,
+            "poor_threshold": 0.2,
+            "strict": true
+          }
+        },
+        "raw_report_sha256": "01637552fb476126269e2a3ddf0feb0c45dea8356a93ff886f91a4dc398b6985",
+        "actions": [
+          {
+            "action_id": "automatic:size:1",
+            "algorithm": "automatic",
+            "size": 0.65,
+            "success": true,
+            "accepted": true,
+            "elements": 306,
+            "score": 0.7531334526672753,
+            "seconds": 0.005276292
+          },
+          {
+            "action_id": "delaunay:size:1",
+            "algorithm": "delaunay",
+            "size": 0.65,
+            "success": true,
+            "accepted": true,
+            "elements": 306,
+            "score": 0.7531334526672753,
+            "seconds": 0.005071917
+          }
+        ]
+      }
+    ],
+    "evaluation": {
+      "geometry_context_groups": 2,
+      "training_examples": 4,
+      "validation_examples": 0,
+      "deploy_enabled": false,
+      "deployment_reason": "at_least_three_geometry_context_groups_required"
+    }
+  },
+  "corpus": {
+    "raw_shard_sha256": "fb1604570c439fc4c34c0865394a2dc1f182871889fddccd97ae69f57890cd75",
+    "raw_shard_bytes": 319034,
+    "plan": {
+      "structured": 24,
+      "random": 0,
+      "seed": 42,
+      "strategies": 2,
+      "shard_size": 24
+    },
+    "strategies": {
+      "automatic_base": {
+        "algorithm": "automatic",
+        "smoothing": 1
+      },
+      "delaunay_smoothed": {
+        "algorithm": "delaunay",
+        "smoothing": 5
+      }
+    },
+    "cases": [
+      {
+        "index": 0,
+        "family": "plate_hole_2d",
+        "split": "train",
+        "geometry_id": "501a6299e75b2e8de0d484147583b67d03fe572dce59542726d8418dd3b1edd6",
+        "case_id": "cfee30050099dcbcb85256ab0cbaf1410cdde1a7f4cfb7ff62c45da5002c015a",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.20739687055476533,
+              "dimension": 1,
+              "kind": "contact",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                5
+              ]
+            }
+          ],
+          "geometry": {
+            "height": 8.526315789473685,
+            "holes": [
+              {
+                "radius": 0.5336297640653358,
+                "x": 4.374952561669829,
+                "y": 4.2631578947368425
+              }
+            ],
+            "kind": "plate",
+            "width": 10.352941176470587
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.29074736842105264,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.3215789473684212,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "plate_hole_2d_0000000",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                3.1726755218216316,
+                5.1849217638691325,
+                0.0
+              ],
+              "radius": 1.4515532734274714,
+              "size": 0.7929473684210527
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.20739687055476533,
+          "dimension": 1,
+          "kind": "contact",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 984,
+            "seconds": 0.005402083,
+            "failure_kind": null,
+            "target": 0.761933289110809,
+            "quality": {
+              "minimum": 0.4993528082906109,
+              "mean": 0.7070914887454194,
+              "min_jacobian_determinant": 9.763444385426294e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 984,
+              "segment": 84
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 984,
+            "seconds": 0.009746958,
+            "failure_kind": null,
+            "target": 0.7692154300901355,
+            "quality": {
+              "minimum": 0.5119583267442961,
+              "mean": 0.7187597735561557,
+              "min_jacobian_determinant": 9.361508595381247e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 984,
+              "segment": 84
+            }
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "family": "plate_many_holes_2d",
+        "split": "train",
+        "geometry_id": "a686df45a69430f57e985fe73aea5ddc959be4c627f26719d43a268ed5a20950",
+        "case_id": "59a711ed60c709d064309d1e833c33c527b3b08b9e9c4e05572057914c862a5b",
+        "project": {
+          "geometry": {
+            "height": 6.0,
+            "holes": [
+              {
+                "radius": 0.31845030425963494,
+                "x": 1.1858823529411766,
+                "y": 3.0
+              },
+              {
+                "radius": 0.31845030425963494,
+                "x": 3.0494117647058823,
+                "y": 3.0
+              }
+            ],
+            "kind": "plate",
+            "width": 4.235294117647059
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.1444235294117647,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.6564705882352941,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "plate_many_holes_2d_0000001",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 1704,
+            "seconds": 0.00814975,
+            "failure_kind": null,
+            "target": 0.7685284973544029,
+            "quality": {
+              "minimum": 0.5068231103868022,
+              "mean": 0.7216052141278738,
+              "min_jacobian_determinant": 1.7790262282901517e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1704,
+              "segment": 124
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1704,
+            "seconds": 0.015597667,
+            "failure_kind": null,
+            "target": 0.7710464904809489,
+            "quality": {
+              "minimum": 0.5068231103868022,
+              "mean": 0.7299985245496939,
+              "min_jacobian_determinant": 1.785297101961697e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1704,
+              "segment": 124
+            }
+          }
+        ]
+      },
+      {
+        "index": 2,
+        "family": "plate_fillet_2d",
+        "split": "train",
+        "geometry_id": "2e9554781b159fc13385d8a81fa98ad8edd7dec710088161beddfa2f71fe140d",
+        "case_id": "e29bec5bbd4a6e4bc8c9acf381d4708cc32b9f18e4341ed6c61a4cfc0387711a",
+        "project": {
+          "geometry": {
+            "corner_radius": 0.6604462474645032,
+            "height": 6.315789473684211,
+            "kind": "plate",
+            "width": 5.176470588235294
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.17651764705882353,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.8023529411764706,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "plate_fillet_2d_0000002",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 972,
+            "seconds": 0.009039875,
+            "failure_kind": null,
+            "target": 0.7539534599370541,
+            "quality": {
+              "minimum": 0.45955993842950726,
+              "mean": 0.7202849280273395,
+              "min_jacobian_determinant": 7.088093311820132e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 972,
+              "segment": 100
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 972,
+            "seconds": 0.02240675,
+            "failure_kind": null,
+            "target": 0.7559661689966997,
+            "quality": {
+              "minimum": 0.45955993842950726,
+              "mean": 0.7269939582261581,
+              "min_jacobian_determinant": 6.998743490123967e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 972,
+              "segment": 100
+            }
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "family": "plate_chamfer_2d",
+        "split": "validation",
+        "geometry_id": "4190b0979900486c2147bff497e34274ea18481ffbaf520ab88d6583a8118380",
+        "case_id": "01c81cbab01ad09450cd677e93a176716cee6a8231062b86002517098818094b",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.09217638691322902,
+              "dimension": 1,
+              "kind": "interface",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                1
+              ]
+            }
+          ],
+          "geometry": {
+            "chamfer": 0.35934664246823955,
+            "height": 4.7368421052631575,
+            "kind": "plate",
+            "width": 5.176470588235294
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.16152631578947368,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.7342105263157894,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "plate_chamfer_2d_0000003",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.09217638691322902,
+          "dimension": 1,
+          "kind": "interface",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 450,
+            "seconds": 0.005187167,
+            "failure_kind": null,
+            "target": 0.7817971324593713,
+            "quality": {
+              "minimum": 0.558117690863784,
+              "mean": 0.7145394173341206,
+              "min_jacobian_determinant": 3.642924645119284e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 450,
+              "segment": 60
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 450,
+            "seconds": 0.010551,
+            "failure_kind": null,
+            "target": 0.7843132955326788,
+            "quality": {
+              "minimum": 0.558117690863784,
+              "mean": 0.7229266275784787,
+              "min_jacobian_determinant": 3.642924645119284e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 450,
+              "segment": 60
+            }
+          }
+        ]
+      },
+      {
+        "index": 4,
+        "family": "concave_l_2d",
+        "split": "train",
+        "geometry_id": "12c03505c127f2496ece90314b666ddc2ef3aa44c89c4e7d1aef94a89743bafd",
+        "case_id": "da54aaa85b7476c3016e5a816c0f607ac95de973aebe8ae2c9c12e2c3a7a4226",
+        "project": {
+          "geometry": {
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                6.117647058823529,
+                0.0
+              ],
+              [
+                6.117647058823529,
+                2.3684210526315788
+              ],
+              [
+                2.447058823529412,
+                2.3684210526315788
+              ],
+              [
+                2.447058823529412,
+                7.894736842105263
+              ],
+              [
+                0.0,
+                7.894736842105263
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.20861176470588233,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.948235294117647,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "concave_l_2d_0000004",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                4.045540796963947,
+                2.0270270270270268,
+                0.0
+              ],
+              "radius": 1.1608608321377332,
+              "size": 0.5689411764705882
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 360,
+            "seconds": 0.00570425,
+            "failure_kind": null,
+            "target": 0.7706867713122392,
+            "quality": {
+              "minimum": 0.5104570203379828,
+              "mean": 0.7251655507028142,
+              "min_jacobian_determinant": 3.4166916328620885e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 360,
+              "segment": 68
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 360,
+            "seconds": 0.011097167,
+            "failure_kind": null,
+            "target": 0.772081733370233,
+            "quality": {
+              "minimum": 0.5104570203379828,
+              "mean": 0.7298154242294609,
+              "min_jacobian_determinant": 3.4166916328620885e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 360,
+              "segment": 68
+            }
+          }
+        ]
+      },
+      {
+        "index": 5,
+        "family": "polygon_hole_2d",
+        "split": "test",
+        "geometry_id": "46dc5bcdf670bae4c243e83012f225c9292a658890ceb4e461d988b35c3db4bc",
+        "case_id": "dae16433db4cea4cb5e9c45fc3a164f6c8662d86872c5487d465c5f2a804a148",
+        "project": {
+          "geometry": {
+            "holes": [
+              [
+                [
+                  4.11764705882353,
+                  1.3263157894736841
+                ],
+                [
+                  4.11764705882353,
+                  2.463157894736842
+                ],
+                [
+                  7.647058823529412,
+                  2.463157894736842
+                ],
+                [
+                  7.647058823529412,
+                  1.3263157894736841
+                ]
+              ]
+            ],
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                11.764705882352942,
+                0.0
+              ],
+              [
+                11.764705882352942,
+                3.7894736842105265
+              ],
+              [
+                0.0,
+                3.7894736842105265
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.12922105263157896,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.5873684210526317,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "polygon_hole_2d_0000005",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 1008,
+            "seconds": 0.00868375,
+            "failure_kind": null,
+            "target": 0.7727403137663245,
+            "quality": {
+              "minimum": 0.5249262395148665,
+              "mean": 0.7175414730395483,
+              "min_jacobian_determinant": 2.830163138217934e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1008,
+              "segment": 144
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1008,
+            "seconds": 0.021739083,
+            "failure_kind": null,
+            "target": 0.7759741223578593,
+            "quality": {
+              "minimum": 0.5249262395148665,
+              "mean": 0.7283208350113315,
+              "min_jacobian_determinant": 2.828076579801153e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1008,
+              "segment": 144
+            }
+          }
+        ]
+      },
+      {
+        "index": 6,
+        "family": "thin_plate_volume",
+        "split": "train",
+        "geometry_id": "4f7214c2daa5b1495252b17c2dd6eb36f82c42c52853852e7e318526cfa81533",
+        "case_id": "a2513285c0bfa4a9af48add4ab6db74f3b6dd8db30b360209033c3e50b70626c",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.09985775248933143,
+              "dimension": 2,
+              "kind": "stress",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                1
+              ]
+            }
+          ],
+          "geometry": {
+            "height": 4.7368421052631575,
+            "kind": "plate",
+            "thickness": 0.21913793103448276,
+            "width": 8.941176470588236
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.16152631578947368,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.7342105263157894,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "thin_plate_volume_0000006",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "thin_wall",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.09985775248933143,
+          "dimension": 2,
+          "kind": "stress",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": false,
+            "elements": 2852,
+            "seconds": 0.032470875,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.004107381575203794,
+              "mean": 0.34181238177165774,
+              "min_jacobian_determinant": 4.656583156689738e-16,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 250 éléments sous la qualité minimale 0.3",
+                "Qualité minimale 0.004107 inférieure au seuil global 0.03"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 2852,
+              "quadrilateral": 1626,
+              "segment": 168
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": false,
+            "elements": 2792,
+            "seconds": 0.0462285,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.000205796351380876,
+              "mean": 0.3436712730583955,
+              "min_jacobian_determinant": 1.9618364011291372e-17,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 230 éléments sous la qualité minimale 0.3",
+                "Qualité minimale 0.000206 inférieure au seuil global 0.03"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 2792,
+              "quadrilateral": 1626,
+              "segment": 168
+            }
+          }
+        ]
+      },
+      {
+        "index": 7,
+        "family": "perforated_plate_volume",
+        "split": "train",
+        "geometry_id": "5b4036d3e8d27a762cf3c23dc32855bc5cc97bc9193b5e952530f89017f795f2",
+        "case_id": "ea4e2362a8cd9c1aa0d450a669075a6a6efe86b78b18f93344d5a619efc1d429",
+        "project": {
+          "geometry": {
+            "height": 7.894736842105263,
+            "holes": [
+              {
+                "radius": 0.4804900181488203,
+                "x": 4.412903225806452,
+                "y": 3.9473684210526314
+              }
+            ],
+            "kind": "plate",
+            "thickness": 2.608695652173913,
+            "width": 8.941176470588236
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.26921052631578946,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.2236842105263157,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "perforated_plate_volume_0000007",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 11548,
+            "seconds": 0.103214125,
+            "failure_kind": null,
+            "target": 0.44764163983211436,
+            "quality": {
+              "minimum": 0.1958456615373722,
+              "mean": 0.5291332063346373,
+              "min_jacobian_determinant": 4.238318921229376e-15,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 11548,
+              "quadrilateral": 3672,
+              "segment": 212
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 11472,
+            "seconds": 0.125066917,
+            "failure_kind": null,
+            "target": 0.400745313532983,
+            "quality": {
+              "minimum": 0.17846565611132328,
+              "mean": 0.5296488219619875,
+              "min_jacobian_determinant": 4.4232076336694875e-15,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 11472,
+              "quadrilateral": 3666,
+              "segment": 212
+            }
+          }
+        ]
+      },
+      {
+        "index": 8,
+        "family": "bracket_volume",
+        "split": "train",
+        "geometry_id": "8bda5b5688c1900a2640f0898241092548d2b27af608cb91ce435888709fd220",
+        "case_id": "1c8faae6a7860315e6f3a311f931e85d405eb41864797bfe78f421d01d046f56",
+        "project": {
+          "geometry": {
+            "depth": 3.652173913043478,
+            "height": 4.105263157894736,
+            "kind": "bracket",
+            "throughhole_radius": 0.24631578947368415,
+            "wall": 1.026315789473684,
+            "width": 5.176470588235294
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.13998947368421052,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.6363157894736842,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "bracket_volume_0000008",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                3.5066413662239095,
+                2.2745376955903267,
+                1.826086956521739
+              ],
+              "radius": 0.5587163029525032,
+              "size": 0.3817894736842105
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 9772,
+            "seconds": 0.082791167,
+            "failure_kind": null,
+            "target": 0.33946515445370673,
+            "quality": {
+              "minimum": 0.14613330744321382,
+              "mean": 0.5174366209225152,
+              "min_jacobian_determinant": 5.692073121909054e-16,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 9772,
+              "quadrilateral": 3690,
+              "segment": 264
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": false,
+            "accepted": false,
+            "seconds": 0.094949667,
+            "failure_kind": "meshing_failure",
+            "error": "Éléments inversés ou dégénérés détectés ; résultat non exporté (minSICN=-2.958380e-1, minDetJac=-2.158639e-15)",
+            "target": 0.0
+          }
+        ]
+      },
+      {
+        "index": 9,
+        "family": "sphere_surface",
+        "split": "train",
+        "geometry_id": "5516c83e7092d06e89486a7337474931838262e2437e84c032afba237d4b5723",
+        "case_id": "73eba502387b431a5855460ae12afaaae8a3d1f152d4ce9754587bece8a74e86",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.11982930298719774,
+              "dimension": 1,
+              "kind": "contact",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                1
+              ]
+            }
+          ],
+          "geometry": {
+            "kind": "sphere",
+            "radius": 4.141176470588235
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.29074736842105264,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.3215789473684212,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "surface",
+          "name": "sphere_surface_0000009",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.11982930298719774,
+          "dimension": 1,
+          "kind": "contact",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 996,
+            "seconds": 0.039692333,
+            "failure_kind": null,
+            "target": 0.7798911513669993,
+            "quality": {
+              "minimum": 0.5257407987454829,
+              "mean": 0.7405630391445152,
+              "min_jacobian_determinant": 1.3155739367908441e-08,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 996,
+              "segment": 20
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1008,
+            "seconds": 0.037339375,
+            "failure_kind": null,
+            "target": 0.7143685638029158,
+            "quality": {
+              "minimum": 0.3219287552475242,
+              "mean": 0.7259664574288622,
+              "min_jacobian_determinant": 7.778279140002769e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1008,
+              "segment": 20
+            }
+          }
+        ]
+      },
+      {
+        "index": 10,
+        "family": "box_surface",
+        "split": "validation",
+        "geometry_id": "2a348a92df4717b07e3f9bf32e2598e255458766e1cae119514cb9bc59d169df",
+        "case_id": "5ee527aaa9ff6448e988219260520672e3fa878d857c8e33b2bbc3e6baebaac5",
+        "project": {
+          "geometry": {
+            "depth": 3.1304347826086953,
+            "height": 3.1578947368421053,
+            "kind": "box",
+            "width": 10.352941176470587
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.1076842105263158,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.48947368421052634,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "surface",
+          "name": "box_surface_0000010",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 5454,
+            "seconds": 0.022177458,
+            "failure_kind": null,
+            "target": 0.7557525733148136,
+            "quality": {
+              "minimum": 0.47608083964969183,
+              "mean": 0.7097610713996866,
+              "min_jacobian_determinant": 1.5910917813018156e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 5454,
+              "segment": 288
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 5454,
+            "seconds": 0.049165084,
+            "failure_kind": null,
+            "target": 0.7596944740235427,
+            "quality": {
+              "minimum": 0.48133545007115747,
+              "mean": 0.7176461300073184,
+              "min_jacobian_determinant": 1.4993506481450214e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 5454,
+              "segment": 288
+            }
+          }
+        ]
+      },
+      {
+        "index": 11,
+        "family": "perforated_plate_surface",
+        "split": "test",
+        "geometry_id": "7a0ceacd528df6452ca57c2ac1dc6d1bebb7375ca1d23f5935275de5ecf8a761",
+        "case_id": "9f6b6aff5facdbba81943c29581af2affaab3d599b3d4e967247975a30a00843",
+        "project": {
+          "geometry": {
+            "corner_radius": 0.596842105263158,
+            "height": 8.526315789473685,
+            "holes": [
+              {
+                "radius": 0.7541379310344828,
+                "x": 4.622390891840608,
+                "y": 4.2631578947368425
+              }
+            ],
+            "kind": "plate",
+            "width": 9.882352941176471
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.29074736842105264,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.3215789473684212,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "surface",
+          "name": "perforated_plate_surface_0000011",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 2118,
+            "seconds": 0.0104665,
+            "failure_kind": null,
+            "target": 0.7509773542618781,
+            "quality": {
+              "minimum": 0.4564824214046102,
+              "mean": 0.7134420928016499,
+              "min_jacobian_determinant": 6.975519917108298e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 2118,
+              "segment": 140
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 2118,
+            "seconds": 0.020473,
+            "failure_kind": null,
+            "target": 0.7546328660413801,
+            "quality": {
+              "minimum": 0.4564824214046102,
+              "mean": 0.7256271320666572,
+              "min_jacobian_determinant": 6.724530398127876e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 2118,
+              "segment": 140
+            }
+          }
+        ]
+      },
+      {
+        "index": 12,
+        "family": "box_volume",
+        "split": "train",
+        "geometry_id": "2f641cd87e021e76521afa760c70bdcadd1476c8bf49d4c7e6a1a7e7660b38fe",
+        "case_id": "ed5fde626586582a2cc4ad4f12002d844eae7f1e8f4e5f6f1f8abfe71b1c9447",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.10302066772655008,
+              "dimension": 2,
+              "kind": "interface",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                1
+              ]
+            }
+          ],
+          "geometry": {
+            "depth": 2.608695652173913,
+            "height": 5.052631578947368,
+            "kind": "box",
+            "width": 4.235294117647059
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.1444235294117647,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.6564705882352941,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "box_volume_0000012",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                2.800759013282733,
+                3.072546230440967,
+                1.3043478260869565
+              ],
+              "radius": 0.5660832137733143,
+              "size": 0.39388235294117646
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.10302066772655008,
+          "dimension": 2,
+          "kind": "interface",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": false,
+            "elements": 5236,
+            "seconds": 0.039472042,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.18688931951686932,
+              "mean": 0.541012414012263,
+              "min_jacobian_determinant": 7.22796019181099e-14,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 10 éléments sous la qualité minimale 0.3"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 5236,
+              "quadrilateral": 1872,
+              "segment": 152
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": false,
+            "elements": 5220,
+            "seconds": 0.04912725,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.18441536870980463,
+              "mean": 0.5483383778239302,
+              "min_jacobian_determinant": 7.394532273295972e-14,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 11 éléments sous la qualité minimale 0.3"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 5220,
+              "quadrilateral": 1872,
+              "segment": 152
+            }
+          }
+        ]
+      },
+      {
+        "index": 13,
+        "family": "sphere_volume",
+        "split": "test",
+        "geometry_id": "70519798c749da1a1e6468b4ec38a878142885d4b232893650aafb4dee028f48",
+        "case_id": "6ff2fcd6b7c590c4132b9baa5606352270634c220a1f1a056a6ab44d01abb8d9",
+        "project": {
+          "geometry": {
+            "kind": "sphere",
+            "radius": 2.964705882352941
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.11845263157894736,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.5384210526315789,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "sphere_volume_0000013",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 14744,
+            "seconds": 0.190143584,
+            "failure_kind": null,
+            "target": 0.628912697078148,
+            "quality": {
+              "minimum": 0.20314540714786414,
+              "mean": 0.5598969164459623,
+              "min_jacobian_determinant": 3.155275605770175e-14,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 14744,
+              "quadrilateral": 3300,
+              "segment": 36
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 14624,
+            "seconds": 0.240338917,
+            "failure_kind": null,
+            "target": 0.6301055989352264,
+            "quality": {
+              "minimum": 0.2014584062860164,
+              "mean": 0.5655602568314048,
+              "min_jacobian_determinant": 4.831889514374205e-14,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 14624,
+              "quadrilateral": 3294,
+              "segment": 36
+            }
+          }
+        ]
+      },
+      {
+        "index": 14,
+        "family": "frame_2d",
+        "split": "train",
+        "geometry_id": "a576e8e5ae737bcd378c43edc0bf2bdac9e0beb6b853ef5306faa21b0f0656fd",
+        "case_id": "4fec3d4225b0f1f23ce254331f03f9855fdcbdf23cee0c949aa11150053e6682",
+        "project": {
+          "geometry": {
+            "holes": [
+              [
+                [
+                  0.47433756805807625,
+                  0.47433756805807625
+                ],
+                [
+                  0.47433756805807625,
+                  3.31513611615245
+                ],
+                [
+                  3.7609565495889825,
+                  3.31513611615245
+                ],
+                [
+                  3.7609565495889825,
+                  0.47433756805807625
+                ]
+              ]
+            ],
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                4.235294117647059,
+                0.0
+              ],
+              [
+                4.235294117647059,
+                3.7894736842105265
+              ],
+              [
+                0.0,
+                3.7894736842105265
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.12922105263157896,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.5873684210526317,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "frame_2d_0000014",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 288,
+            "seconds": 0.004944542,
+            "failure_kind": null,
+            "target": 0.7362578471072638,
+            "quality": {
+              "minimum": 0.5160980760568039,
+              "mean": 0.604761414300742,
+              "min_jacobian_determinant": 2.6158321767908195e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 288,
+              "segment": 104
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 288,
+            "seconds": 0.010841166,
+            "failure_kind": null,
+            "target": 0.7362578471072638,
+            "quality": {
+              "minimum": 0.5160980760568039,
+              "mean": 0.604761414300742,
+              "min_jacobian_determinant": 2.6158321767908195e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 288,
+              "segment": 104
+            }
+          }
+        ]
+      },
+      {
+        "index": 15,
+        "family": "slender_bracket_volume",
+        "split": "validation",
+        "geometry_id": "be561aa35fa3d8909825acce6963d5a083a81ecbd63132e78ab9045bfdb86ed1",
+        "case_id": "7bda096cca57cfc7f46fd519886939450f501d469f6d71b8e511e00a4f538e4b",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.06104928457869635,
+              "dimension": 2,
+              "kind": "stress",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                1
+              ]
+            }
+          ],
+          "geometry": {
+            "depth": 4.434782608695652,
+            "height": 7.578947368421053,
+            "kind": "bracket",
+            "wall": 0.3991886409736308,
+            "width": 4.705882352941177
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.16047058823529414,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.7294117647058824,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "slender_bracket_volume_0000015",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "thin_wall",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.06104928457869635,
+          "dimension": 2,
+          "kind": "stress",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": false,
+            "elements": 4048,
+            "seconds": 0.03671975,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.21360262347623443,
+              "mean": 0.5637090224722389,
+              "min_jacobian_determinant": 3.772008172725445e-14,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 25 éléments sous la qualité minimale 0.3"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 4048,
+              "quadrilateral": 2244,
+              "segment": 228
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": false,
+            "elements": 4072,
+            "seconds": 0.047882542,
+            "failure_kind": "quality_rejected",
+            "target": 0.0,
+            "quality": {
+              "minimum": 0.22338752635658804,
+              "mean": 0.5629163935591471,
+              "min_jacobian_determinant": 3.2879990395980895e-14,
+              "metric": "minSICN",
+              "violations": [
+                "Zone Zone synthétique contrôlée : 23 éléments sous la qualité minimale 0.3"
+              ]
+            },
+            "cell_counts": {
+              "hexahedron": 4072,
+              "quadrilateral": 2244,
+              "segment": 228
+            }
+          }
+        ]
+      },
+      {
+        "index": 16,
+        "family": "thin_box_surface",
+        "split": "train",
+        "geometry_id": "d26549fda8aeaf8c230528d3824e478c1230d0d8a71ae4aec5d281228b4e102d",
+        "case_id": "fd6d260c94bb5ca163b5aeb4d1f67d3e9f99256a8a01c90e3bbeedfded490dce",
+        "project": {
+          "geometry": {
+            "depth": 0.16620689655172416,
+            "height": 8.526315789473685,
+            "kind": "box",
+            "width": 6.588235294117647
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.22465882352941172,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.0211764705882351,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "surface",
+          "name": "thin_box_surface_0000016",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                2.3377609108159394,
+                4.2631578947368425,
+                0.0
+              ],
+              "radius": 1.5072596843615496,
+              "size": 0.6127058823529411
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "thin_surface_spacing",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 1440,
+            "seconds": 0.00772225,
+            "failure_kind": null,
+            "target": 0.32244364855732077,
+            "quality": {
+              "minimum": 0.17278155596347503,
+              "mean": 0.6458739419746358,
+              "min_jacobian_determinant": 3.258958755916129e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1440,
+              "segment": 136
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1440,
+            "seconds": 0.013733875,
+            "failure_kind": null,
+            "target": 0.32393992856013887,
+            "quality": {
+              "minimum": 0.17278155596347503,
+              "mean": 0.6508615419840295,
+              "min_jacobian_determinant": 3.258958755916129e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1440,
+              "segment": 136
+            }
+          }
+        ]
+      },
+      {
+        "index": 17,
+        "family": "invalid_polygon_defect_2d",
+        "split": "train",
+        "geometry_id": "a2b02b3a9cbc58b80b7081bdce48e89efcecc0b859dfc1aa0f990eb9e57a82ff",
+        "case_id": "d2f65de401fa1a6943c2ceb461749dc47a576b1e1cd8d4d32cd3c84a765a115b",
+        "project": {
+          "geometry": {
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                8.470588235294118,
+                3.7894736842105265
+              ],
+              [
+                8.470588235294118,
+                0.0
+              ],
+              [
+                0.0,
+                3.7894736842105265
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.12922105263157896,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.5873684210526317,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "invalid_polygon_defect_2d_0000017",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "self_intersection",
+        "expected_invalid": true,
+        "backend_evaluations": 1,
+        "reference_inspection_success": false,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": false,
+            "accepted": false,
+            "seconds": 6.25e-07,
+            "failure_kind": "invalid_geometry",
+            "error": "Contour auto-intersecté ou se touchant",
+            "target": 0.0
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": false,
+            "accepted": false,
+            "seconds": 2.5e-07,
+            "failure_kind": "invalid_geometry",
+            "error": "Contour auto-intersecté ou se touchant",
+            "target": 0.0
+          }
+        ]
+      },
+      {
+        "index": 18,
+        "family": "near_touching_holes_2d",
+        "split": "train",
+        "geometry_id": "8db850c3d6cbf5f7146e813a9465e362f9f5039bb54b589b6b616b566e6a57e6",
+        "case_id": "dce5b1f14ec85db84ed27404d5034580e59320e9a8d1d043cc1a688300ad80f3",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.08415362731152204,
+              "dimension": 1,
+              "kind": "contact",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                5
+              ]
+            }
+          ],
+          "geometry": {
+            "height": 5.368421052631579,
+            "holes": [
+              {
+                "radius": 0.8052631578947368,
+                "x": 3.169329401088929,
+                "y": 2.6842105263157894
+              },
+              {
+                "radius": 0.8052631578947368,
+                "x": 4.8306705989110705,
+                "y": 2.6842105263157894
+              }
+            ],
+            "kind": "plate",
+            "width": 8.0
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.18306315789473684,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.8321052631578947,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "near_touching_holes_2d_0000018",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "narrow_gap",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.08415362731152204,
+          "dimension": 1,
+          "kind": "contact",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": false,
+            "accepted": false,
+            "seconds": 0.006657458,
+            "failure_kind": "meshing_failure",
+            "error": "Éléments inversés ou dégénérés détectés ; résultat non exporté (minSICN=-1.977548e-2, minDetJac=-6.929476e-11)",
+            "target": 0.0
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": false,
+            "accepted": false,
+            "seconds": 0.011789333,
+            "failure_kind": "meshing_failure",
+            "error": "Éléments inversés ou dégénérés détectés ; résultat non exporté (minSICN=-1.977548e-2, minDetJac=-6.929476e-11)",
+            "target": 0.0
+          }
+        ]
+      },
+      {
+        "index": 19,
+        "family": "tiny_edge_polygon_2d",
+        "split": "validation",
+        "geometry_id": "31a1b670251df216401bb69fcf0c173794d8a287ad02ec1ce8283a321b0cb953",
+        "case_id": "2a0a13e4f6ae3a29063714c4c8e71bf432b527bee4da58e422161d5e2734ca13",
+        "project": {
+          "geometry": {
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                7.9783448275862066,
+                0.0
+              ],
+              [
+                8.0,
+                0.021655172413793104
+              ],
+              [
+                8.0,
+                3.473684210526316
+              ],
+              [
+                0.0,
+                3.473684210526316
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.11845263157894736,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.5384210526315789,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "tiny_edge_polygon_2d_0000019",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "tiny_edge",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 771,
+            "seconds": 0.005931791,
+            "failure_kind": null,
+            "target": 0.45502882281111723,
+            "quality": {
+              "minimum": 0.10597937321519113,
+              "mean": 0.7067424229477918,
+              "min_jacobian_determinant": 1.8375959043954985e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 771,
+              "segment": 90
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 771,
+            "seconds": 0.014475208,
+            "failure_kind": null,
+            "target": 0.45641628049685745,
+            "quality": {
+              "minimum": 0.10597937321519113,
+              "mean": 0.7113672819002592,
+              "min_jacobian_determinant": 1.8375959043954985e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 771,
+              "segment": 90
+            }
+          }
+        ]
+      },
+      {
+        "index": 20,
+        "family": "stepped_polygon_2d",
+        "split": "train",
+        "geometry_id": "64bef73d559310f420bbf9f30f094ae478142989336bd14b2c481018c5e2f6cb",
+        "case_id": "7c80209d42284172acbf0fa742a1d615adf722f517afdf86f1bd88aae951990e",
+        "project": {
+          "geometry": {
+            "kind": "polygon",
+            "outer": [
+              [
+                0.0,
+                0.0
+              ],
+              [
+                6.588235294117647,
+                0.0
+              ],
+              [
+                6.588235294117647,
+                2.2736842105263158
+              ],
+              [
+                4.6117647058823525,
+                2.2736842105263158
+              ],
+              [
+                4.6117647058823525,
+                4.926315789473684
+              ],
+              [
+                2.635294117647059,
+                4.926315789473684
+              ],
+              [
+                2.635294117647059,
+                7.578947368421053
+              ],
+              [
+                0.0,
+                7.578947368421053
+              ]
+            ]
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.22465882352941172,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 1.0211764705882351,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "stepped_polygon_2d_0000020",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "refinement_regions": [
+            {
+              "center": [
+                3.612903225806451,
+                2.150782361308677,
+                0.0
+              ],
+              "radius": 1.346571018651363,
+              "size": 0.6127058823529411
+            }
+          ],
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 447,
+            "seconds": 0.006374125,
+            "failure_kind": null,
+            "target": 0.7708680420683383,
+            "quality": {
+              "minimum": 0.5053391435751308,
+              "mean": 0.7308876633193304,
+              "min_jacobian_determinant": 3.5908220698882327e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 447,
+              "segment": 66
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 447,
+            "seconds": 0.012442583,
+            "failure_kind": null,
+            "target": 0.7825590093422059,
+            "quality": {
+              "minimum": 0.5343419220144703,
+              "mean": 0.7408547757928832,
+              "min_jacobian_determinant": 3.52886306812738e-09,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 447,
+              "segment": 66
+            }
+          }
+        ]
+      },
+      {
+        "index": 21,
+        "family": "high_curvature_plate_2d",
+        "split": "test",
+        "geometry_id": "cd01a82ed63aeae5eaffa514188c6683797c2afc396b2dbd43c05319207ac214",
+        "case_id": "af850e2dd311ba87faf0623dea53d34ceabe5a89a808903585a44979f53fba41",
+        "project": {
+          "critical_zones": [
+            {
+              "buffer": 0.1246422893481717,
+              "dimension": 1,
+              "kind": "interface",
+              "minimum_quality": 0.3,
+              "name": "Zone synthétique contrôlée",
+              "tags": [
+                9
+              ]
+            }
+          ],
+          "geometry": {
+            "corner_radius": 0.10141987829614606,
+            "height": 7.894736842105263,
+            "holes": [
+              {
+                "radius": 0.3594320486815416,
+                "x": 1.9582542694497154,
+                "y": 3.9473684210526314
+              }
+            ],
+            "kind": "plate",
+            "width": 4.705882352941177
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.16047058823529414,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.7294117647058824,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "planar",
+          "name": "high_curvature_plate_2d_0000021",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "small_radius",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "critical_zone_template": {
+          "buffer": 0.1246422893481717,
+          "dimension": 1,
+          "kind": "interface",
+          "minimum_quality": 0.3,
+          "selector": "first",
+          "source": "synthetic_marking_without_mechanical_solution"
+        },
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 1737,
+            "seconds": 0.008574834,
+            "failure_kind": null,
+            "target": 0.7117574322829789,
+            "quality": {
+              "minimum": 0.3326928089224802,
+              "mean": 0.7064986320207833,
+              "min_jacobian_determinant": 1.1914438349379727e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1737,
+              "segment": 142
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1737,
+            "seconds": 0.017165125,
+            "failure_kind": null,
+            "target": 0.7152096519056435,
+            "quality": {
+              "minimum": 0.3326928089224802,
+              "mean": 0.7180060307629977,
+              "min_jacobian_determinant": 1.1914438349379727e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1737,
+              "segment": 142
+            }
+          }
+        ]
+      },
+      {
+        "index": 22,
+        "family": "multiple_holes_volume",
+        "split": "train",
+        "geometry_id": "a1711e8f76b35285495aee78e019a8c3141be69fe6e04b9aca0e9f880a51b7cd",
+        "case_id": "8a2450c0979242e3ee4d3dcdb59085879a978c6c4603f9f398be6a87373b40c1",
+        "project": {
+          "geometry": {
+            "height": 5.684210526315789,
+            "holes": [
+              {
+                "radius": 0.20419056261343013,
+                "x": 2.235294117647059,
+                "y": 1.7052631578947368
+              },
+              {
+                "radius": 0.20419056261343013,
+                "x": 6.705882352941177,
+                "y": 1.7052631578947368
+              },
+              {
+                "radius": 0.20419056261343013,
+                "x": 2.235294117647059,
+                "y": 3.978947368421052
+              },
+              {
+                "radius": 0.20419056261343013,
+                "x": 6.705882352941177,
+                "y": 3.978947368421052
+              }
+            ],
+            "kind": "plate",
+            "thickness": 4.173913043478261,
+            "width": 8.941176470588236
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.1938315789473684,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.8810526315789473,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "volume",
+          "name": "multiple_holes_volume_0000022",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": false,
+            "accepted": false,
+            "seconds": 0.232082708,
+            "failure_kind": "budget_exceeded",
+            "error": "La subdivision quadrilatères/hexaèdres produirait 94296 éléments, au-delà de la limite 50000 ; résultat refusé avant subdivision",
+            "target": 0.0
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": false,
+            "accepted": false,
+            "seconds": 0.266675084,
+            "failure_kind": "budget_exceeded",
+            "error": "La subdivision quadrilatères/hexaèdres produirait 90684 éléments, au-delà de la limite 50000 ; résultat refusé avant subdivision",
+            "target": 0.0
+          }
+        ]
+      },
+      {
+        "index": 23,
+        "family": "thin_plate_surface",
+        "split": "train",
+        "geometry_id": "7945d99800e4a26d06e5e9b368e4bc557f5746d3ea53ba0f3dac8b6707634e46",
+        "case_id": "431258d96c324896e165055e239b191cb1ed6d8eecd2a60e9a68699f74529198",
+        "project": {
+          "geometry": {
+            "chamfer": 0.18,
+            "height": 6.0,
+            "holes": [
+              {
+                "radius": 0.443896551724138,
+                "x": 2.898823529411765,
+                "y": 3.0
+              },
+              {
+                "radius": 0.443896551724138,
+                "x": 7.454117647058823,
+                "y": 3.0
+              }
+            ],
+            "kind": "plate",
+            "width": 10.352941176470587
+          },
+          "mesh": {
+            "algorithm": "automatic",
+            "curvature_elements": 16,
+            "element_policy": "quad_hex_only",
+            "max_elements": 50000,
+            "min_size": 0.20459999999999998,
+            "optimize": true,
+            "order": 1,
+            "recombine": false,
+            "size": 0.9299999999999999,
+            "smoothing": 1,
+            "threads": 1
+          },
+          "mode": "surface",
+          "name": "thin_plate_surface_0000023",
+          "quality_policy": {
+            "minimum_quality": 0.03,
+            "poor_threshold": 0.2,
+            "strict": false
+          },
+          "repair": {
+            "enabled": false,
+            "make_solids": false,
+            "sew": true,
+            "small_edges": true,
+            "small_faces": false,
+            "tolerance": 1e-07
+          },
+          "schema_version": 1,
+          "units": {
+            "input": "mm",
+            "internal": "m"
+          }
+        },
+        "defect": "none",
+        "expected_invalid": false,
+        "backend_evaluations": 3,
+        "reference_inspection_success": true,
+        "actions": [
+          {
+            "strategy_id": "automatic_base",
+            "success": true,
+            "accepted": true,
+            "elements": 1896,
+            "seconds": 0.009420417,
+            "failure_kind": null,
+            "target": 0.7318680786426204,
+            "quality": {
+              "minimum": 0.3862389003055741,
+              "mean": 0.7199880285031605,
+              "min_jacobian_determinant": 4.075911343303729e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1896,
+              "segment": 136
+            }
+          },
+          {
+            "strategy_id": "delaunay_smoothed",
+            "success": true,
+            "accepted": true,
+            "elements": 1896,
+            "seconds": 0.018937334,
+            "failure_kind": null,
+            "target": 0.7355501449055177,
+            "quality": {
+              "minimum": 0.3862389003055741,
+              "mean": 0.7322615827128184,
+              "min_jacobian_determinant": 4.075911343303729e-10,
+              "metric": "minSICN",
+              "violations": []
+            },
+            "cell_counts": {
+              "hexahedron": 0,
+              "quadrilateral": 1896,
+              "segment": 136
+            }
+          }
+        ]
+      }
+    ],
+    "evaluation": {
+      "epochs_completed": 3,
+      "batch_size": 16,
+      "training": {
+        "baseline_accepted_rate": 0.6875,
+        "baseline_reward": 0.44897109873392926,
+        "cases": 16,
+        "examples": 32,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.11147042906648005,
+        "model_reward": 0.44897109873392926,
+        "oracle_reward": 0.45085091865662275,
+        "selected_accepted_rate": 0.6875
+      },
+      "validation": {
+        "baseline_accepted_rate": 0.75,
+        "baseline_reward": 0.49814463214632554,
+        "cases": 4,
+        "examples": 8,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.10683722298783967,
+        "model_reward": 0.49814463214632554,
+        "oracle_reward": 0.5001060125132697,
+        "selected_accepted_rate": 0.75
+      },
+      "test": {
+        "baseline_accepted_rate": 1.0,
+        "baseline_reward": 0.7160969493473324,
+        "cases": 4,
+        "examples": 8,
+        "missing_baseline_cases": 0,
+        "model_mse": 0.076721968746718,
+        "model_reward": 0.7160969493473324,
+        "oracle_reward": 0.7189805598100273,
+        "selected_accepted_rate": 1.0
+      },
+      "test_used_for_gradients": false,
+      "test_used_for_weight_selection": false,
+      "validation_selection_improvement": 0.0,
+      "deploy_enabled": false
+    }
+  }
+}

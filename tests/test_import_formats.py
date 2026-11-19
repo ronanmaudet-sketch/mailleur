@@ -175,6 +175,7 @@ class ImportNativeIntegration(unittest.TestCase):
 
     def test_standard_surface_and_volume_formats_really_remesh_without_modifying_source(self):
         import meshio
+        import numpy as np
         cases = [("obj", ".obj", "triangle"), ("ply", ".ply", "triangle"), ("off", ".off", "triangle"),
                  ("vtu", ".vtu", "tetra"), ("vtk", ".vtk", "tetra"), ("abaqus", ".inp", "tetra"),
                  ("med", ".med", "tetra"), ("nastran", ".bdf", "tetra"), ("gmsh22", ".msh", "tetra"),
@@ -182,9 +183,14 @@ class ImportNativeIntegration(unittest.TestCase):
         for reader, extension, kind in cases:
             with self.subTest(reader=reader):
                 source = self.root / ("tetra" + extension)
-                cells = TRIANGLES if kind == "triangle" else [[0,1,2,3]]
+                cells = np.asarray(TRIANGLES if kind == "triangle" else [[0,1,2,3]], dtype=np.int32)
+                cell_data = {}
+                if reader == "gmsh22":
+                    # The fixture is a single tetrahedral volume in physical group 1.
+                    cell_data = {"gmsh:physical": [[1]], "gmsh:geometrical": [[1]]}
                 kwargs = {"binary": False} if reader == "gmsh22" else {}
-                meshio.write(source, meshio.Mesh(POINTS, [(kind, cells)]), file_format=reader, **kwargs)
+                mesh = meshio.Mesh(POINTS, [(kind, cells)], cell_data=cell_data)
+                meshio.write(source, mesh, file_format=reader, **kwargs)
                 digest = hashlib.sha256(source.read_bytes()).hexdigest()
                 result = self.session.generate(imported_project(), source)
                 self.assertTrue(result["report"]["quality"]["accepted"])

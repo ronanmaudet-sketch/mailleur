@@ -1,0 +1,520 @@
+{
+  "core_sha256": "537eb405731ed53efc43ff07a52a20004ba5e19d7aa9d8c176937fafca3ddfd2",
+  "python": "3.12.16",
+  "machine": "arm64",
+  "macOS": "27.2.1",
+  "gmsh": "4.15.2",
+  "meshio": "5.3.5",
+  "fresh_python": [
+    {
+      "name": "QUA4",
+      "seconds": 0.171834542,
+      "counts": {
+        "line": 56,
+        "quad": 372
+      },
+      "nodes": 401,
+      "minimum_quality": 0.592617773991153
+    },
+    {
+      "name": "QUA8",
+      "seconds": 0.060159709000000006,
+      "counts": {
+        "line3": 56,
+        "quad8": 372
+      },
+      "nodes": 1173,
+      "minimum_quality": 0.5926177739911459
+    },
+    {
+      "name": "HEX8",
+      "seconds": 0.144342625,
+      "counts": {
+        "line": 152,
+        "quad": 1902,
+        "hexahedron": 5096
+      },
+      "nodes": 6503,
+      "minimum_quality": 0.1951490299424823
+    },
+    {
+      "name": "HEX20",
+      "seconds": 0.42667641700000003,
+      "counts": {
+        "line3": 152,
+        "quad8": 1902,
+        "hexahedron20": 5096
+      },
+      "nodes": 24148,
+      "minimum_quality": 0.19514902994247793
+    }
+  ],
+  "warmup": [
+    {
+      "name": "QUA4",
+      "seconds": 0.05179116600000001,
+      "counts": {
+        "line": 56,
+        "quad": 372
+      },
+      "nodes": 401,
+      "minimum_quality": 0.592617773991153
+    },
+    {
+      "name": "QUA8",
+      "seconds": 0.05852425000000001,
+      "counts": {
+        "line3": 56,
+        "quad8": 372
+      },
+      "nodes": 1173,
+      "minimum_quality": 0.5926177739911459
+    },
+    {
+      "name": "HEX8",
+      "seconds": 0.133954917,
+      "counts": {
+        "line": 152,
+        "quad": 1902,
+        "hexahedron": 5096
+      },
+      "nodes": 6503,
+      "minimum_quality": 0.1951490299424823
+    },
+    {
+      "name": "HEX20",
+      "seconds": 0.426210666,
+      "counts": {
+        "line3": 152,
+        "quad8": 1902,
+        "hexahedron20": 5096
+      },
+      "nodes": 24148,
+      "minimum_quality": 0.19514902994247793
+    }
+  ],
+  "rounds": [
+    [
+      {
+        "name": "QUA4",
+        "seconds": 0.051995834000000005,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.058421084000000005,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.133838792,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.42463412500000003,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      }
+    ],
+    [
+      {
+        "name": "QUA8",
+        "seconds": 0.059228958000000005,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.133416167,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.42430741600000005,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.051312125,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      }
+    ],
+    [
+      {
+        "name": "HEX8",
+        "seconds": 0.13743887500000002,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.424218625,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.053124458000000006,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.058905125,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      }
+    ],
+    [
+      {
+        "name": "HEX20",
+        "seconds": 0.42407704100000004,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.051563209000000006,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.058824291,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.13336329200000002,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      }
+    ],
+    [
+      {
+        "name": "QUA4",
+        "seconds": 0.050412375,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.058510291000000006,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.133318417,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.507325667,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      }
+    ],
+    [
+      {
+        "name": "QUA8",
+        "seconds": 0.058810084000000006,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.13368691600000002,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.42680270800000003,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.053814667000000004,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      }
+    ],
+    [
+      {
+        "name": "HEX8",
+        "seconds": 0.133455875,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      },
+      {
+        "name": "HEX20",
+        "seconds": 0.508425333,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.08601720800000001,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.09434837500000001,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      }
+    ],
+    [
+      {
+        "name": "HEX20",
+        "seconds": 0.587000583,
+        "counts": {
+          "line3": 152,
+          "quad8": 1902,
+          "hexahedron20": 5096
+        },
+        "nodes": 24148,
+        "minimum_quality": 0.19514902994247793
+      },
+      {
+        "name": "QUA4",
+        "seconds": 0.145372209,
+        "counts": {
+          "line": 56,
+          "quad": 372
+        },
+        "nodes": 401,
+        "minimum_quality": 0.592617773991153
+      },
+      {
+        "name": "QUA8",
+        "seconds": 0.092462375,
+        "counts": {
+          "line3": 56,
+          "quad8": 372
+        },
+        "nodes": 1173,
+        "minimum_quality": 0.5926177739911459
+      },
+      {
+        "name": "HEX8",
+        "seconds": 0.176070167,
+        "counts": {
+          "line": 152,
+          "quad": 1902,
+          "hexahedron": 5096
+        },
+        "nodes": 6503,
+        "minimum_quality": 0.1951490299424823
+      }
+    ]
+  ],
+  "summary": [
+    {
+      "name": "QUA4",
+      "fresh": 0.171834542,
+      "median": 0.052560146,
+      "min": 0.050412375,
+      "max": 0.145372209,
+      "durations": [
+        0.051995834000000005,
+        0.051312125,
+        0.053124458000000006,
+        0.051563209000000006,
+        0.050412375,
+        0.053814667000000004,
+        0.08601720800000001,
+        0.145372209
+      ]
+    },
+    {
+      "name": "QUA8",
+      "fresh": 0.060159709000000006,
+      "median": 0.058864708,
+      "min": 0.058421084000000005,
+      "max": 0.09434837500000001,
+      "durations": [
+        0.058421084000000005,
+        0.059228958000000005,
+        0.058905125,
+        0.058824291,
+        0.058510291000000006,
+        0.058810084000000006,
+        0.09434837500000001,
+        0.092462375
+      ]
+    },
+    {
+      "name": "HEX8",
+      "fresh": 0.144342625,
+      "median": 0.13357139550000002,
+      "min": 0.133318417,
+      "max": 0.176070167,
+      "durations": [
+        0.133838792,
+        0.133416167,
+        0.13743887500000002,
+        0.13336329200000002,
+        0.133318417,
+        0.13368691600000002,
+        0.133455875,
+        0.176070167
+      ]
+    },
+    {
+      "name": "HEX20",
+      "fresh": 0.42667641700000003,
+      "median": 0.42571841650000003,
+      "min": 0.42407704100000004,
+      "max": 0.587000583,
+      "durations": [
+        0.42463412500000003,
+        0.42430741600000005,
+        0.424218625,
+        0.42407704100000004,
+        0.507325667,
+        0.42680270800000003,
+        0.508425333,
+        0.587000583
+      ]
+    }
+  ]
+}

@@ -35,11 +35,11 @@ class DesktopWorkflow(unittest.TestCase):
         if importlib.util.find_spec("PySide6") is None or importlib.util.find_spec("atelier.desktop") is None:
             raise unittest.SkipTest("Installer PySide6 et les modules d'interface avant cette vérification")
         try:
-            from PySide6.QtWidgets import QApplication
+            from tests import desktop_test_application
             from atelier.desktop import AtelierWindow
         except (ImportError, OSError) as error:
             raise unittest.SkipTest(f"Dépendance d'interface absente : {error}") from error
-        cls.application = QApplication.instance() or QApplication([])
+        cls.application = desktop_test_application()
         cls.window_type = AtelierWindow
 
     def setUp(self):
