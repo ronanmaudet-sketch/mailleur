@@ -1,0 +1,63 @@
+name: Publier Mailleur 1.0.0-rc10
+on: create
+permissions: {}
+concurrency: publish-mailleur-rc10
+jobs:
+  release:
+    if: github.ref == 'refs/heads/publication/v1.0.0-rc10'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: v1.0.0-rc10
+      RELEASE_SHA: e006d5a9df27738048bb8d1363ffbac43f5e7975
+      ARCHIVE: Mailleur-1.0.0-rc10.zip
+      CI_RUN: '44593299005'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+          persist-credentials: false
+      - name: Vérifier la révision et ses contrôles
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .head_sha)" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$RELEASE_SHA"
+          sha256sum --strict -c MANIFEST_PUBLIC.sha256
+      - name: Préparer l'archive vérifiée
+        run: |
+          git archive --format=zip --prefix=Mailleur-1.0.0-rc10/ --output="$ARCHIVE" "$RELEASE_SHA"
+          unzip -tq "$ARCHIVE"
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+      - name: Publier la préversion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1
+          then
+            echo "Cette version existe déjà ; aucun fichier ne sera remplacé." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1
+          then
+            echo "Ce tag existe déjà ; aucun déplacement ne sera effectué." >&2
+            exit 1
+          fi
+          cat > notes.md <<'NOTES'
+          Mailleur utilise désormais le générateur structuré Rust du projet « Optimiser le mailleur ». Le choix automatique construit directement des quadrilatères en 2D et des hexaèdres en 3D, d’ordre 2 par défaut, sur les blocs géométriques pris en charge. Le noyau calcule leurs nœuds quadratiques dès la génération.
+
+          Sur un Mac M3, 213 tests Python et 140 tests Rust ont réussi. Le pilote d’apprentissage a maillé 32 configurations réparties en six familles. Dans Cast3M 2026.0, la traction sur le bloc de 16 HEX20 a passé 43 comparaisons. Les six essais GitHub sous Ubuntu, Windows et macOS Intel ont réussi avec Python 3.11 et 3.12.
+
+          Le ZIP des sources GPLv3 ou ultérieure inclut les scripts, les exemples paramétriques, le modèle du pilote et les relevés de vérification. La compilation du noyau nécessite Rust/Cargo. La génération automatique de blocs hexaédriques pour une CAO importée quelconque reste à développer.
+
+          - [Installer Mailleur](https://github.com/ronanmaudet-sketch/mailleur/blob/v1.0.0-rc10/README.md)
+          - [Mesures sur Mac et essai Cast3M](https://github.com/ronanmaudet-sketch/mailleur/tree/v1.0.0-rc10/verification/rc10)
+          - [Géométries et modèle entraîné](https://github.com/ronanmaudet-sketch/mailleur/tree/v1.0.0-rc10/verification/direct_quad_hex/corpus)
+          - [Vérifications GitHub](https://github.com/ronanmaudet-sketch/mailleur/actions/runs/44593299005)
+          NOTES
+          gh release create "$RELEASE_TAG" "$ARCHIVE" "$ARCHIVE.sha256" --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" --prerelease --latest=false --title "Mailleur 1.0.0-rc10 · Génération structurée directe" --notes-file notes.md
